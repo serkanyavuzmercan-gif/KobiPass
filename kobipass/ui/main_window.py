@@ -104,31 +104,29 @@ class MainWindow(QMainWindow):
 
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
+        toolbar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_open = QPushButton()
         self._btn_open.clicked.connect(self._open_vault)
-        toolbar.addWidget(self._btn_open)
+        toolbar.addWidget(self._btn_open, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_save = QPushButton()
         self._btn_save.setObjectName("primaryBtn")
         self._btn_save.clicked.connect(self._save_vault)
-        toolbar.addWidget(self._btn_save)
-
-        self._btn_lock = QPushButton()
-        self._btn_lock.clicked.connect(self._lock_vault)
-        toolbar.addWidget(self._btn_lock)
+        toolbar.addWidget(self._btn_save, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_users = QPushButton()
         self._btn_users.clicked.connect(self._manage_users)
-        toolbar.addWidget(self._btn_users)
+        toolbar.addWidget(self._btn_users, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_audit = QPushButton()
         self._btn_audit.clicked.connect(self._show_audit)
-        toolbar.addWidget(self._btn_audit)
+        toolbar.addWidget(self._btn_audit, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_clear = QPushButton()
+        self._btn_clear.setObjectName("clearBtn")
         self._btn_clear.clicked.connect(self._clear_vault)
-        toolbar.addWidget(self._btn_clear)
+        toolbar.addWidget(self._btn_clear, 0, Qt.AlignmentFlag.AlignVCenter)
 
         toolbar.addStretch()
 
@@ -136,12 +134,12 @@ class MainWindow(QMainWindow):
         self._btn_lang.setObjectName("langBtn")
         self._btn_lang.setFixedWidth(50)
         self._btn_lang.clicked.connect(i18n.toggle)
-        toolbar.addWidget(self._btn_lang)
+        toolbar.addWidget(self._btn_lang, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_help = QPushButton()
         self._btn_help.setObjectName("helpBtn")
         self._btn_help.clicked.connect(self._show_help)
-        toolbar.addWidget(self._btn_help)
+        toolbar.addWidget(self._btn_help, 0, Qt.AlignmentFlag.AlignVCenter)
 
         root.addLayout(toolbar)
 
@@ -201,7 +199,6 @@ class MainWindow(QMainWindow):
         is_unlocked = self._session is not None
         is_admin = isinstance(self._session, AdminSession)
 
-        self._btn_lock.setEnabled(is_unlocked and self._current_path is not None)
         self._btn_users.setVisible(is_admin)
         self._btn_audit.setVisible(is_admin)
 
@@ -221,10 +218,7 @@ class MainWindow(QMainWindow):
         for row in self._row_widgets:
             row.set_can_delete(can_delete)
             if perms:
-                for field_name in FIELD_NAMES:
-                    row.set_field_permission(
-                        field_name, perms.field_level(field_name)
-                    )
+                row.apply_permissions(perms)
 
         self._update_tab_order()
 
@@ -237,7 +231,6 @@ class MainWindow(QMainWindow):
     def _retranslate_ui(self) -> None:
         self._btn_open.setText(tr("btn_open"))
         self._btn_save.setText(tr("btn_save"))
-        self._btn_lock.setText(tr("btn_lock"))
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_clear.setText(tr("btn_clear"))
@@ -342,8 +335,6 @@ class MainWindow(QMainWindow):
         idx = self._entries_layout.indexOf(self._add_bar)
         self._entries_layout.insertWidget(idx, row)
         self._row_widgets.append(row)
-        if entry is None:
-            self._mark_dirty()
         self._apply_session_ui()
         self._update_tab_order()
 
@@ -375,6 +366,8 @@ class MainWindow(QMainWindow):
                 self._add_row(entry)
         self._snapshot_entries = copy.deepcopy(vault.entries)
         self._clear_dirty()
+        for row in self._row_widgets:
+            row.set_sensitive_shown(False)
         self._apply_session_ui()
 
     def _show_help(self) -> None:
@@ -419,23 +412,6 @@ class MainWindow(QMainWindow):
         self._pending_user_passwords = None
         self._load_vault_data(KobiVault())
         self._apply_session_ui()
-
-    def _lock_vault(self) -> None:
-        if self._current_path is None:
-            show_error(self, tr("warn_title"), tr("warn_locked"))
-            return
-        if self._dirty and not self._confirm_discard():
-            return
-        path = self._current_path
-        self._vault = None
-        self._session = None
-        self._snapshot_entries = []
-        self._pending_user_passwords = None
-        self._clear_all_rows()
-        self._add_row()
-        self._clear_dirty()
-        self._apply_session_ui()
-        self._unlock_path(path)
 
     def _confirm_discard(self) -> bool:
         box = QMessageBox(self)

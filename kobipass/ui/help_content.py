@@ -97,7 +97,7 @@ def help_html() -> str:
     <ul style="color:#c8ccd2;line-height:1.55;">
     <li><b>Dosya Aç</b> — <code>.enc</code> seçin; yönetici veya kullanıcı parolanızı girin.</li>
     <li><b>Kaydet</b> — İlk kayıtta yönetici + kullanıcı parolaları ve izinler belirlenir.</li>
-    <li><b>Kilitle</b> — Oturumu kapatır; aynı dosyayı tekrar parola ile açarsınız.</li>
+    <li><b>Temizle</b> — Oturumu kapatır; boş kasa ekranına dönersiniz.</li>
     <li><b>Kullanıcılar & İzinler</b> — Yalnızca yönetici (parola ve alan izinleri).</li>
     <li><b>Değişiklik Geçmişi</b> — Yalnızca yönetici (kullanıcı düzenlemeleri).</li>
     </ul>
@@ -133,7 +133,7 @@ def help_html() -> str:
     <ul style="color:#c8ccd2;line-height:1.55;">
     <li><b>Open File</b> — Select <code>.enc</code>; enter admin or user password.</li>
     <li><b>Save</b> — On first save, set admin + user passwords and permissions.</li>
-    <li><b>Lock</b> — End session; reopen the same file with password.</li>
+    <li><b>Clear</b> — End session and return to an empty vault screen.</li>
     <li><b>Users & Permissions</b> — Admin only.</li>
     <li><b>Change History</b> — Admin only (user edits).</li>
     </ul>
