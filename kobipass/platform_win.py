@@ -66,6 +66,8 @@ def set_window_geometry(widget: QWidget, rect: QRect, *, restoring: bool = False
             int(rect.height()),
             flags,
         )
+        # Qt'nin geometry() değerini Win32 ile senkron tut (restore sonrası küçülme önlenir).
+        widget.setGeometry(rect)
         return
     except Exception:
         pass

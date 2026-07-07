@@ -98,9 +98,22 @@ class CustomTitleBar(QWidget):
         self.retranslate()
         self.capture_normal_geometry()
 
+    @staticmethod
+    def _is_near_fullscreen(geom: QRect, avail: QRect, margin: int = 4) -> bool:
+        """Pencere zaten tam ekrana yakınsa normal boyut olarak kaydetme."""
+        return (
+            abs(geom.width() - avail.width()) <= margin
+            and abs(geom.height() - avail.height()) <= margin
+        )
+
     def capture_normal_geometry(self) -> None:
-        if not self._maximized:
-            self._normal_geometry = self._window.geometry()
+        if self._maximized:
+            return
+        geom = self._window.geometry()
+        avail = self._available_screen_geometry()
+        if self._is_near_fullscreen(geom, avail):
+            return
+        self._normal_geometry = geom
 
     def retranslate(self) -> None:
         self._brand.setText(tr("app_name"))
@@ -140,10 +153,18 @@ class CustomTitleBar(QWidget):
         if self._maximized:
             target = self._normal_geometry or QRect(100, 100, 1280, 760)
             set_window_geometry(w, target, restoring=True)
+            # Hedef boyutu sabitle; geometry() her döngüde küçülmesin.
+            self._normal_geometry = QRect(target)
             self._maximized = False
         else:
-            self._normal_geometry = QRect(w.geometry())
-            target = self._available_screen_geometry()
+            avail = self._available_screen_geometry()
+            geom = w.geometry()
+            # Yalnızca gerçekten normal moddayken kaydet (tam ekran boyutunu ezme).
+            if not self._is_near_fullscreen(geom, avail):
+                self._normal_geometry = QRect(geom)
+            elif self._normal_geometry is None:
+                self._normal_geometry = QRect(geom)
+            target = avail
             set_window_geometry(w, target, restoring=False)
             clear_maximized_style(w)
             self._maximized = True
