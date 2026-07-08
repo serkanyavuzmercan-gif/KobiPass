@@ -212,9 +212,11 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(self._status_right)
         self._add_row()
 
-        self._landing_page.btn_open_file.clicked.connect(self._landing_open_file)
-        self._landing_page.btn_login.clicked.connect(self._landing_register)
-        self._landing_page.btn_security.clicked.connect(self._open_security_dialog)
+        self._landing_page.btn_open_file.clicked.connect(self._mevcut_dosyayi_ac)
+        self._landing_page.btn_create_file.clicked.connect(
+            self._yeni_dosya_olusturma_ekranini_ac
+        )
+        self._landing_page.btn_security.clicked.connect(self._guvenlik_penceresini_ac)
         self._landing_page.btn_help.clicked.connect(self._show_help)
 
         self._show_landing_page()
@@ -227,10 +229,10 @@ class MainWindow(QMainWindow):
         self._stacked_widget.setCurrentWidget(self._vault_view)
         self.statusBar().show()
 
-    def _landing_open_file(self) -> None:
+    def _mevcut_dosyayi_ac(self) -> None:
         self._open_vault()
 
-    def _landing_register(self) -> None:
+    def _yeni_dosya_olusturma_ekranini_ac(self) -> None:
         if self._dirty and not self._confirm_discard():
             return
         self._current_path = None
@@ -239,6 +241,9 @@ class MainWindow(QMainWindow):
         self._snapshot_entries = []
         self._pending_user_passwords = None
         self._save_new_vault([])
+
+    def _guvenlik_penceresini_ac(self) -> None:
+        self._open_security_dialog()
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)

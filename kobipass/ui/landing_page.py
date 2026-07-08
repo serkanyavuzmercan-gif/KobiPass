@@ -37,20 +37,20 @@ class LandingPage(QWidget):
 
         center_layout = QHBoxLayout()
         center_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        center_layout.setSpacing(50)
+        center_layout.setSpacing(60)
 
         self.btn_open_file = QPushButton()
-        self.btn_open_file.setFixedSize(220, 220)
+        self.btn_open_file.setFixedSize(260, 260)
         self.btn_open_file.setObjectName("landingSquareBtn")
         self.btn_open_file.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.btn_login = QPushButton()
-        self.btn_login.setFixedSize(220, 220)
-        self.btn_login.setObjectName("landingSquareBtn")
-        self.btn_login.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_create_file = QPushButton()
+        self.btn_create_file.setFixedSize(260, 260)
+        self.btn_create_file.setObjectName("landingSquareBtn")
+        self.btn_create_file.setCursor(Qt.CursorShape.PointingHandCursor)
 
         center_layout.addWidget(self.btn_open_file)
-        center_layout.addWidget(self.btn_login)
+        center_layout.addWidget(self.btn_create_file)
         main_layout.addLayout(center_layout)
 
         main_layout.addStretch()
@@ -62,4 +62,4 @@ class LandingPage(QWidget):
         self.btn_help.setText(tr("landing_help"))
         self.btn_help.setToolTip(tr("btn_help_tip"))
         self.btn_open_file.setText(tr("landing_open"))
-        self.btn_login.setText(tr("landing_login"))
+        self.btn_create_file.setText(tr("landing_create"))
