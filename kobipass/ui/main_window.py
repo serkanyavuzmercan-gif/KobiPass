@@ -557,7 +557,10 @@ class MainWindow(QMainWindow):
             yes_btn.setText(tr("yes"))
         if no_btn:
             no_btn.setText(tr("no"))
-        return box.exec() == QMessageBox.StandardButton.Yes
+        if box.exec() == QMessageBox.StandardButton.Yes:
+            self._clear_dirty()
+            return True
+        return False
 
     def _save_vault(self) -> None:
         entries = self._collect_entries()
