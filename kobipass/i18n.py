@@ -22,8 +22,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "btn_help": "Yardım",
         "btn_help_tip": "Kullanım ve şifreleme bilgisi",
         "btn_lang_tip": "Dili değiştir (Türkçe / English)",
-        "btn_theme_light": "Aydınlık moda geç",
-        "btn_theme_dark": "Karanlık moda geç",
+        "btn_theme_tip": "Temayı değiştir (Karanlık / Aydınlık)",
         "hint_format": (
             "Kaydet ile .enc dosyası oluşturulur: 1 yönetici + en fazla 3 kullanıcı parolası "
             "belirlenir. Dosya Aç ile parolanızı girin; rol otomatik belirlenir."
@@ -147,8 +146,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "btn_help": "Help",
         "btn_help_tip": "Usage and encryption information",
         "btn_lang_tip": "Switch language (Türkçe / English)",
-        "btn_theme_light": "Switch to light mode",
-        "btn_theme_dark": "Switch to dark mode",
+        "btn_theme_tip": "Switch theme (Dark / Light)",
         "hint_format": (
             "Save creates a .enc file with 1 admin and up to 3 user passwords. "
             "Open File unlocks the vault; your role is detected automatically."

@@ -28,9 +28,10 @@ class ThemeManager(QObject):
     def stylesheet(self) -> str:
         return DARK_STYLESHEET if self._dark else LIGHT_STYLESHEET
 
-    def toggle_icon(self) -> str:
-        """Koyu modda güneş (aydınlığa geç), aydınlıkta ay (karanlığa geç)."""
-        return "\u2600" if self._dark else "\u263E"
+    @staticmethod
+    def button_label() -> str:
+        """TR/EN gibi sabit etiket: güneş / ay."""
+        return "\u2600/\u263E"
 
 
 theme_manager = ThemeManager()

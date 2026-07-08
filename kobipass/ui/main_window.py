@@ -48,7 +48,7 @@ from kobipass.ui.dialogs import (
 )
 from kobipass.ui.entry_row import EntryRowWidget
 from kobipass.ui.title_bar import CustomTitleBar
-from kobipass.ui.theme import theme_manager
+from kobipass.ui.theme import ThemeManager, theme_manager
 from kobipass.ui.user_admin_dialog import UserAdminDialog
 from kobipass.vault_model import FIELD_NAMES, KobiVault, VaultEntry
 
@@ -85,7 +85,6 @@ class MainWindow(QMainWindow):
         self._copy_notice_timer.setSingleShot(True)
         self._copy_notice_timer.timeout.connect(self._end_copy_notice)
         i18n.language_changed.connect(self._retranslate_ui)
-        theme_manager.theme_changed.connect(self._on_theme_changed)
         self._retranslate_ui()
         self._apply_session_ui()
 
@@ -133,9 +132,9 @@ class MainWindow(QMainWindow):
 
         toolbar.addStretch()
 
-        self._btn_theme = QPushButton(theme_manager.toggle_icon())
+        self._btn_theme = QPushButton(ThemeManager.button_label())
         self._btn_theme.setObjectName("themeBtn")
-        self._btn_theme.setFixedWidth(50)
+        self._btn_theme.setFixedWidth(56)
         self._btn_theme.clicked.connect(theme_manager.toggle)
         toolbar.addWidget(self._btn_theme, 0, Qt.AlignmentFlag.AlignVCenter)
 
@@ -200,15 +199,6 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(app_icon())
         self._title_bar.capture_normal_geometry()
 
-    def _on_theme_changed(self) -> None:
-        self._update_theme_button()
-
-    def _update_theme_button(self) -> None:
-        self._btn_theme.setText(theme_manager.toggle_icon())
-        self._btn_theme.setToolTip(
-            tr("btn_theme_light") if theme_manager.is_dark() else tr("btn_theme_dark")
-        )
-
     def _role_label(self) -> str:
         if self._session is None:
             return ""
@@ -256,7 +246,7 @@ class MainWindow(QMainWindow):
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_clear.setText(tr("btn_clear"))
         self._btn_lang.setToolTip(tr("btn_lang_tip"))
-        self._update_theme_button()
+        self._btn_theme.setToolTip(tr("btn_theme_tip"))
         self._btn_help.setText(tr("btn_help"))
         self._btn_help.setToolTip(tr("btn_help_tip"))
         self._btn_help.style().unpolish(self._btn_help)

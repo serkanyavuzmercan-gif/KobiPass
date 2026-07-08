@@ -240,9 +240,8 @@ QPushButton#langBtn {
 
 QPushButton#themeBtn {
     min-width: 0;
-    max-width: 52px;
+    max-width: 56px;
     padding: 8px 8px;
-    font-size: 16px;
 }
 
 QLabel#hintLabel {
@@ -578,12 +577,8 @@ QPushButton#helpBtn {
 QPushButton#langBtn,
 QPushButton#themeBtn {
     min-width: 0;
-    max-width: 52px;
+    max-width: 56px;
     padding: 8px 8px;
-}
-
-QPushButton#themeBtn {
-    font-size: 16px;
 }
 
 QLabel#hintLabel {
