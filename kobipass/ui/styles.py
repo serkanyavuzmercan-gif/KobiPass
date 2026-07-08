@@ -53,6 +53,11 @@ QScrollArea {
     background-color: #1a1d23;
 }
 
+QScrollArea#entriesScroll {
+    border: none;
+    background-color: #1a1d23;
+}
+
 QScrollArea#entryFieldsScroll {
     background-color: transparent;
     padding: 0;
@@ -431,6 +436,11 @@ QPushButton#titleBtnClose:pressed {
 }
 
 QScrollArea {
+    border: none;
+    background-color: #f3f4f6;
+}
+
+QScrollArea#entriesScroll {
     border: none;
     background-color: #f3f4f6;
 }

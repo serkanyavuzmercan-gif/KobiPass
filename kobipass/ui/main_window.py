@@ -157,8 +157,12 @@ class MainWindow(QMainWindow):
         root.addWidget(self._hint)
 
         self._scroll = QScrollArea()
+        self._scroll.setObjectName("entriesScroll")
         self._scroll.setWidgetResizable(True)
         self._scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self._scroll.setFrameShape(QScrollArea.Shape.NoFrame)

@@ -81,6 +81,12 @@ def _info_label(info_index: int) -> str:
 class EntryFieldsScroll(QScrollArea):
     """Yatay kaydırma — scrollbar gizli, tekerlek ile kayar."""
 
+    def sizeHint(self) -> QSize:
+        return QSize(0, ROW_CONTROL_HEIGHT)
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(0, ROW_CONTROL_HEIGHT)
+
     def wheelEvent(self, event: QWheelEvent) -> None:
         bar = self.horizontalScrollBar()
         if bar.maximum() > 0:
@@ -238,6 +244,10 @@ class EntryRowWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("entryRow")
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
         self._can_delete = True
         self._show_sensitive = False
         self._permissions = UserPermissions()
@@ -270,6 +280,10 @@ class EntryRowWidget(QWidget):
         self._scroll = EntryFieldsScroll()
         self._scroll.setObjectName("entryFieldsScroll")
         self._scroll.setWidgetResizable(False)
+        self._scroll.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
         self._scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
