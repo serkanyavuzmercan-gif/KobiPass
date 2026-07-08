@@ -7,7 +7,7 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QEvent, Qt, QTimer
 from PyQt6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -80,6 +80,7 @@ class MainWindow(QMainWindow):
         self._session: Session | None = None
         self._snapshot_entries: list[VaultEntry] = []
         self._pending_user_passwords: list[tuple[bool, str]] | None = None
+        self._kilitli_mi = False
 
         self._build_ui()
         self._copy_notice_timer = QTimer(self)
@@ -208,6 +209,31 @@ class MainWindow(QMainWindow):
         self.winId()
         self.setWindowIcon(app_icon())
         self._title_bar.capture_normal_geometry()
+
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.WindowStateChange:
+            if self.isMinimized():
+                self._guvenlik_kilidini_aktif_et()
+            elif event.oldState() & Qt.WindowState.WindowMinimized:
+                if getattr(self, "_kilitli_mi", False):
+                    self._kilit_ekranini_goster()
+        super().changeEvent(event)
+
+    def _guvenlik_kilidini_aktif_et(self) -> None:
+        if self._session is None:
+            return
+
+        self._kilitli_mi = True
+
+        for i in range(self._entries_layout.count()):
+            item = self._entries_layout.itemAt(i)
+            if item and item.widget():
+                widget = item.widget()
+                if hasattr(widget, "set_sensitive_shown"):
+                    widget.set_sensitive_shown(False)
+
+    def _kilit_ekranini_goster(self) -> None:
+        pass
 
     def _role_label(self) -> str:
         if self._session is None:
