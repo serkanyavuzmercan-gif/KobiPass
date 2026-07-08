@@ -104,6 +104,8 @@ class MainWindow(QMainWindow):
         self._kilitli_mi = False
         self._worker: WorkerThread | None = None
         self._filter_request_id = 0
+        self._display_entries: list[VaultEntry] | None = None
+        self._loading_batch = False
 
         self._build_ui()
         self._copy_notice_timer = QTimer(self)
@@ -225,6 +227,7 @@ class MainWindow(QMainWindow):
         self._entries_layout.addWidget(self._add_bar)
 
         self._scroll.setWidget(self._entries_host)
+        self._scroll.verticalScrollBar().valueChanged.connect(self._check_scroll_position)
         root.addWidget(self._scroll, stretch=1)
 
         status = QStatusBar()
@@ -330,11 +333,11 @@ class MainWindow(QMainWindow):
             else None
         )
 
-        can_add = perms.can_add_entry if perms else True
+        can_add = perms.can_add_entry if perms else self._session is None
         can_delete = perms.can_delete_entry if perms else True
         can_save = perms.can_save if perms else True
 
-        self._add_bar.set_visible_bar(can_add)
+        self._add_bar.setVisible(can_add)
         self._btn_save.setEnabled(can_save if is_unlocked else True)
 
         for row in self._row_widgets:
@@ -378,13 +381,47 @@ class MainWindow(QMainWindow):
         if request_id != self._filter_request_id:
             return
         self._merge_row_edits_into_vault()
+        self._display_entries = filtered_entries
         self._clear_all_rows()
-        for index, entry in enumerate(filtered_entries[:_FILTER_PAGE_SIZE]):
-            self._add_row(entry, vault_index=self._vault_entry_index(entry, index))
+        for entry in filtered_entries[:_FILTER_PAGE_SIZE]:
+            self._add_row(
+                entry,
+                vault_index=self._vault_entry_index(entry, 0),
+                refresh_session=False,
+            )
         if not self._row_widgets:
-            self._add_row()
+            self._add_row(refresh_session=False)
         self._apply_session_ui()
         self._update_tab_order()
+
+    def _check_scroll_position(self, value: int) -> None:
+        bar = self._scroll.verticalScrollBar()
+        if bar.maximum() <= 0:
+            return
+        if value > bar.maximum() * 0.9:
+            self._load_next_batch()
+
+    def _load_next_batch(self) -> None:
+        if not self._vault or self._loading_batch:
+            return
+        source = self._display_entries if self._display_entries is not None else self._vault.entries
+        current_count = len(self._row_widgets)
+        next_batch = source[current_count : current_count + _FILTER_PAGE_SIZE]
+        if not next_batch:
+            return
+        self._loading_batch = True
+        try:
+            for entry in next_batch:
+                self._add_row(
+                    entry,
+                    vault_index=self._vault_entry_index(entry, current_count),
+                    refresh_session=False,
+                )
+                current_count += 1
+            self._apply_session_ui()
+            self._update_tab_order()
+        finally:
+            self._loading_batch = False
 
     def _vault_entry_index(self, entry: VaultEntry, fallback: int) -> int:
         if self._vault is None:
@@ -528,6 +565,8 @@ class MainWindow(QMainWindow):
         self,
         entry: VaultEntry | None = None,
         vault_index: int | None = None,
+        *,
+        refresh_session: bool = True,
     ) -> None:
         row = EntryRowWidget()
         row.vault_index = vault_index
@@ -541,7 +580,8 @@ class MainWindow(QMainWindow):
         idx = self._entries_layout.indexOf(self._add_bar)
         self._entries_layout.insertWidget(idx, row)
         self._row_widgets.append(row)
-        self._apply_session_ui()
+        if refresh_session:
+            self._apply_session_ui()
         self._update_tab_order()
 
     def _remove_row(self, row: EntryRowWidget) -> None:
@@ -574,16 +614,17 @@ class MainWindow(QMainWindow):
 
     def _load_vault_data(self, vault: KobiVault) -> None:
         self._vault = vault
+        self._display_entries = list(vault.entries)
         self._search_bar.blockSignals(True)
         self._search_bar.clear()
         self._search_bar.blockSignals(False)
         self._clear_all_rows()
         visible_entries = vault.entries[:_FILTER_PAGE_SIZE]
         if not visible_entries:
-            self._add_row()
+            self._add_row(refresh_session=False)
         else:
             for index, entry in enumerate(visible_entries):
-                self._add_row(entry, vault_index=index)
+                self._add_row(entry, vault_index=index, refresh_session=False)
         self._snapshot_entries = copy.deepcopy(vault.entries)
         self._clear_dirty()
         for row in self._row_widgets:
