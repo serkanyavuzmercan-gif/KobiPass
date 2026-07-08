@@ -408,6 +408,37 @@ QPushButton#themeBtn {
     padding: 8px 8px;
 }
 
+QToolButton#securityBadge {
+    background-color: transparent;
+    color: #4ade80;
+    border: 1px solid #22c55e;
+    border-radius: 10px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+QToolButton#securityBadge:hover {
+    background-color: #14532d;
+    color: #ffffff;
+}
+
+QPushButton#headerSecurityBtn {
+    background-color: #1e293b;
+    color: #38bdf8;
+    border: 1px solid #0284c7;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 600;
+}
+
+QPushButton#headerSecurityBtn:hover {
+    background-color: #0c4a6e;
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
 QTextBrowser#helpBrowser {
     background-color: transparent;
     color: #e8eaed;
@@ -902,6 +933,37 @@ QPushButton#themeBtn {
     min-width: 0;
     max-width: 56px;
     padding: 8px 8px;
+}
+
+QToolButton#securityBadge {
+    background-color: transparent;
+    color: #16a34a;
+    border: 1px solid #22c55e;
+    border-radius: 10px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+QToolButton#securityBadge:hover {
+    background-color: #dcfce7;
+    color: #14532d;
+}
+
+QPushButton#headerSecurityBtn {
+    background-color: #eff6ff;
+    color: #0284c7;
+    border: 1px solid #38bdf8;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 600;
+}
+
+QPushButton#headerSecurityBtn:hover {
+    background-color: #0ea5e9;
+    border-color: #0284c7;
+    color: #ffffff;
 }
 
 QTextBrowser#helpBrowser {

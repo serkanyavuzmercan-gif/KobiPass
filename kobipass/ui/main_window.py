@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QStatusBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -37,6 +38,7 @@ from kobipass.permissions import (
 )
 from kobipass.resources import app_icon
 from kobipass.session import AdminSession, Session, UserSession, session_from_unlock
+from kobipass.ui.about_dialog import AboutDialog
 from kobipass.ui.add_record_bar import AddRecordBar
 from kobipass.ui.audit_log_dialog import AuditLogDialog
 from kobipass.ui.dialogs import (
@@ -70,6 +72,7 @@ class MainWindow(QMainWindow):
         self._dirty = False
         self._row_widgets: list[EntryRowWidget] = []
         self._help_dialog: HelpDialog | None = None
+        self._about_dialog: AboutDialog | None = None
         self._showing_copy_notice = False
         self._copy_notice_field = ""
         self._copy_notice_has_text = True
@@ -131,6 +134,12 @@ class MainWindow(QMainWindow):
 
         toolbar.addStretch()
 
+        self._btn_security = QPushButton()
+        self._btn_security.setObjectName("headerSecurityBtn")
+        self._btn_security.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_security.clicked.connect(self._open_security_dialog)
+        toolbar.addWidget(self._btn_security, 0, Qt.AlignmentFlag.AlignVCenter)
+
         self._btn_theme = QPushButton(ThemeManager.button_label())
         self._btn_theme.setObjectName("themeBtn")
         self._btn_theme.setFixedWidth(56)
@@ -183,6 +192,11 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status)
         self._status_left = QLabel()
         status.addWidget(self._status_left, 1)
+        self.security_badge = QToolButton()
+        self.security_badge.setObjectName("securityBadge")
+        self.security_badge.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.security_badge.clicked.connect(self._open_security_dialog)
+        status.addPermanentWidget(self.security_badge)
         self._status_role = QLabel("")
         status.addPermanentWidget(self._status_role)
         self._status_right = QLabel("")
@@ -245,6 +259,10 @@ class MainWindow(QMainWindow):
         self._btn_theme.setToolTip(tr("btn_theme_tip"))
         self._btn_help.setText(tr("btn_help"))
         self._btn_help.setToolTip(tr("btn_help_tip"))
+        self._btn_security.setText(tr("btn_security"))
+        self._btn_security.setToolTip(tr("security_badge_tip"))
+        self.security_badge.setText(tr("security_badge"))
+        self.security_badge.setToolTip(tr("security_badge_tip"))
         self._btn_help.style().unpolish(self._btn_help)
         self._btn_help.style().polish(self._btn_help)
         self._btn_help.setFixedWidth(self._btn_help.sizeHint().width())
@@ -255,6 +273,8 @@ class MainWindow(QMainWindow):
             row.retranslate()
         if self._help_dialog is not None:
             self._help_dialog.retranslate()
+        if self._about_dialog is not None:
+            self._about_dialog.retranslate()
         if self._showing_copy_notice:
             if self._copy_notice_has_text:
                 self._status_left.setText(
@@ -377,6 +397,13 @@ class MainWindow(QMainWindow):
         for row in self._row_widgets:
             row.set_sensitive_shown(False)
         self._apply_session_ui()
+
+    def _open_security_dialog(self) -> None:
+        if self._about_dialog is None:
+            self._about_dialog = AboutDialog(self)
+        self._about_dialog.show()
+        self._about_dialog.raise_()
+        self._about_dialog.activateWindow()
 
     def _show_help(self) -> None:
         if self._help_dialog is None:
