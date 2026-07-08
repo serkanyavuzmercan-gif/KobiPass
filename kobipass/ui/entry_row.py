@@ -264,7 +264,7 @@ class EntryRowWidget(QWidget):
         self._eye_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._eye_btn.setCheckable(True)
         self._eye_btn.clicked.connect(self._on_eye_clicked)
-        row.addWidget(self._eye_btn, 0, _ROW_ALIGN)
+        row.addWidget(self._eye_btn, 0, Qt.AlignmentFlag.AlignTop)
 
         self._name = CompactField(
             field_key="field_name",
@@ -276,24 +276,25 @@ class EntryRowWidget(QWidget):
             fixed_width=INFO_FIELD_WIDTH,
             sensitive=True,
         )
-        row.addWidget(self._name, 0, _ROW_ALIGN)
-        row.addWidget(self._info1, 0, _ROW_ALIGN)
+        row.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
+        row.addWidget(self._info1, 0, Qt.AlignmentFlag.AlignTop)
 
         self._scroll = EntryFieldsScroll()
         self._scroll.setObjectName("entryFieldsScroll")
         self._scroll.setWidgetResizable(False)
         self._scroll.setSizePolicy(
             QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Minimum,
         )
         self._scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self._scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll.setFixedHeight(ROW_CONTROL_HEIGHT)
+        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT)
+        self._scroll.viewport().setMinimumHeight(ROW_CONTROL_HEIGHT)
         self._scroll.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
@@ -305,9 +306,6 @@ class EntryRowWidget(QWidget):
         self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
         self._extras_layout.setAlignment(_ROW_ALIGN)
 
-        self._scroll.setWidget(self._extras_host)
-        row.addWidget(self._scroll, stretch=1, alignment=_ROW_ALIGN)
-
         self._add_field_btn = QToolButton()
         self._add_field_btn.setObjectName("addFieldBtn")
         self._add_field_btn.setText("+")
@@ -315,7 +313,10 @@ class EntryRowWidget(QWidget):
         self._add_field_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_field_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._add_field_btn.clicked.connect(self._add_extra_field)
-        row.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
+        self._extras_layout.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
+
+        self._scroll.setWidget(self._extras_host)
+        row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
 
         self._remove_btn = QPushButton()
         self._remove_btn.setObjectName("dangerBtn")
@@ -323,7 +324,7 @@ class EntryRowWidget(QWidget):
         self._remove_btn.setFixedHeight(ROW_CONTROL_HEIGHT)
         self._remove_btn.setMinimumWidth(ROW_CONTROL_HEIGHT)
         self._remove_btn.clicked.connect(lambda: self.remove_requested.emit(self))
-        row.addWidget(self._remove_btn, 0, _ROW_ALIGN)
+        row.addWidget(self._remove_btn, 0, Qt.AlignmentFlag.AlignTop)
 
         self._eye_btn.setChecked(False)
         self._apply_sensitive_hidden(True)
@@ -349,7 +350,7 @@ class EntryRowWidget(QWidget):
         for prev, nxt in zip(edits, edits[1:]):
             QWidget.setTabOrder(prev, nxt)
 
-    def _sync_scroll_width(self) -> None:
+    def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
         spacing = self._extras_layout.spacing()
         width = 0
         visible_count = 0
@@ -366,7 +367,10 @@ class EntryRowWidget(QWidget):
             width += spacing * (visible_count - 1)
         self._extras_host.setFixedSize(max(0, width), ROW_CONTROL_HEIGHT)
         bar = self._scroll.horizontalScrollBar()
-        bar.setValue(min(bar.value(), bar.maximum()))
+        if scroll_to_end:
+            bar.setValue(bar.maximum())
+        else:
+            bar.setValue(min(bar.value(), bar.maximum()))
 
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
         info_index = len(self._extra_fields) + 2
@@ -386,11 +390,16 @@ class EntryRowWidget(QWidget):
         field.set_permission(level)
         field.textChanged().connect(self._emit_changed)
 
-        self._extras_layout.addWidget(field, 0, _ROW_ALIGN)
+        self._extras_layout.insertWidget(
+            self._extras_layout.indexOf(self._add_field_btn),
+            field,
+            0,
+            _ROW_ALIGN,
+        )
         self._extra_fields.append(field)
         field.show()
         self._apply_sensitive_hidden(not self._show_sensitive)
-        self._sync_scroll_width()
+        self._sync_scroll_width(scroll_to_end=not block_signals)
         self._wire_tab_order()
         self._emit_changed()
 
