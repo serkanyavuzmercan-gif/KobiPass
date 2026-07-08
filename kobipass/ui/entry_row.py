@@ -168,6 +168,7 @@ class CompactField(QWidget):
             self._eye_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             self._eye_btn.setCheckable(True)
             self._eye_btn.setAutoRaise(True)
+            self._eye_btn.setChecked(not self._hidden)
             self._eye_btn.clicked.connect(self._on_eye_clicked)
             layout.addWidget(self._eye_btn, 0, _ROW_ALIGN)
 
@@ -220,6 +221,13 @@ class CompactField(QWidget):
 
     def _sync_echo(self) -> None:
         if not self.isVisible() and self._permission == "hidden":
+            return
+        if self._sensitive and self._eye_btn is not None:
+            self._edit.setEchoMode(
+                QLineEdit.EchoMode.Password
+                if self._hidden
+                else QLineEdit.EchoMode.Normal
+            )
             return
         if self._permission == "hidden_read":
             self._edit.setEchoMode(QLineEdit.EchoMode.Password)
