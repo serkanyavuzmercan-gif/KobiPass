@@ -9,7 +9,6 @@ kobiPass şifreleme katmanı — KBPS zarf şifreleme formatı.
 
 from __future__ import annotations
 
-import hashlib
 import os
 import struct
 from dataclasses import dataclass, field
@@ -33,7 +32,6 @@ VERSION = 0x01
 SALT_SIZE = 16
 NONCE_SIZE = 12
 DEK_SIZE = 32
-BLOB_INTEGRITY_SIZE = 32
 PBKDF2_ITERATIONS = 100_000
 KEY_LENGTH = 32
 WRAP_CIPHERTEXT_SIZE = DEK_SIZE + 16  # AES-GCM tag
@@ -118,22 +116,14 @@ def _encrypt_vault_blob(vault: KobiVault, dek: bytes) -> bytes:
     nonce = os.urandom(NONCE_SIZE)
     plaintext = vault_to_json_bytes(vault)
     ciphertext = AESGCM(dek).encrypt(nonce, plaintext, None)
-    data = nonce + ciphertext
-    return data + hashlib.sha256(data).digest()
+    return nonce + ciphertext
 
 
 def _decrypt_vault_blob(blob: bytes, dek: bytes) -> KobiVault:
     if len(blob) < NONCE_SIZE + 16:
         raise VaultCryptoError("crypto.file_too_short")
-    if len(blob) >= NONCE_SIZE + 16 + BLOB_INTEGRITY_SIZE:
-        body = blob[:-BLOB_INTEGRITY_SIZE]
-        if hashlib.sha256(body).digest() != blob[-BLOB_INTEGRITY_SIZE:]:
-            raise VaultCryptoError("crypto.integrity_failed")
-        nonce = blob[:NONCE_SIZE]
-        ciphertext = blob[NONCE_SIZE:-BLOB_INTEGRITY_SIZE]
-    else:
-        nonce = blob[:NONCE_SIZE]
-        ciphertext = blob[NONCE_SIZE:]
+    nonce = blob[:NONCE_SIZE]
+    ciphertext = blob[NONCE_SIZE:]
     try:
         plaintext = AESGCM(dek).decrypt(nonce, ciphertext, None)
     except InvalidTag as exc:
@@ -146,7 +136,7 @@ def _empty_wrap() -> bytes:
 
 
 def _parse_file(data: bytes) -> tuple[bytes, list[UserSlotWrap], bytes]:
-    if len(data) < HEADER_SIZE + NONCE_SIZE + 16 + BLOB_INTEGRITY_SIZE:
+    if len(data) < HEADER_SIZE + NONCE_SIZE + 16:
         raise VaultCryptoError("crypto.file_too_short")
     if data[:4] != MAGIC:
         raise VaultCryptoError("crypto.invalid_file")
