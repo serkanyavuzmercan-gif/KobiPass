@@ -89,14 +89,20 @@ class EntryFieldsScroll(QScrollArea):
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         bar = self.horizontalScrollBar()
-        if bar.maximum() > 0:
-            delta = event.angleDelta()
-            step = delta.x() if delta.x() != 0 else delta.y()
-            if step != 0:
-                bar.setValue(bar.value() - step)
-                event.accept()
-                return
-        super().wheelEvent(event)
+        delta = event.angleDelta()
+        if bar.maximum() > 0 and delta.x() != 0:
+            bar.setValue(bar.value() - delta.x())
+            event.accept()
+            return
+        if (
+            bar.maximum() > 0
+            and event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+            and delta.y() != 0
+        ):
+            bar.setValue(bar.value() - delta.y())
+            event.accept()
+            return
+        event.ignore()
 
 
 class CompactField(QWidget):
@@ -244,10 +250,6 @@ class EntryRowWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("entryRow")
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed,
-        )
         self._can_delete = True
         self._show_sensitive = False
         self._permissions = UserPermissions()

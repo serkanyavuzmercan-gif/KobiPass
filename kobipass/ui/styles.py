@@ -55,22 +55,6 @@ QScrollArea {
 
 QScrollArea#entryFieldsScroll {
     background-color: transparent;
-    padding: 0;
-    margin: 0;
-}
-
-QScrollArea#entryFieldsScroll QScrollBar:horizontal {
-    height: 0;
-    background: transparent;
-}
-
-QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal,
-QScrollArea#entryFieldsScroll QScrollBar::add-line:horizontal,
-QScrollArea#entryFieldsScroll QScrollBar::sub-line:horizontal {
-    height: 0;
-    width: 0;
-    background: transparent;
-    border: none;
 }
 
 QWidget#entryExtrasHost {
@@ -435,29 +419,8 @@ QScrollArea {
     background-color: #f3f4f6;
 }
 
-QScrollArea#entriesScroll {
-    border: none;
-    background-color: #f3f4f6;
-}
-
 QScrollArea#entryFieldsScroll {
     background-color: transparent;
-    padding: 0;
-    margin: 0;
-}
-
-QScrollArea#entryFieldsScroll QScrollBar:horizontal {
-    height: 0;
-    background: transparent;
-}
-
-QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal,
-QScrollArea#entryFieldsScroll QScrollBar::add-line:horizontal,
-QScrollArea#entryFieldsScroll QScrollBar::sub-line:horizontal {
-    height: 0;
-    width: 0;
-    background: transparent;
-    border: none;
 }
 
 QWidget#entryExtrasHost {
