@@ -281,7 +281,7 @@ class EntryRowWidget(QWidget):
 
         self._scroll = EntryFieldsScroll()
         self._scroll.setObjectName("entryFieldsScroll")
-        self._scroll.setWidgetResizable(False)
+        self._scroll.setWidgetResizable(True)
         self._scroll.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Minimum,
@@ -351,26 +351,19 @@ class EntryRowWidget(QWidget):
             QWidget.setTabOrder(prev, nxt)
 
     def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
-        spacing = self._extras_layout.spacing()
-        width = 0
-        visible_count = 0
-        for index in range(self._extras_layout.count()):
-            item = self._extras_layout.itemAt(index)
-            if item is None:
-                continue
-            widget = item.widget()
-            if widget is None or not widget.isVisible():
-                continue
-            width += widget.width() if widget.width() > 0 else widget.sizeHint().width()
-            visible_count += 1
-        if visible_count > 1:
-            width += spacing * (visible_count - 1)
-        self._extras_host.setFixedSize(max(0, width), ROW_CONTROL_HEIGHT)
-        bar = self._scroll.horizontalScrollBar()
-        if scroll_to_end:
-            bar.setValue(bar.maximum())
-        else:
-            bar.setValue(min(bar.value(), bar.maximum()))
+        # Manuel pikselleri hesaplama kodları (for döngüsü ve setFixedSize) tamamen silindi.
+        # Genişlik hesabını artık setWidgetResizable(True) sayesinde QHBoxLayout kendisi yapacak.
+
+        def update_scroll():
+            bar = self._scroll.horizontalScrollBar()
+            if scroll_to_end:
+                bar.setValue(bar.maximum())
+            else:
+                bar.setValue(min(bar.value(), bar.maximum()))
+
+        # Yeni alan eklendiğinde Qt'nin arayüzü çizmesi birkaç milisaniye sürer.
+        # Scroll barın doğru maksimum değere ulaşması için çizimin bitmesini sıfır gecikmeli timer ile bekliyoruz.
+        QTimer.singleShot(0, update_scroll)
 
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
         info_index = len(self._extra_fields) + 2
