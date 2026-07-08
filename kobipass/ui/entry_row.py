@@ -30,8 +30,7 @@ ROW_MARGINS = (0, 4, 12, 4)
 ROW_LAYOUT_SPACING = 8
 
 NAME_FIELD_WIDTH = 180
-INFO1_FIELD_WIDTH = 180
-EXTRA_FIELD_WIDTH = 160
+INFO_FIELD_WIDTH = 180
 
 _ICON_BTN_SIZE = COPY_BTN_SIZE
 _ROW_ALIGN = Qt.AlignmentFlag.AlignVCenter
@@ -87,7 +86,7 @@ class CompactField(QWidget):
         info_index: int | None = None,
         *,
         field_key: str | None = None,
-        fixed_width: int = EXTRA_FIELD_WIDTH,
+        fixed_width: int = INFO_FIELD_WIDTH,
         sensitive: bool = False,
         parent: QWidget | None = None,
     ) -> None:
@@ -243,24 +242,15 @@ class EntryRowWidget(QWidget):
         )
         self._info1 = CompactField(
             info_index=1,
-            fixed_width=INFO1_FIELD_WIDTH,
+            fixed_width=INFO_FIELD_WIDTH,
             sensitive=True,
         )
         row.addWidget(self._name, 0, _ROW_ALIGN)
         row.addWidget(self._info1, 0, _ROW_ALIGN)
 
-        self._add_field_btn = QToolButton()
-        self._add_field_btn.setObjectName("addFieldBtn")
-        self._add_field_btn.setText("+")
-        self._add_field_btn.setFixedSize(ROW_CONTROL_HEIGHT, ROW_CONTROL_HEIGHT)
-        self._add_field_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._add_field_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._add_field_btn.clicked.connect(self._add_extra_field)
-        row.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
-
         self._scroll = QScrollArea()
         self._scroll.setObjectName("entryFieldsScroll")
-        self._scroll.setWidgetResizable(True)
+        self._scroll.setWidgetResizable(False)
         self._scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
@@ -269,6 +259,9 @@ class EntryRowWidget(QWidget):
         )
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._scroll.setFixedHeight(ROW_CONTROL_HEIGHT + 8)
+        self._scroll.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
 
         self._extras_host = QWidget()
         self._extras_host.setObjectName("entryExtrasHost")
@@ -276,7 +269,16 @@ class EntryRowWidget(QWidget):
         self._extras_layout.setContentsMargins(0, 0, 0, 0)
         self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
         self._extras_layout.setAlignment(_ROW_ALIGN)
-        self._extras_layout.addStretch(1)
+
+        self._add_field_btn = QToolButton()
+        self._add_field_btn.setObjectName("addFieldBtn")
+        self._add_field_btn.setText("+")
+        self._add_field_btn.setFixedSize(ROW_CONTROL_HEIGHT, ROW_CONTROL_HEIGHT)
+        self._add_field_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._add_field_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._add_field_btn.clicked.connect(self._add_extra_field)
+        self._extras_layout.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
+
         self._scroll.setWidget(self._extras_host)
         row.addWidget(self._scroll, stretch=1, alignment=_ROW_ALIGN)
 
@@ -312,11 +314,15 @@ class EntryRowWidget(QWidget):
         for prev, nxt in zip(edits, edits[1:]):
             QWidget.setTabOrder(prev, nxt)
 
+    def _sync_scroll_width(self) -> None:
+        self._extras_host.adjustSize()
+        self._scroll.setMinimumWidth(0)
+
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
         info_index = len(self._extra_fields) + 2
         field = CompactField(
             info_index=info_index,
-            fixed_width=EXTRA_FIELD_WIDTH,
+            fixed_width=INFO_FIELD_WIDTH,
             sensitive=True,
         )
         if block_signals:
@@ -329,14 +335,11 @@ class EntryRowWidget(QWidget):
         field.set_permission(level)
         field.textChanged().connect(self._emit_changed)
 
-        insert_at = self._extras_layout.count() - 1
+        insert_at = self._extras_layout.indexOf(self._add_field_btn)
         self._extras_layout.insertWidget(insert_at, field, 0, _ROW_ALIGN)
         self._extra_fields.append(field)
         self._apply_sensitive_hidden(not self._show_sensitive)
-        next_index = len(self._extra_fields) + 2
-        self._add_field_btn.setVisible(
-            can_edit(self._permissions.level_for_info_index(next_index))
-        )
+        self._sync_scroll_width()
         self._wire_tab_order()
         self._emit_changed()
 
@@ -345,6 +348,7 @@ class EntryRowWidget(QWidget):
             self._extras_layout.removeWidget(field)
             field.deleteLater()
         self._extra_fields.clear()
+        self._sync_scroll_width()
 
     def apply_permissions(self, perms: UserPermissions) -> None:
         self._permissions = perms
@@ -352,8 +356,6 @@ class EntryRowWidget(QWidget):
         self._info1.set_permission(perms.info1)
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_permission(perms.level_for_info_index(index))
-        next_index = len(self._extra_fields) + 2
-        self._add_field_btn.setVisible(can_edit(perms.level_for_info_index(next_index)))
         self._wire_tab_order()
         self._apply_visibility()
 
@@ -411,6 +413,7 @@ class EntryRowWidget(QWidget):
         self._clear_extra_fields()
         for value in entry.more_infos:
             self._add_extra_field(initial_text=value, block_signals=True)
+        self._sync_scroll_width()
         self.set_sensitive_shown(False)
 
     def block_change_signals(self, block: bool) -> None:
