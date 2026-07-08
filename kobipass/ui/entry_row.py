@@ -82,10 +82,10 @@ class EntryFieldsScroll(QScrollArea):
     """Yatay kaydırma — scrollbar gizli, tekerlek ile kayar."""
 
     def sizeHint(self) -> QSize:
-        return QSize(0, ROW_CONTROL_HEIGHT)
+        return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
 
     def minimumSizeHint(self) -> QSize:
-        return QSize(0, ROW_CONTROL_HEIGHT)
+        return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         bar = self.horizontalScrollBar()
@@ -287,13 +287,15 @@ class EntryRowWidget(QWidget):
             QSizePolicy.Policy.Minimum,
         )
         self._scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self._scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT)
+
+        # Scrollarea yüksekliğine scrollbar nefes payı (+14)
+        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT + 14)
 
         # Kutular 14px boşluğun ortasında yüzmesin — yukarı yasla
         self._scroll.setAlignment(
@@ -302,10 +304,6 @@ class EntryRowWidget(QWidget):
 
         self._extras_host = QWidget()
         self._extras_host.setObjectName("entryExtrasHost")
-        self._extras_host.setSizePolicy(
-            QSizePolicy.Policy.Minimum,
-            QSizePolicy.Policy.Fixed,
-        )
         self._extras_layout = QHBoxLayout(self._extras_host)
         self._extras_layout.setContentsMargins(0, 0, 0, 0)
         self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
@@ -359,16 +357,20 @@ class EntryRowWidget(QWidget):
         for prev, nxt in zip(edits, edits[1:]):
             QWidget.setTabOrder(prev, nxt)
 
-    def _sync_scroll_width(self) -> None:
-        # Genişlik QHBoxLayout + setWidgetResizable(True) ile hesaplanır.
-        # Otomatik sağa kaydırma yok — her + basışında görünür scrollbar/kayma olmaz.
-        self._extras_host.adjustSize()
+    def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
+        # Manuel pikselleri hesaplama kodları (for döngüsü ve setFixedSize) tamamen silindi.
+        # Genişlik hesabını artık setWidgetResizable(True) sayesinde QHBoxLayout kendisi yapacak.
 
-        def clamp_scroll():
+        def update_scroll():
             bar = self._scroll.horizontalScrollBar()
-            bar.setValue(min(bar.value(), bar.maximum()))
+            if scroll_to_end:
+                bar.setValue(bar.maximum())
+            else:
+                bar.setValue(min(bar.value(), bar.maximum()))
 
-        QTimer.singleShot(0, clamp_scroll)
+        # Yeni alan eklendiğinde Qt'nin arayüzü çizmesi birkaç milisaniye sürer.
+        # Scroll barın doğru maksimum değere ulaşması için çizimin bitmesini sıfır gecikmeli timer ile bekliyoruz.
+        QTimer.singleShot(0, update_scroll)
 
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
         info_index = len(self._extra_fields) + 2
@@ -397,7 +399,7 @@ class EntryRowWidget(QWidget):
         self._extra_fields.append(field)
         field.show()
         self._apply_sensitive_hidden(not self._show_sensitive)
-        self._sync_scroll_width()
+        self._sync_scroll_width(scroll_to_end=not block_signals)
         self._wire_tab_order()
         self._emit_changed()
 

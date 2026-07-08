@@ -125,11 +125,45 @@ QScrollBar::sub-page:horizontal {
     background: none;
 }
 
-QScrollArea#entryFieldsScroll QScrollBar:vertical,
-QScrollArea#entryFieldsScroll QScrollBar:horizontal {
+QScrollArea#entryFieldsScroll QScrollBar:vertical {
     width: 0;
-    height: 0;
     background: transparent;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar:horizontal {
+    background: transparent;
+    height: 6px;
+    margin: 2px 0 0 0;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover {
+    height: 12px;
+    margin: 0;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal {
+    background: #343a46;
+    border-radius: 2px;
+    min-width: 24px;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover QScrollBar::handle:horizontal,
+QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal:hover {
+    background: #4d5566;
+    border-radius: 5px;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar::add-line:horizontal,
+QScrollArea#entryFieldsScroll QScrollBar::sub-line:horizontal {
+    height: 0;
+    width: 0;
+    background: none;
+    border: none;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar::add-page:horizontal,
+QScrollArea#entryFieldsScroll QScrollBar::sub-page:horizontal {
+    background: none;
 }
 
 QScrollArea#entryFieldsScroll {
@@ -565,11 +599,45 @@ QScrollBar::sub-page:horizontal {
     background: none;
 }
 
-QScrollArea#entryFieldsScroll QScrollBar:vertical,
-QScrollArea#entryFieldsScroll QScrollBar:horizontal {
+QScrollArea#entryFieldsScroll QScrollBar:vertical {
     width: 0;
-    height: 0;
     background: transparent;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar:horizontal {
+    background: transparent;
+    height: 6px;
+    margin: 2px 0 0 0;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover {
+    height: 12px;
+    margin: 0;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal {
+    background: #d1d5db;
+    border-radius: 2px;
+    min-width: 24px;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover QScrollBar::handle:horizontal,
+QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal:hover {
+    background: #9ca3af;
+    border-radius: 5px;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar::add-line:horizontal,
+QScrollArea#entryFieldsScroll QScrollBar::sub-line:horizontal {
+    height: 0;
+    width: 0;
+    background: none;
+    border: none;
+}
+
+QScrollArea#entryFieldsScroll QScrollBar::add-page:horizontal,
+QScrollArea#entryFieldsScroll QScrollBar::sub-page:horizontal {
+    background: none;
 }
 
 QScrollArea#entryFieldsScroll {
