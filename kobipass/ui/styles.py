@@ -53,11 +53,6 @@ QScrollArea {
     background-color: #1a1d23;
 }
 
-QScrollArea#entriesScroll {
-    border: none;
-    background-color: #1a1d23;
-}
-
 QScrollArea#entryFieldsScroll {
     background-color: transparent;
     padding: 0;
