@@ -120,8 +120,9 @@ class MainWindow(QMainWindow):
         toolbar.setSpacing(8)
         toolbar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        self._btn_open = QPushButton()
-        self._btn_open.clicked.connect(self._open_vault)
+        self._btn_open = QPushButton("🏠")
+        self._btn_open.setToolTip(tr("btn_open"))
+        self._btn_open.clicked.connect(self._show_landing_page)
         toolbar.addWidget(self._btn_open, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_save = QPushButton()
