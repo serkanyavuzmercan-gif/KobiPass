@@ -408,18 +408,17 @@ QPushButton#themeBtn {
     padding: 8px 8px;
 }
 
-QToolButton#securityBadge {
+QPushButton#securityBadge {
     background-color: transparent;
     color: #4ade80;
     border: 1px solid #22c55e;
-    border-radius: 10px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: 600;
-    margin-right: 10px;
+    border-radius: 12px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: bold;
 }
 
-QToolButton#securityBadge:hover {
+QPushButton#securityBadge:hover {
     background-color: #14532d;
     color: #ffffff;
 }
@@ -966,18 +965,17 @@ QPushButton#themeBtn {
     padding: 8px 8px;
 }
 
-QToolButton#securityBadge {
+QPushButton#securityBadge {
     background-color: transparent;
     color: #16a34a;
     border: 1px solid #22c55e;
-    border-radius: 10px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: 600;
-    margin-right: 10px;
+    border-radius: 12px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: bold;
 }
 
-QToolButton#securityBadge:hover {
+QPushButton#securityBadge:hover {
     background-color: #dcfce7;
     color: #14532d;
 }
@@ -1090,5 +1088,36 @@ QMessageBox {
 
 QFileDialog {
     background-color: #f3f4f6;
+}
+
+/* --- QTabWidget (Sekmeler) Aydınlık Tema --- */
+QTabWidget::pane {
+    border: 1px solid #d1d5db;
+    background-color: #ffffff;
+    border-radius: 6px;
+    margin-top: -1px;
+}
+
+QTabBar::tab {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    padding: 8px 16px;
+    border: 1px solid #d1d5db;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    margin-right: 2px;
+}
+
+QTabBar::tab:selected {
+    background-color: #ffffff;
+    color: #1f2937;
+    font-weight: bold;
+    border-bottom: 1px solid #ffffff;
+}
+
+QTabBar::tab:hover:!selected {
+    background-color: #e5e7eb;
+    color: #1f2937;
 }
 """

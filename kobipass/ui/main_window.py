@@ -18,7 +18,6 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QStatusBar,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -159,10 +158,16 @@ class MainWindow(QMainWindow):
 
         root.addLayout(toolbar)
 
-        self._hint = QLabel()
-        self._hint.setWordWrap(True)
-        self._hint.setStyleSheet("color: #6b7280; font-size: 12px;")
-        root.addWidget(self._hint)
+        self.security_badge = QPushButton()
+        self.security_badge.setObjectName("securityBadge")
+        self.security_badge.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.security_badge.clicked.connect(self._open_security_dialog)
+
+        badge_layout = QHBoxLayout()
+        badge_layout.addWidget(self.security_badge)
+        badge_layout.addStretch()
+        badge_layout.setContentsMargins(0, 5, 0, 10)
+        root.addLayout(badge_layout)
 
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
@@ -192,11 +197,6 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status)
         self._status_left = QLabel()
         status.addWidget(self._status_left, 1)
-        self.security_badge = QToolButton()
-        self.security_badge.setObjectName("securityBadge")
-        self.security_badge.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.security_badge.clicked.connect(self._open_security_dialog)
-        status.addPermanentWidget(self.security_badge)
         self._status_role = QLabel("")
         status.addPermanentWidget(self._status_role)
         self._status_right = QLabel("")
@@ -266,7 +266,6 @@ class MainWindow(QMainWindow):
         self._btn_help.style().unpolish(self._btn_help)
         self._btn_help.style().polish(self._btn_help)
         self._btn_help.setFixedWidth(self._btn_help.sizeHint().width())
-        self._hint.setText(tr("hint_format"))
         self._title_bar.retranslate()
         self._add_bar.retranslate()
         for row in self._row_widgets:
