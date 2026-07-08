@@ -82,10 +82,10 @@ class EntryFieldsScroll(QScrollArea):
     """Yatay kaydırma — scrollbar gizli, tekerlek ile kayar."""
 
     def sizeHint(self) -> QSize:
-        return QSize(0, ROW_CONTROL_HEIGHT)
+        return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
 
     def minimumSizeHint(self) -> QSize:
-        return QSize(0, ROW_CONTROL_HEIGHT)
+        return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         bar = self.horizontalScrollBar()
@@ -293,10 +293,13 @@ class EntryRowWidget(QWidget):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT)
-        self._scroll.viewport().setMinimumHeight(ROW_CONTROL_HEIGHT)
+
+        # Scrollarea yüksekliğine scrollbar nefes payı (+14)
+        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT + 14)
+
+        # Kutular 14px boşluğun ortasında yüzmesin — yukarı yasla
         self._scroll.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
 
         self._extras_host = QWidget()
@@ -304,7 +307,11 @@ class EntryRowWidget(QWidget):
         self._extras_layout = QHBoxLayout(self._extras_host)
         self._extras_layout.setContentsMargins(0, 0, 0, 0)
         self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
-        self._extras_layout.setAlignment(_ROW_ALIGN)
+
+        # İçeriği sola ve yukarı hizala
+        self._extras_layout.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
 
         self._add_field_btn = QToolButton()
         self._add_field_btn.setObjectName("addFieldBtn")
