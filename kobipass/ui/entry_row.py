@@ -204,15 +204,18 @@ class CompactField(QWidget):
     def set_permission(self, level: FieldLevel) -> None:
         self._permission = level
         effective = level
-        if level == "none" and self._always_show:
+        if self._always_show and (level == "none" or not can_edit(level)):
+            effective = "write"
+        elif level == "none":
             effective = "read"
         visible = can_view(effective)
         self.setVisible(visible)
         if not visible:
             return
-        editable = can_edit(level)
+        editable = can_edit(effective)
         self._edit.setReadOnly(not editable)
-        self._copy_btn.setEnabled(can_copy(level) if level != "none" else can_copy(effective))
+        self._edit.setEnabled(editable)
+        self._copy_btn.setEnabled(can_copy(effective))
         self._sync_echo()
 
     def _sync_echo(self) -> None:
