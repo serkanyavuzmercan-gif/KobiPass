@@ -48,6 +48,7 @@ from kobipass.ui.dialogs import (
 )
 from kobipass.ui.entry_row import EntryRowWidget
 from kobipass.ui.title_bar import CustomTitleBar
+from kobipass.ui.theme import theme_manager
 from kobipass.ui.user_admin_dialog import UserAdminDialog
 from kobipass.vault_model import FIELD_NAMES, KobiVault, VaultEntry
 
@@ -77,12 +78,14 @@ class MainWindow(QMainWindow):
         self._session: Session | None = None
         self._snapshot_entries: list[VaultEntry] = []
         self._pending_user_passwords: list[tuple[bool, str]] | None = None
+        self._initial_centered = False
 
         self._build_ui()
         self._copy_notice_timer = QTimer(self)
         self._copy_notice_timer.setSingleShot(True)
         self._copy_notice_timer.timeout.connect(self._end_copy_notice)
         i18n.language_changed.connect(self._retranslate_ui)
+        theme_manager.theme_changed.connect(self._on_theme_changed)
         self._retranslate_ui()
         self._apply_session_ui()
 
@@ -130,6 +133,12 @@ class MainWindow(QMainWindow):
 
         toolbar.addStretch()
 
+        self._btn_theme = QPushButton(theme_manager.toggle_icon())
+        self._btn_theme.setObjectName("themeBtn")
+        self._btn_theme.setFixedWidth(50)
+        self._btn_theme.clicked.connect(theme_manager.toggle)
+        toolbar.addWidget(self._btn_theme, 0, Qt.AlignmentFlag.AlignVCenter)
+
         self._btn_lang = QPushButton("TR/EN")
         self._btn_lang.setObjectName("langBtn")
         self._btn_lang.setFixedWidth(50)
@@ -144,8 +153,8 @@ class MainWindow(QMainWindow):
         root.addLayout(toolbar)
 
         self._hint = QLabel()
+        self._hint.setObjectName("hintLabel")
         self._hint.setWordWrap(True)
-        self._hint.setStyleSheet("color: #6b7280; font-size: 12px;")
         root.addWidget(self._hint)
 
         self._scroll = QScrollArea()
@@ -184,9 +193,21 @@ class MainWindow(QMainWindow):
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
+        if not self._initial_centered:
+            self._initial_centered = True
+            self._title_bar.center_on_screen()
         self.winId()
         self.setWindowIcon(app_icon())
         self._title_bar.capture_normal_geometry()
+
+    def _on_theme_changed(self) -> None:
+        self._update_theme_button()
+
+    def _update_theme_button(self) -> None:
+        self._btn_theme.setText(theme_manager.toggle_icon())
+        self._btn_theme.setToolTip(
+            tr("btn_theme_light") if theme_manager.is_dark() else tr("btn_theme_dark")
+        )
 
     def _role_label(self) -> str:
         if self._session is None:
@@ -235,6 +256,7 @@ class MainWindow(QMainWindow):
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_clear.setText(tr("btn_clear"))
         self._btn_lang.setToolTip(tr("btn_lang_tip"))
+        self._update_theme_button()
         self._btn_help.setText(tr("btn_help"))
         self._btn_help.setToolTip(tr("btn_help_tip"))
         self._btn_help.style().unpolish(self._btn_help)
