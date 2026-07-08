@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -91,6 +92,7 @@ class MainWindow(QMainWindow):
         i18n.language_changed.connect(self._retranslate_ui)
         self._retranslate_ui()
         self._apply_session_ui()
+        self.setAcceptDrops(True)
 
     def _build_ui(self) -> None:
         central = QWidget()
@@ -145,6 +147,11 @@ class MainWindow(QMainWindow):
         self._btn_clear.setObjectName("clearBtn")
         self._btn_clear.clicked.connect(self._clear_vault)
         toolbar.addWidget(self._btn_clear, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        self._search_bar = QLineEdit()
+        self._search_bar.setPlaceholderText("İsim ile ara...")
+        self._search_bar.textChanged.connect(self._filter_rows)
+        toolbar.addWidget(self._search_bar)
 
         toolbar.addStretch()
 
@@ -319,6 +326,25 @@ class MainWindow(QMainWindow):
             title = f"{title} — {self._role_label()}"
         self.setWindowTitle(title)
         self._update_status()
+
+    def _filter_rows(self, text: str) -> None:
+        search_term = text.lower()
+        for row in self._row_widgets:
+            row.setVisible(search_term in row._name.text().lower())
+
+    def dragEnterEvent(self, event) -> None:  # noqa: N802
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:  # noqa: N802
+        files = [u.toLocalFile() for u in event.mimeData().urls()]
+        if files and files[0].endswith(".enc"):
+            self._unlock_path(Path(files[0]))
+            event.accept()
+        else:
+            event.ignore()
 
     def _retranslate_ui(self) -> None:
         self._btn_home.setText("🏠")

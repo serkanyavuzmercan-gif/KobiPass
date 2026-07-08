@@ -141,14 +141,24 @@ class CompactField(QWidget):
         self._hidden = sensitive
         self._always_show = False
         self._eye_btn: QToolButton | None = None
+        self._strength_meter: QFrame | None = None
         self.setFixedWidth(fixed_width)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
-        layout = QHBoxLayout(self)
+        if sensitive:
+            outer = QVBoxLayout(self)
+            outer.setContentsMargins(0, 0, 0, 0)
+            outer.setSpacing(0)
+            row_host = QWidget(self)
+            layout = QHBoxLayout(row_host)
+            self.setFixedHeight(ROW_CONTROL_HEIGHT + 3)
+        else:
+            layout = QHBoxLayout(self)
+            self.setFixedHeight(ROW_CONTROL_HEIGHT)
+
         layout.setContentsMargins(*COPY_GROUP_INSET)
         layout.setSpacing(4)
         layout.setAlignment(_ROW_ALIGN)
-        self.setFixedHeight(ROW_CONTROL_HEIGHT)
 
         self._copy_btn = _icon_button(icon_copy(), "", "copyBtn")
         self._copy_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -185,6 +195,14 @@ class CompactField(QWidget):
             self._eye_btn.clicked.connect(self._on_eye_clicked)
             layout.addWidget(self._eye_btn, 0, _ROW_ALIGN)
 
+        if sensitive:
+            outer.addWidget(row_host)
+            self._strength_meter = QFrame(self)
+            self._strength_meter.setFixedHeight(3)
+            self._strength_meter.setStyleSheet("background-color: transparent;")
+            outer.addWidget(self._strength_meter, 0, Qt.AlignmentFlag.AlignBottom)
+            self._edit.textChanged.connect(self._update_strength)
+
         self.setFocusProxy(self._edit)
         self._sync_echo()
 
@@ -214,6 +232,13 @@ class CompactField(QWidget):
         shown = not self._hidden
         self._eye_btn.setIcon(icon_eye() if shown else icon_eye_off())
         self._eye_btn.setToolTip(tr("eye_hide") if shown else tr("eye_show"))
+
+    def _update_strength(self, text: str) -> None:
+        if not self._sensitive or self._strength_meter is None:
+            return
+        score = len(text)
+        color = "red" if score < 6 else "orange" if score < 10 else "green"
+        self._strength_meter.setStyleSheet(f"background-color: {color};")
 
     def set_permission(self, level: FieldLevel) -> None:
         self._permission = level
