@@ -174,19 +174,31 @@ QWidget#entryExtrasHost {
     background-color: transparent;
 }
 
-QToolButton#addFieldBtn {
+QWidget#fieldStepColumn {
+    background-color: transparent;
+}
+
+QToolButton#addFieldBtn,
+QToolButton#removeFieldBtn {
     background-color: #2d3340;
     border: 1px solid #3d4450;
-    border-radius: 6px;
-    font-size: 18px;
+    border-radius: 4px;
+    font-size: 14px;
     font-weight: 600;
     color: #e8eaed;
     padding: 0;
 }
 
-QToolButton#addFieldBtn:hover {
+QToolButton#addFieldBtn:hover,
+QToolButton#removeFieldBtn:hover:enabled {
     background-color: #383f4d;
     border-color: #4d5566;
+}
+
+QToolButton#removeFieldBtn:disabled {
+    color: #6b7280;
+    border-color: #343a46;
+    background-color: #252830;
 }
 
 QWidget#entriesContainer {
@@ -664,19 +676,31 @@ QWidget#entryExtrasHost {
     background-color: transparent;
 }
 
-QToolButton#addFieldBtn {
+QWidget#fieldStepColumn {
+    background-color: transparent;
+}
+
+QToolButton#addFieldBtn,
+QToolButton#removeFieldBtn {
     background-color: #e5e7eb;
     border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 18px;
+    border-radius: 4px;
+    font-size: 14px;
     font-weight: 600;
     color: #1f2937;
     padding: 0;
 }
 
-QToolButton#addFieldBtn:hover {
+QToolButton#addFieldBtn:hover,
+QToolButton#removeFieldBtn:hover:enabled {
     background-color: #d1d5db;
     border-color: #9ca3af;
+}
+
+QToolButton#removeFieldBtn:disabled {
+    color: #9ca3af;
+    border-color: #e5e7eb;
+    background-color: #f3f4f6;
 }
 
 QWidget#entriesContainer {

@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QToolButton,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -31,6 +32,9 @@ ROW_LAYOUT_SPACING = 8
 
 NAME_FIELD_WIDTH = 180
 INFO_FIELD_WIDTH = 180
+FIELD_STEP_BTN_WIDTH = 26
+FIELD_STEP_BTN_HEIGHT = 17
+FIELD_STEP_COLUMN_WIDTH = FIELD_STEP_BTN_WIDTH
 
 _ICON_BTN_SIZE = COPY_BTN_SIZE
 _FIELD_EYE_BTN_SIZE = QSize(28, 28)
@@ -63,6 +67,16 @@ def _icon_button(icon, tooltip: str, object_name: str) -> QToolButton:
     btn.setToolTip(tooltip)
     btn.setFixedSize(_ICON_BTN_SIZE)
     btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    return btn
+
+
+def _field_step_button(label: str, object_name: str) -> QToolButton:
+    btn = QToolButton()
+    btn.setObjectName(object_name)
+    btn.setText(label)
+    btn.setFixedSize(FIELD_STEP_BTN_WIDTH, FIELD_STEP_BTN_HEIGHT)
+    btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
     return btn
 
 
@@ -360,17 +374,30 @@ class EntryRowWidget(QWidget):
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
 
-        self._add_field_btn = QToolButton()
-        self._add_field_btn.setObjectName("addFieldBtn")
-        self._add_field_btn.setText("+")
-        self._add_field_btn.setFixedSize(ROW_CONTROL_HEIGHT, ROW_CONTROL_HEIGHT)
-        self._add_field_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._add_field_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._add_field_btn.clicked.connect(self._add_extra_field)
-        self._extras_layout.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
-
         self._scroll.setWidget(self._extras_host)
         row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
+
+        self._field_step_column = QWidget()
+        self._field_step_column.setObjectName("fieldStepColumn")
+        self._field_step_column.setFixedWidth(FIELD_STEP_COLUMN_WIDTH)
+        field_step_layout = QVBoxLayout(self._field_step_column)
+        field_step_layout.setContentsMargins(0, 0, 0, 0)
+        field_step_layout.setSpacing(2)
+        field_step_layout.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
+        )
+
+        self._add_field_btn = _field_step_button("+", "addFieldBtn")
+        self._add_field_btn.clicked.connect(self._add_extra_field)
+        field_step_layout.addWidget(self._add_field_btn, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        self._remove_field_btn = _field_step_button("-", "removeFieldBtn")
+        self._remove_field_btn.clicked.connect(self._remove_last_extra_field)
+        field_step_layout.addWidget(
+            self._remove_field_btn, 0, Qt.AlignmentFlag.AlignHCenter
+        )
+
+        row.addWidget(self._field_step_column, 0, Qt.AlignmentFlag.AlignTop)
 
         self._remove_btn = QPushButton()
         self._remove_btn.setObjectName("dangerBtn")
@@ -386,6 +413,10 @@ class EntryRowWidget(QWidget):
         self._info1.textChanged().connect(self._emit_changed)
 
         self._wire_tab_order()
+        self._update_field_step_buttons()
+
+    def _update_field_step_buttons(self) -> None:
+        self._remove_field_btn.setEnabled(len(self._extra_fields) > 0)
 
     def _sensitive_fields(self) -> list[CompactField]:
         return [self._info1, *self._extra_fields]
@@ -436,16 +467,23 @@ class EntryRowWidget(QWidget):
         field.set_permission(level)
         field.textChanged().connect(self._emit_changed)
 
-        self._extras_layout.insertWidget(
-            self._extras_layout.indexOf(self._add_field_btn),
-            field,
-            0,
-            _ROW_ALIGN,
-        )
+        self._extras_layout.addWidget(field, 0, _ROW_ALIGN)
         self._extra_fields.append(field)
         field.show()
         self._sync_scroll_width(scroll_to_end=not block_signals)
         self._wire_tab_order()
+        self._update_field_step_buttons()
+        self._emit_changed()
+
+    def _remove_last_extra_field(self) -> None:
+        if not self._extra_fields:
+            return
+        field = self._extra_fields.pop()
+        self._extras_layout.removeWidget(field)
+        field.deleteLater()
+        self._sync_scroll_width()
+        self._wire_tab_order()
+        self._update_field_step_buttons()
         self._emit_changed()
 
     def _clear_extra_fields(self) -> None:
@@ -454,6 +492,7 @@ class EntryRowWidget(QWidget):
             field.deleteLater()
         self._extra_fields.clear()
         self._sync_scroll_width()
+        self._update_field_step_buttons()
 
     def apply_permissions(self, perms: UserPermissions) -> None:
         self._permissions = perms
@@ -479,6 +518,7 @@ class EntryRowWidget(QWidget):
         for field in self._extra_fields:
             field.retranslate()
         self._add_field_btn.setToolTip(tr("add_field_tip"))
+        self._remove_field_btn.setToolTip(tr("remove_field_tip"))
         self._remove_btn.setText(tr("btn_delete"))
 
     def _emit_changed(self) -> None:
