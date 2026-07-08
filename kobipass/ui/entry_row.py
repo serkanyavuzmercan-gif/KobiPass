@@ -98,6 +98,7 @@ class CompactField(QWidget):
         self._permission: FieldLevel = "write"
         self._sensitive = sensitive
         self._hidden = sensitive
+        self._always_show = False
         self.setFixedWidth(fixed_width)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -144,13 +145,16 @@ class CompactField(QWidget):
 
     def set_permission(self, level: FieldLevel) -> None:
         self._permission = level
-        visible = can_view(level)
+        effective = level
+        if level == "none" and self._always_show:
+            effective = "read"
+        visible = can_view(effective)
         self.setVisible(visible)
         if not visible:
             return
         editable = can_edit(level)
         self._edit.setReadOnly(not editable)
-        self._copy_btn.setEnabled(can_copy(level))
+        self._copy_btn.setEnabled(can_copy(level) if level != "none" else can_copy(effective))
         self._sync_echo()
 
     def _sync_echo(self) -> None:
@@ -270,6 +274,9 @@ class EntryRowWidget(QWidget):
         self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
         self._extras_layout.setAlignment(_ROW_ALIGN)
 
+        self._scroll.setWidget(self._extras_host)
+        row.addWidget(self._scroll, stretch=1, alignment=_ROW_ALIGN)
+
         self._add_field_btn = QToolButton()
         self._add_field_btn.setObjectName("addFieldBtn")
         self._add_field_btn.setText("+")
@@ -277,10 +284,7 @@ class EntryRowWidget(QWidget):
         self._add_field_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_field_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._add_field_btn.clicked.connect(self._add_extra_field)
-        self._extras_layout.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
-
-        self._scroll.setWidget(self._extras_host)
-        row.addWidget(self._scroll, stretch=1, alignment=_ROW_ALIGN)
+        row.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
 
         self._remove_btn = QPushButton()
         self._remove_btn.setObjectName("dangerBtn")
@@ -315,8 +319,23 @@ class EntryRowWidget(QWidget):
             QWidget.setTabOrder(prev, nxt)
 
     def _sync_scroll_width(self) -> None:
-        self._extras_host.adjustSize()
-        self._scroll.setMinimumWidth(0)
+        spacing = self._extras_layout.spacing()
+        width = 0
+        visible_count = 0
+        for index in range(self._extras_layout.count()):
+            item = self._extras_layout.itemAt(index)
+            if item is None:
+                continue
+            widget = item.widget()
+            if widget is None or not widget.isVisible():
+                continue
+            width += widget.width() if widget.width() > 0 else widget.sizeHint().width()
+            visible_count += 1
+        if visible_count > 1:
+            width += spacing * (visible_count - 1)
+        self._extras_host.setFixedSize(max(0, width), ROW_CONTROL_HEIGHT)
+        bar = self._scroll.horizontalScrollBar()
+        bar.setValue(bar.maximum())
 
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
         info_index = len(self._extra_fields) + 2
@@ -325,6 +344,7 @@ class EntryRowWidget(QWidget):
             fixed_width=INFO_FIELD_WIDTH,
             sensitive=True,
         )
+        field._always_show = True
         if block_signals:
             field._edit.blockSignals(True)
         field.setText(initial_text)
@@ -335,9 +355,9 @@ class EntryRowWidget(QWidget):
         field.set_permission(level)
         field.textChanged().connect(self._emit_changed)
 
-        insert_at = self._extras_layout.indexOf(self._add_field_btn)
-        self._extras_layout.insertWidget(insert_at, field, 0, _ROW_ALIGN)
+        self._extras_layout.addWidget(field, 0, _ROW_ALIGN)
         self._extra_fields.append(field)
+        field.show()
         self._apply_sensitive_hidden(not self._show_sensitive)
         self._sync_scroll_width()
         self._wire_tab_order()
@@ -356,6 +376,7 @@ class EntryRowWidget(QWidget):
         self._info1.set_permission(perms.info1)
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_permission(perms.level_for_info_index(index))
+        self._sync_scroll_width()
         self._wire_tab_order()
         self._apply_visibility()
 
