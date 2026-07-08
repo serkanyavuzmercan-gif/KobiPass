@@ -533,6 +533,37 @@ QMessageBox {
 QFileDialog {
     background-color: #1a1d23;
 }
+
+/* --- QTabWidget (Sekmeler) Karanlık Tema --- */
+QTabWidget::pane {
+    border: 1px solid #3d4450;
+    background-color: #1e2229;
+    border-radius: 6px;
+    margin-top: -1px;
+}
+
+QTabBar::tab {
+    background-color: #252830;
+    color: #9aa0a8;
+    padding: 8px 16px;
+    border: 1px solid #3d4450;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    margin-right: 2px;
+}
+
+QTabBar::tab:selected {
+    background-color: #1e2229;
+    color: #e8eaed;
+    font-weight: bold;
+    border-bottom: 1px solid #1e2229;
+}
+
+QTabBar::tab:hover:!selected {
+    background-color: #2d3340;
+    color: #e8eaed;
+}
 """
 
 LIGHT_STYLESHEET = """
