@@ -27,7 +27,7 @@ QPushButton#titleBtnClose {
     border-radius: 0;
     padding: 0;
     font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 400;
     min-height: 38px;
     max-height: 38px;
@@ -529,7 +529,7 @@ QPushButton#titleBtnClose {
     border-radius: 0;
     padding: 0;
     font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 400;
     min-height: 38px;
     max-height: 38px;
