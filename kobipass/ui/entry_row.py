@@ -378,6 +378,7 @@ class EntryRowWidget(QWidget):
             info_index=info_index,
             fixed_width=INFO_FIELD_WIDTH,
             sensitive=True,
+            parent=self._extras_host,
         )
         field._always_show = True
         if block_signals:
