@@ -107,6 +107,8 @@ class MainWindow(QMainWindow):
 
         self._landing_page = LandingPage()
         self._stacked_widget.addWidget(self._landing_page)
+        self.landing_page = self._landing_page
+        self.stacked_widget = self._stacked_widget
 
         self._vault_view = QWidget()
         root = QVBoxLayout(self._vault_view)
