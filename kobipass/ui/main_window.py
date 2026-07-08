@@ -78,7 +78,6 @@ class MainWindow(QMainWindow):
         self._session: Session | None = None
         self._snapshot_entries: list[VaultEntry] = []
         self._pending_user_passwords: list[tuple[bool, str]] | None = None
-        self._initial_centered = False
 
         self._build_ui()
         self._copy_notice_timer = QTimer(self)
@@ -152,8 +151,8 @@ class MainWindow(QMainWindow):
         root.addLayout(toolbar)
 
         self._hint = QLabel()
-        self._hint.setObjectName("hintLabel")
         self._hint.setWordWrap(True)
+        self._hint.setStyleSheet("color: #6b7280; font-size: 12px;")
         root.addWidget(self._hint)
 
         self._scroll = QScrollArea()
@@ -192,9 +191,6 @@ class MainWindow(QMainWindow):
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
-        if not self._initial_centered:
-            self._initial_centered = True
-            self._title_bar.center_on_screen()
         self.winId()
         self.setWindowIcon(app_icon())
         self._title_bar.capture_normal_geometry()

@@ -267,11 +267,6 @@ QPushButton#themeBtn {
     padding: 8px 8px;
 }
 
-QLabel#hintLabel {
-    color: #6b7280;
-    font-size: 12px;
-}
-
 QTextBrowser#helpBrowser {
     background-color: transparent;
     color: #e8eaed;
@@ -625,11 +620,6 @@ QPushButton#themeBtn {
     min-width: 0;
     max-width: 56px;
     padding: 8px 8px;
-}
-
-QLabel#hintLabel {
-    color: #6b7280;
-    font-size: 12px;
 }
 
 QTextBrowser#helpBrowser {
