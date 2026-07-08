@@ -140,6 +140,7 @@ class CompactField(QWidget):
         self._sensitive = sensitive
         self._hidden = sensitive
         self._always_show = False
+        self._view_only = False
         self._eye_btn: QToolButton | None = None
         self._strength_meter: QFrame | None = None
         self.setFixedWidth(fixed_width)
@@ -241,10 +242,17 @@ class CompactField(QWidget):
         if self._strength_meter is not None:
             self._strength_meter.setStyleSheet(f"background-color: {color};")
 
+    def set_view_only(self, view_only: bool) -> None:
+        self._view_only = view_only
+
     def set_permission(self, level: FieldLevel) -> None:
         self._permission = level
         effective = level
-        if self._always_show and (level == "none" or not can_edit(level)):
+        if (
+            self._always_show
+            and not self._view_only
+            and (level == "none" or not can_edit(level))
+        ):
             effective = "write"
         elif level == "none":
             effective = "read"
@@ -252,12 +260,20 @@ class CompactField(QWidget):
         self.setVisible(visible)
         if not visible:
             return
-        editable = can_edit(effective)
+        editable = can_edit(effective) and not self._view_only
         self._edit.setReadOnly(not editable)
-        self._edit.setEnabled(True)
-        self._edit.setProperty("readOnlyPerm", "true" if not editable else "false")
+        if editable:
+            self._edit.setEnabled(True)
+            self._edit.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            self._edit.setProperty("readOnlyPerm", "false")
+        else:
+            self._edit.setEnabled(False)
+            self._edit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._edit.setProperty("readOnlyPerm", "true")
         _restyle(self._edit)
-        self._copy_btn.setEnabled(can_copy(effective))
+        self._copy_btn.setEnabled(can_copy(effective) and not self._view_only)
+        if self._eye_btn is not None:
+            self._eye_btn.setEnabled(not self._view_only and can_view(effective))
         self._sync_echo()
 
     def _sync_echo(self) -> None:
@@ -346,6 +362,7 @@ class EntryRowWidget(QWidget):
         super().__init__(parent)
         self.setObjectName("entryRow")
         self._can_delete = True
+        self._view_only = False
         self._permissions = UserPermissions()
         self._extra_fields: list[CompactField] = []
         self.vault_index: int | None = None
@@ -528,12 +545,23 @@ class EntryRowWidget(QWidget):
         self._sync_scroll_width()
         self._update_field_step_buttons()
 
-    def apply_permissions(self, perms: UserPermissions) -> None:
+    def apply_permissions(
+        self, perms: UserPermissions, *, view_only: bool = False
+    ) -> None:
+        self._view_only = view_only
         self._permissions = perms
+        for field in (self._name, self._info1, *self._extra_fields):
+            field.set_view_only(view_only)
         self._name.set_permission(perms.name)
         self._info1.set_permission(perms.info1)
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_permission(perms.level_for_info_index(index))
+        self._field_step_column.setVisible(not view_only)
+        if view_only:
+            self._add_field_btn.setEnabled(False)
+            self._remove_field_btn.setEnabled(False)
+        else:
+            self._update_field_step_buttons()
         self._sync_scroll_width()
         self._wire_tab_order()
 
@@ -544,7 +572,8 @@ class EntryRowWidget(QWidget):
 
     def set_can_delete(self, allowed: bool) -> None:
         self._can_delete = allowed
-        self._remove_btn.setVisible(allowed)
+        self._remove_btn.setVisible(allowed and not self._view_only)
+        self._remove_btn.setEnabled(allowed and not self._view_only)
 
     def retranslate(self) -> None:
         self._name.retranslate()

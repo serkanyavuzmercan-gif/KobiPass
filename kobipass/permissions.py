@@ -35,6 +35,24 @@ def effective_permissions(session: Session, vault_perms: UserPermissions) -> Use
     return vault_perms
 
 
+def view_only_permissions(perms: UserPermissions) -> UserPermissions:
+    """Yönetici dışı oturumlarda tüm yazma yetkilerini kaldırır."""
+
+    def strip_write(level: FieldLevel) -> FieldLevel:
+        return "read" if level == "write" else level
+
+    return UserPermissions(
+        name=strip_write(perms.name),
+        info1=strip_write(perms.info1),
+        info2=strip_write(perms.info2),
+        info3=strip_write(perms.info3),
+        info4=strip_write(perms.info4),
+        can_add_entry=False,
+        can_delete_entry=False,
+        can_save=False,
+    )
+
+
 def field_label(field_name: str) -> str:
     if field_name == "name":
         return tr("field_name")

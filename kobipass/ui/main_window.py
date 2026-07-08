@@ -36,6 +36,7 @@ from kobipass.i18n import crypto_message, i18n, tr
 from kobipass.permissions import (
     diff_entries_for_audit,
     effective_permissions,
+    view_only_permissions,
 )
 from kobipass.resources import app_icon
 from kobipass.session import AdminSession, Session, UserSession, session_from_unlock
@@ -320,6 +321,22 @@ class MainWindow(QMainWindow):
             return tr("role_admin")
         return tr("role_user", slot=self._session.user_slot)
 
+    def _row_permissions(self) -> tuple[UserPermissions | None, bool]:
+        if not self._vault or not self._session:
+            return None, False
+        perms = effective_permissions(self._session, self._vault.user_permissions)
+        view_only = not isinstance(self._session, AdminSession)
+        if view_only:
+            perms = view_only_permissions(perms)
+        return perms, view_only
+
+    def _apply_row_permissions(self) -> None:
+        perms, view_only = self._row_permissions()
+        if not perms:
+            return
+        for row in self._row_widgets:
+            row.apply_permissions(perms, view_only=view_only)
+
     def _apply_session_ui(self) -> None:
         is_unlocked = self._session is not None
         is_admin = isinstance(self._session, AdminSession)
@@ -327,11 +344,7 @@ class MainWindow(QMainWindow):
         self._btn_users.setVisible(is_admin)
         self._btn_audit.setVisible(is_admin)
 
-        perms = (
-            effective_permissions(self._session, self._vault.user_permissions)
-            if self._vault and self._session
-            else None
-        )
+        perms, view_only = self._row_permissions()
 
         can_add = perms.can_add_entry if perms else self._session is None
         can_delete = perms.can_delete_entry if perms else True
@@ -342,8 +355,7 @@ class MainWindow(QMainWindow):
 
         for row in self._row_widgets:
             row.set_can_delete(can_delete)
-            if perms:
-                row.apply_permissions(perms)
+        self._apply_row_permissions()
 
         self._update_tab_order()
 
@@ -629,10 +641,6 @@ class MainWindow(QMainWindow):
         self._clear_dirty()
         for row in self._row_widgets:
             row.set_sensitive_shown(False)
-        if self._session is not None:
-            perms = effective_permissions(self._session, vault.user_permissions)
-            for row in self._row_widgets:
-                row.apply_permissions(perms)
         self._apply_session_ui()
 
     def _open_security_dialog(self) -> None:
