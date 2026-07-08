@@ -53,6 +53,29 @@ QScrollArea {
     background-color: #1a1d23;
 }
 
+QScrollArea#entryFieldsScroll {
+    background-color: transparent;
+}
+
+QWidget#entryExtrasHost {
+    background-color: transparent;
+}
+
+QToolButton#addFieldBtn {
+    background-color: #2d3340;
+    border: 1px solid #3d4450;
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #e8eaed;
+    padding: 0;
+}
+
+QToolButton#addFieldBtn:hover {
+    background-color: #383f4d;
+    border-color: #4d5566;
+}
+
 QWidget#entriesContainer {
     background-color: #1a1d23;
 }
@@ -394,6 +417,29 @@ QPushButton#titleBtnClose:pressed {
 QScrollArea {
     border: none;
     background-color: #f3f4f6;
+}
+
+QScrollArea#entryFieldsScroll {
+    background-color: transparent;
+}
+
+QWidget#entryExtrasHost {
+    background-color: transparent;
+}
+
+QToolButton#addFieldBtn {
+    background-color: #e5e7eb;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+    padding: 0;
+}
+
+QToolButton#addFieldBtn:hover {
+    background-color: #d1d5db;
+    border-color: #9ca3af;
 }
 
 QWidget#entriesContainer {

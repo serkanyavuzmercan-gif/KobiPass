@@ -7,7 +7,6 @@ from __future__ import annotations
 from kobipass.i18n import tr
 from kobipass.session import Session, UserSession
 from kobipass.vault_model import (
-    FIELD_NAMES,
     AuditEntry,
     FieldLevel,
     UserPermissions,
@@ -37,14 +36,23 @@ def effective_permissions(session: Session, vault_perms: UserPermissions) -> Use
 
 
 def field_label(field_name: str) -> str:
-    mapping = {
-        "name": "field_name",
-        "info1": "field_info1",
-        "info2": "field_info2",
-        "info3": "field_info3",
-        "info4": "field_info4",
-    }
-    return tr(mapping.get(field_name, field_name))
+    if field_name == "name":
+        return tr("field_name")
+    if field_name == "info1":
+        return tr("field_info1")
+    if field_name.startswith("info") and field_name[4:].isdigit():
+        number = int(field_name[4:])
+        if number <= 4:
+            return tr(f"field_info{number}")
+        return tr("field_info_n", n=number)
+    return field_name
+
+
+def _entry_field_names(entry: VaultEntry) -> list[str]:
+    names = ["name", "info1"]
+    for index in range(2, entry.max_info_index() + 1):
+        names.append(f"info{index}")
+    return names
 
 
 def diff_entries_for_audit(
@@ -62,8 +70,14 @@ def diff_entries_for_audit(
         new = new_entries[index] if index < len(new_entries) else VaultEntry(name="")
         entry_name = new.name or old.name or tr("audit_unknown_entry")
 
-        for field_name in FIELD_NAMES:
-            level = permissions.field_level(field_name)
+        field_names = set(_entry_field_names(old)) | set(_entry_field_names(new))
+        for field_name in sorted(field_names, key=_field_sort_key):
+            if field_name == "name":
+                level = permissions.name
+            elif field_name.startswith("info") and field_name[4:].isdigit():
+                level = permissions.level_for_info_index(int(field_name[4:]))
+            else:
+                continue
             if not can_edit(level):
                 continue
             old_val = old.field_value(field_name)
@@ -106,3 +120,11 @@ def diff_entries_for_audit(
             )
         )
     return logs
+
+
+def _field_sort_key(field_name: str) -> tuple[int, str]:
+    if field_name == "name":
+        return (0, field_name)
+    if field_name.startswith("info") and field_name[4:].isdigit():
+        return (1, f"{int(field_name[4:]):05d}")
+    return (2, field_name)

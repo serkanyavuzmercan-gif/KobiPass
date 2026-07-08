@@ -50,7 +50,7 @@ from kobipass.ui.entry_row import EntryRowWidget
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.theme import ThemeManager, theme_manager
 from kobipass.ui.user_admin_dialog import UserAdminDialog
-from kobipass.vault_model import FIELD_NAMES, KobiVault, VaultEntry
+from kobipass.vault_model import KobiVault, VaultEntry
 
 
 class MainWindow(QMainWindow):
@@ -326,7 +326,7 @@ class MainWindow(QMainWindow):
         entries: list[VaultEntry] = []
         for row in self._row_widgets:
             e = row.to_entry()
-            if not any([e.name, e.info1, e.info2, e.info3, e.info4]):
+            if not e.has_content():
                 continue
             entries.append(e)
         return entries
