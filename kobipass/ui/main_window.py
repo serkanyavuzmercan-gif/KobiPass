@@ -120,10 +120,13 @@ class MainWindow(QMainWindow):
         toolbar.setSpacing(8)
         toolbar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        self._btn_open = QPushButton("🏠")
-        self._btn_open.setToolTip(tr("btn_open"))
-        self._btn_open.clicked.connect(self._show_landing_page)
-        toolbar.addWidget(self._btn_open, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._btn_home = QPushButton("🏠")
+        self._btn_home.setObjectName("homeBtn")
+        self._btn_home.setFixedWidth(42)
+        self._btn_home.setToolTip(tr("btn_home_tip"))
+        self._btn_home.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_home.clicked.connect(self._go_home)
+        toolbar.addWidget(self._btn_home, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_save = QPushButton()
         self._btn_save.setObjectName("primaryBtn")
@@ -145,12 +148,6 @@ class MainWindow(QMainWindow):
 
         toolbar.addStretch()
 
-        self._btn_security = QPushButton()
-        self._btn_security.setObjectName("headerSecurityBtn")
-        self._btn_security.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_security.clicked.connect(self._open_security_dialog)
-        toolbar.addWidget(self._btn_security, 0, Qt.AlignmentFlag.AlignVCenter)
-
         self._btn_theme = QPushButton(ThemeManager.button_label())
         self._btn_theme.setObjectName("themeBtn")
         self._btn_theme.setFixedWidth(56)
@@ -162,11 +159,6 @@ class MainWindow(QMainWindow):
         self._btn_lang.setFixedWidth(50)
         self._btn_lang.clicked.connect(i18n.toggle)
         toolbar.addWidget(self._btn_lang, 0, Qt.AlignmentFlag.AlignVCenter)
-
-        self._btn_help = QPushButton()
-        self._btn_help.setObjectName("helpBtn")
-        self._btn_help.clicked.connect(self._show_help)
-        toolbar.addWidget(self._btn_help, 0, Qt.AlignmentFlag.AlignVCenter)
 
         root.addLayout(toolbar)
 
@@ -230,6 +222,11 @@ class MainWindow(QMainWindow):
     def _show_vault_view(self) -> None:
         self._stacked_widget.setCurrentWidget(self._vault_view)
         self.statusBar().show()
+
+    def _go_home(self) -> None:
+        if self._dirty and not self._confirm_discard():
+            return
+        self._show_landing_page()
 
     def _mevcut_dosyayi_ac(self) -> None:
         self._open_vault()
@@ -324,22 +321,16 @@ class MainWindow(QMainWindow):
         self._update_status()
 
     def _retranslate_ui(self) -> None:
-        self._btn_open.setText(tr("btn_open"))
+        self._btn_home.setText("🏠")
+        self._btn_home.setToolTip(tr("btn_home_tip"))
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_clear.setText(tr("btn_clear"))
         self._btn_lang.setToolTip(tr("btn_lang_tip"))
         self._btn_theme.setToolTip(tr("btn_theme_tip"))
-        self._btn_help.setText(tr("btn_help"))
-        self._btn_help.setToolTip(tr("btn_help_tip"))
-        self._btn_security.setText(tr("btn_security"))
-        self._btn_security.setToolTip(tr("security_badge_tip"))
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))
-        self._btn_help.style().unpolish(self._btn_help)
-        self._btn_help.style().polish(self._btn_help)
-        self._btn_help.setFixedWidth(self._btn_help.sizeHint().width())
         self._title_bar.retranslate()
         self._landing_page.retranslate()
         self._add_bar.retranslate()
@@ -512,8 +503,10 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def _clear_vault(self) -> None:
+        """Kasa ekranından çıkmadan tüm alanları temizler."""
         if self._dirty and not self._confirm_discard():
             return
+
         self._current_path = None
         self._vault = None
         self._session = None
@@ -521,7 +514,7 @@ class MainWindow(QMainWindow):
         self._pending_user_passwords = None
         self._load_vault_data(KobiVault())
         self._apply_session_ui()
-        self._show_landing_page()
+        self._show_vault_view()
 
     def _confirm_discard(self) -> bool:
         box = QMessageBox(self)
