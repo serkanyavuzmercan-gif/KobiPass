@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QStackedWidget,
     QStatusBar,
     QVBoxLayout,
     QWidget,
@@ -48,6 +49,7 @@ from kobipass.ui.dialogs import (
     show_info,
 )
 from kobipass.ui.entry_row import EntryRowWidget
+from kobipass.ui.landing_page import LandingPage
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.theme import ThemeManager, theme_manager
 from kobipass.ui.user_admin_dialog import UserAdminDialog
@@ -100,11 +102,17 @@ class MainWindow(QMainWindow):
         self._title_bar = CustomTitleBar(self)
         outer.addWidget(self._title_bar)
 
-        body = QWidget()
-        root = QVBoxLayout(body)
+        self._stacked_widget = QStackedWidget()
+        outer.addWidget(self._stacked_widget, stretch=1)
+
+        self._landing_page = LandingPage()
+        self._stacked_widget.addWidget(self._landing_page)
+
+        self._vault_view = QWidget()
+        root = QVBoxLayout(self._vault_view)
         root.setContentsMargins(10, 8, 16, 10)
         root.setSpacing(8)
-        outer.addWidget(body, stretch=1)
+        self._stacked_widget.addWidget(self._vault_view)
 
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
@@ -204,6 +212,34 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(self._status_right)
         self._add_row()
 
+        self._landing_page.btn_open_file.clicked.connect(self._landing_open_file)
+        self._landing_page.btn_login.clicked.connect(self._landing_register)
+        self._landing_page.btn_security.clicked.connect(self._open_security_dialog)
+        self._landing_page.btn_help.clicked.connect(self._show_help)
+
+        self._show_landing_page()
+
+    def _show_landing_page(self) -> None:
+        self._stacked_widget.setCurrentWidget(self._landing_page)
+        self.statusBar().hide()
+
+    def _show_vault_view(self) -> None:
+        self._stacked_widget.setCurrentWidget(self._vault_view)
+        self.statusBar().show()
+
+    def _landing_open_file(self) -> None:
+        self._open_vault()
+
+    def _landing_register(self) -> None:
+        if self._dirty and not self._confirm_discard():
+            return
+        self._current_path = None
+        self._session = None
+        self._vault = None
+        self._snapshot_entries = []
+        self._pending_user_passwords = None
+        self._save_new_vault([])
+
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
         self.winId()
@@ -293,6 +329,7 @@ class MainWindow(QMainWindow):
         self._btn_help.style().polish(self._btn_help)
         self._btn_help.setFixedWidth(self._btn_help.sizeHint().width())
         self._title_bar.retranslate()
+        self._landing_page.retranslate()
         self._add_bar.retranslate()
         for row in self._row_widgets:
             row.retranslate()
@@ -472,6 +509,7 @@ class MainWindow(QMainWindow):
         self._pending_user_passwords = None
         self._load_vault_data(KobiVault())
         self._apply_session_ui()
+        self._show_landing_page()
 
     def _confirm_discard(self) -> bool:
         box = QMessageBox(self)
@@ -587,6 +625,7 @@ class MainWindow(QMainWindow):
 
         self._current_path = path
         self._load_vault_data(unlock.vault)
+        self._show_vault_view()
         show_info(self, tr("saved_title"), tr("saved_text", path=path_str))
 
     def _save_admin_vault(self, entries: list[VaultEntry]) -> None:
@@ -673,6 +712,7 @@ class MainWindow(QMainWindow):
         self._session = session
         self._pending_user_passwords = None
         self._load_vault_data(unlock.vault)
+        self._show_vault_view()
         show_info(
             self,
             tr("opened_title"),

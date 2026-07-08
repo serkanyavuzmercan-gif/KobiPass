@@ -563,6 +563,27 @@ QTabBar::tab:hover:!selected {
     background-color: #2d3340;
     color: #e8eaed;
 }
+
+/* --- Karşılama Ekranı Kare Butonları --- */
+QPushButton#landingSquareBtn {
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 20px;
+    background-color: #1e2229;
+    border: 2px solid #3d4450;
+    color: #e8eaed;
+}
+
+QPushButton#landingSquareBtn:hover {
+    background-color: #252830;
+    border-color: #3b82f6;
+    color: #ffffff;
+}
+
+QPushButton#landingSquareBtn:pressed {
+    background-color: #1a1d23;
+    border-color: #2563eb;
+}
 """
 
 LIGHT_STYLESHEET = """
@@ -1119,5 +1140,26 @@ QTabBar::tab:selected {
 QTabBar::tab:hover:!selected {
     background-color: #e5e7eb;
     color: #1f2937;
+}
+
+/* --- Karşılama Ekranı Kare Butonları --- */
+QPushButton#landingSquareBtn {
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 20px;
+    background-color: #ffffff;
+    border: 2px solid #d1d5db;
+    color: #1f2937;
+}
+
+QPushButton#landingSquareBtn:hover {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d2937;
+}
+
+QPushButton#landingSquareBtn:pressed {
+    background-color: #dbeafe;
+    border-color: #2563eb;
 }
 """
