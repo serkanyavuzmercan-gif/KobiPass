@@ -33,6 +33,7 @@ NAME_FIELD_WIDTH = 180
 INFO_FIELD_WIDTH = 180
 
 _ICON_BTN_SIZE = COPY_BTN_SIZE
+_FIELD_EYE_BTN_SIZE = QSize(28, 28)
 _ROW_ALIGN = Qt.AlignmentFlag.AlignVCenter
 _ICON_SIZE = QSize(20, 20)
 _COPY_FLASH_MS = 900
@@ -126,6 +127,7 @@ class CompactField(QWidget):
         self._sensitive = sensitive
         self._hidden = sensitive
         self._always_show = False
+        self._eye_btn: QToolButton | None = None
         self.setFixedWidth(fixed_width)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -141,12 +143,33 @@ class CompactField(QWidget):
         layout.addWidget(self._copy_btn, 0, _ROW_ALIGN)
 
         inner_h = ROW_CONTROL_HEIGHT - COPY_GROUP_INSET[1] - COPY_GROUP_INSET[3]
-        edit_width = fixed_width - COPY_BTN_SIZE.width() - COPY_GROUP_INSET[0] - COPY_GROUP_INSET[2] - 4
+        trailing_btn_width = _FIELD_EYE_BTN_SIZE.width() if sensitive else 0
+        gap_count = 2 if sensitive else 1
+        edit_width = (
+            fixed_width
+            - COPY_BTN_SIZE.width()
+            - trailing_btn_width
+            - COPY_GROUP_INSET[0]
+            - COPY_GROUP_INSET[2]
+            - 4 * gap_count
+        )
         self._edit = QLineEdit()
         self._edit.setFixedWidth(max(72, edit_width))
         self._edit.setFixedHeight(inner_h)
         self._edit.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         layout.addWidget(self._edit, 0, _ROW_ALIGN)
+
+        if sensitive:
+            self._eye_btn = QToolButton()
+            self._eye_btn.setObjectName("fieldEyeBtn")
+            self._eye_btn.setIconSize(_ICON_SIZE)
+            self._eye_btn.setFixedSize(_FIELD_EYE_BTN_SIZE)
+            self._eye_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._eye_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._eye_btn.setCheckable(True)
+            self._eye_btn.setAutoRaise(True)
+            self._eye_btn.clicked.connect(self._on_eye_clicked)
+            layout.addWidget(self._eye_btn, 0, _ROW_ALIGN)
 
         self.setFocusProxy(self._edit)
         self._sync_echo()
@@ -169,6 +192,14 @@ class CompactField(QWidget):
         self._edit.setPlaceholderText(label)
         if not self.property("copied"):
             self._copy_btn.setToolTip(self._copy_tooltip_base)
+        self._refresh_eye()
+
+    def _refresh_eye(self) -> None:
+        if self._eye_btn is None:
+            return
+        shown = not self._hidden
+        self._eye_btn.setIcon(icon_eye() if shown else icon_eye_off())
+        self._eye_btn.setToolTip(tr("eye_hide") if shown else tr("eye_show"))
 
     def set_permission(self, level: FieldLevel) -> None:
         self._permission = level
@@ -226,6 +257,18 @@ class CompactField(QWidget):
 
     def set_hidden(self, hidden: bool) -> None:
         self._hidden = hidden
+        if self._eye_btn is not None:
+            self._eye_btn.blockSignals(True)
+            self._eye_btn.setChecked(not hidden)
+            self._eye_btn.blockSignals(False)
+            self._refresh_eye()
+        self._sync_echo()
+
+    def _on_eye_clicked(self) -> None:
+        if self._eye_btn is None:
+            return
+        self._hidden = not self._eye_btn.isChecked()
+        self._refresh_eye()
         self._sync_echo()
 
     def text(self) -> str:
@@ -251,7 +294,6 @@ class EntryRowWidget(QWidget):
         super().__init__(parent)
         self.setObjectName("entryRow")
         self._can_delete = True
-        self._show_sensitive = False
         self._permissions = UserPermissions()
         self._extra_fields: list[CompactField] = []
 
@@ -259,12 +301,6 @@ class EntryRowWidget(QWidget):
         row.setContentsMargins(*ROW_MARGINS)
         row.setSpacing(ROW_LAYOUT_SPACING)
         row.setAlignment(_ROW_ALIGN)
-
-        self._eye_btn = _icon_button(icon_eye(), "", "eyeBtn")
-        self._eye_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._eye_btn.setCheckable(True)
-        self._eye_btn.clicked.connect(self._on_eye_clicked)
-        row.addWidget(self._eye_btn, 0, Qt.AlignmentFlag.AlignTop)
 
         self._name = CompactField(
             field_key="field_name",
@@ -333,8 +369,6 @@ class EntryRowWidget(QWidget):
         self._remove_btn.clicked.connect(lambda: self.remove_requested.emit(self))
         row.addWidget(self._remove_btn, 0, Qt.AlignmentFlag.AlignTop)
 
-        self._eye_btn.setChecked(False)
-        self._apply_sensitive_hidden(True)
         self.retranslate()
 
         self._name.textChanged().connect(self._emit_changed)
@@ -399,7 +433,6 @@ class EntryRowWidget(QWidget):
         )
         self._extra_fields.append(field)
         field.show()
-        self._apply_sensitive_hidden(not self._show_sensitive)
         self._sync_scroll_width(scroll_to_end=not block_signals)
         self._wire_tab_order()
         self._emit_changed()
@@ -419,32 +452,15 @@ class EntryRowWidget(QWidget):
             field.set_permission(perms.level_for_info_index(index))
         self._sync_scroll_width()
         self._wire_tab_order()
-        self._apply_visibility()
 
     def set_sensitive_shown(self, shown: bool) -> None:
-        self._show_sensitive = shown
-        self._eye_btn.blockSignals(True)
-        self._eye_btn.setChecked(shown)
-        self._eye_btn.blockSignals(False)
-        self._apply_visibility()
+        for field in self._sensitive_fields():
+            if field.isVisible():
+                field.set_hidden(not shown)
 
     def set_can_delete(self, allowed: bool) -> None:
         self._can_delete = allowed
         self._remove_btn.setVisible(allowed)
-
-    def _apply_sensitive_hidden(self, hidden: bool) -> None:
-        for field in self._sensitive_fields():
-            if field.isVisible():
-                field.set_hidden(hidden)
-
-    def _apply_visibility(self) -> None:
-        self._apply_sensitive_hidden(not self._show_sensitive)
-        self._eye_btn.setIcon(
-            icon_eye() if self._show_sensitive else icon_eye_off()
-        )
-        self._eye_btn.setToolTip(
-            tr("eye_hide") if self._show_sensitive else tr("eye_show")
-        )
 
     def retranslate(self) -> None:
         self._name.retranslate()
@@ -453,11 +469,6 @@ class EntryRowWidget(QWidget):
             field.retranslate()
         self._add_field_btn.setToolTip(tr("add_field_tip"))
         self._remove_btn.setText(tr("btn_delete"))
-        self._apply_visibility()
-
-    def _on_eye_clicked(self) -> None:
-        self._show_sensitive = self._eye_btn.isChecked()
-        self._apply_visibility()
 
     def _emit_changed(self) -> None:
         self.changed.emit()

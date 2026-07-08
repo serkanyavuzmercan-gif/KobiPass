@@ -291,6 +291,22 @@ QWidget#copyGroup[copied="true"] QToolButton#copyBtn {
     background-color: #2a3348;
 }
 
+QWidget#copyGroup QToolButton#fieldEyeBtn {
+    border: none;
+    background: transparent;
+    min-width: 28px;
+    max-width: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0;
+    margin: 0;
+}
+
+QWidget#copyGroup QToolButton#fieldEyeBtn:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+}
+
 QLineEdit:disabled {
     color: #6b7280;
 }
@@ -762,6 +778,22 @@ QWidget#copyGroup QToolButton#copyBtn:hover {
 QWidget#copyGroup[copied="true"] QToolButton#copyBtn {
     border-right: 1px solid #d1d5db;
     background-color: #dbeafe;
+}
+
+QWidget#copyGroup QToolButton#fieldEyeBtn {
+    border: none;
+    background: transparent;
+    min-width: 28px;
+    max-width: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0;
+    margin: 0;
+}
+
+QWidget#copyGroup QToolButton#fieldEyeBtn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
 }
 
 QLineEdit:disabled {
