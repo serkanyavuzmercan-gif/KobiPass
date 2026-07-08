@@ -27,7 +27,7 @@ QPushButton#titleBtnClose {
     border-radius: 0;
     padding: 0;
     font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 400;
     min-height: 38px;
     max-height: 38px;
@@ -183,7 +183,7 @@ QToolButton#removeFieldBtn {
     background-color: #2d3340;
     border: 1px solid #3d4450;
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: #e8eaed;
     padding: 0;
@@ -529,7 +529,7 @@ QPushButton#titleBtnClose {
     border-radius: 0;
     padding: 0;
     font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 400;
     min-height: 38px;
     max-height: 38px;
@@ -685,7 +685,7 @@ QToolButton#removeFieldBtn {
     background-color: #e5e7eb;
     border: 1px solid #d1d5db;
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: #1f2937;
     padding: 0;
