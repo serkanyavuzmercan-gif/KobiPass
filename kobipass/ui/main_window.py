@@ -7,7 +7,7 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-from PyQt6.QtCore import QEvent, Qt, QTimer
+from PyQt6.QtCore import QEvent, Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -56,6 +56,24 @@ from kobipass.ui.theme import ThemeManager, theme_manager
 from kobipass.ui.user_admin_dialog import UserAdminDialog
 from kobipass.vault_model import KobiVault, VaultEntry
 
+_FILTER_PAGE_SIZE = 100
+_FILTER_DEBOUNCE_MS = 300
+
+
+class WorkerThread(QThread):
+    """Arama filtrelemesini arka planda çalıştırır."""
+
+    finished = pyqtSignal(list)
+
+    def __init__(self, vault_data: list[VaultEntry], search_term: str) -> None:
+        super().__init__()
+        self.data = vault_data
+        self.term = search_term
+
+    def run(self) -> None:
+        result = [entry for entry in self.data if self.term in entry.name.lower()]
+        self.finished.emit(result)
+
 
 class MainWindow(QMainWindow):
     """kobiPass ana uygulama penceresi."""
@@ -84,11 +102,16 @@ class MainWindow(QMainWindow):
         self._snapshot_entries: list[VaultEntry] = []
         self._pending_user_passwords: list[tuple[bool, str]] | None = None
         self._kilitli_mi = False
+        self._worker: WorkerThread | None = None
+        self._filter_request_id = 0
 
         self._build_ui()
         self._copy_notice_timer = QTimer(self)
         self._copy_notice_timer.setSingleShot(True)
         self._copy_notice_timer.timeout.connect(self._end_copy_notice)
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.timeout.connect(self._run_filter)
         i18n.language_changed.connect(self._retranslate_ui)
         self._retranslate_ui()
         self._apply_session_ui()
@@ -328,9 +351,57 @@ class MainWindow(QMainWindow):
         self._update_status()
 
     def _filter_rows(self, text: str) -> None:
-        search_term = text.lower()
+        if not self._vault:
+            return
+        self._search_timer.stop()
+        self._search_timer.start(_FILTER_DEBOUNCE_MS)
+
+    def _run_filter(self) -> None:
+        if not self._vault:
+            return
+        self._filter_request_id += 1
+        request_id = self._filter_request_id
+        self._worker = WorkerThread(
+            list(self._vault.entries),
+            self._search_bar.text().lower(),
+        )
+        self._worker.finished.connect(
+            lambda results, req_id=request_id: self._apply_filter_results(
+                results, req_id
+            )
+        )
+        self._worker.start()
+
+    def _apply_filter_results(
+        self, filtered_entries: list[VaultEntry], request_id: int
+    ) -> None:
+        if request_id != self._filter_request_id:
+            return
+        self._merge_row_edits_into_vault()
+        self._clear_all_rows()
+        for index, entry in enumerate(filtered_entries[:_FILTER_PAGE_SIZE]):
+            self._add_row(entry, vault_index=self._vault_entry_index(entry, index))
+        if not self._row_widgets:
+            self._add_row()
+        self._apply_session_ui()
+        self._update_tab_order()
+
+    def _vault_entry_index(self, entry: VaultEntry, fallback: int) -> int:
+        if self._vault is None:
+            return fallback
+        try:
+            return self._vault.entries.index(entry)
+        except ValueError:
+            return fallback
+
+    def _merge_row_edits_into_vault(self) -> None:
+        if self._vault is None:
+            return
         for row in self._row_widgets:
-            row.setVisible(search_term in row._name.text().lower())
+            entry = row.to_entry()
+            vault_index = row.vault_index
+            if vault_index is not None and 0 <= vault_index < len(self._vault.entries):
+                self._vault.entries[vault_index] = entry
 
     def dragEnterEvent(self, event) -> None:  # noqa: N802
         if event.mimeData().hasUrls():
@@ -430,20 +501,36 @@ class MainWindow(QMainWindow):
             QWidget.setTabOrder(prev, nxt)
 
     def _collect_entries(self) -> list[VaultEntry]:
+        self._merge_row_edits_into_vault()
+        if self._vault is not None:
+            entries = list(self._vault.entries)
+            for row in self._row_widgets:
+                if row.vault_index is not None:
+                    continue
+                entry = row.to_entry()
+                if entry.has_content():
+                    entries.append(entry)
+            return [entry for entry in entries if entry.has_content()]
+
         entries: list[VaultEntry] = []
         for row in self._row_widgets:
-            e = row.to_entry()
-            if not e.has_content():
+            entry = row.to_entry()
+            if not entry.has_content():
                 continue
-            entries.append(e)
+            entries.append(entry)
         return entries
 
     def _sync_vault_entries(self) -> None:
         if self._vault is not None:
             self._vault.entries = self._collect_entries()
 
-    def _add_row(self, entry: VaultEntry | None = None) -> None:
+    def _add_row(
+        self,
+        entry: VaultEntry | None = None,
+        vault_index: int | None = None,
+    ) -> None:
         row = EntryRowWidget()
+        row.vault_index = vault_index
         row.changed.connect(self._mark_dirty)
         row.remove_requested.connect(self._remove_row)
         if entry:
@@ -463,9 +550,19 @@ class MainWindow(QMainWindow):
         if len(self._row_widgets) <= 1:
             show_error(self, tr("warn_title"), tr("warn_min_row"))
             return
+        removed_index = row.vault_index
         self._row_widgets.remove(row)
         self._entries_layout.removeWidget(row)
         row.deleteLater()
+        if (
+            self._vault is not None
+            and removed_index is not None
+            and 0 <= removed_index < len(self._vault.entries)
+        ):
+            del self._vault.entries[removed_index]
+            for other in self._row_widgets:
+                if other.vault_index is not None and other.vault_index > removed_index:
+                    other.vault_index -= 1
         self._mark_dirty()
         self._update_tab_order()
 
@@ -477,12 +574,16 @@ class MainWindow(QMainWindow):
 
     def _load_vault_data(self, vault: KobiVault) -> None:
         self._vault = vault
+        self._search_bar.blockSignals(True)
+        self._search_bar.clear()
+        self._search_bar.blockSignals(False)
         self._clear_all_rows()
-        if not vault.entries:
+        visible_entries = vault.entries[:_FILTER_PAGE_SIZE]
+        if not visible_entries:
             self._add_row()
         else:
-            for entry in vault.entries:
-                self._add_row(entry)
+            for index, entry in enumerate(visible_entries):
+                self._add_row(entry, vault_index=index)
         self._snapshot_entries = copy.deepcopy(vault.entries)
         self._clear_dirty()
         for row in self._row_widgets:

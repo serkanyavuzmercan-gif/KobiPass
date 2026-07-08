@@ -234,11 +234,12 @@ class CompactField(QWidget):
         self._eye_btn.setToolTip(tr("eye_hide") if shown else tr("eye_show"))
 
     def _update_strength(self, text: str) -> None:
-        if not self._sensitive or self._strength_meter is None:
+        if not self._sensitive:
             return
         score = len(text)
         color = "red" if score < 6 else "orange" if score < 10 else "green"
-        self._strength_meter.setStyleSheet(f"background-color: {color};")
+        if self._strength_meter is not None:
+            self._strength_meter.setStyleSheet(f"background-color: {color};")
 
     def set_permission(self, level: FieldLevel) -> None:
         self._permission = level
@@ -345,6 +346,7 @@ class EntryRowWidget(QWidget):
         self._can_delete = True
         self._permissions = UserPermissions()
         self._extra_fields: list[CompactField] = []
+        self.vault_index: int | None = None
 
         row = QHBoxLayout(self)
         row.setContentsMargins(*ROW_MARGINS)

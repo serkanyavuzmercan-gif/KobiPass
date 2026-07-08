@@ -9,6 +9,7 @@ kobiPass şifreleme katmanı — KBPS zarf şifreleme formatı.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import struct
 from dataclasses import dataclass, field
@@ -37,6 +38,7 @@ KEY_LENGTH = 32
 WRAP_CIPHERTEXT_SIZE = DEK_SIZE + 16  # AES-GCM tag
 WRAP_BLOCK_SIZE = SALT_SIZE + NONCE_SIZE + WRAP_CIPHERTEXT_SIZE
 HEADER_SIZE = 5 + WRAP_BLOCK_SIZE + USER_SLOT_COUNT * (1 + WRAP_BLOCK_SIZE)
+FILE_CHECKSUM_SIZE = 32
 
 
 class VaultCryptoError(Exception):
@@ -135,7 +137,24 @@ def _empty_wrap() -> bytes:
     return bytes(WRAP_BLOCK_SIZE)
 
 
+def _finalize_vault_bytes(blob: bytes) -> bytes:
+    return blob + hashlib.sha256(blob).digest()
+
+
+def _strip_file_checksum(data: bytes) -> bytes:
+    """Sondaki SHA-256 özetini doğrular; eski dosyalar için geriye dönük uyumluluk."""
+    if len(data) < FILE_CHECKSUM_SIZE + HEADER_SIZE + NONCE_SIZE + 16:
+        return data
+    body = data[:-FILE_CHECKSUM_SIZE]
+    if hashlib.sha256(body).digest() == data[-FILE_CHECKSUM_SIZE:]:
+        return body
+    if len(data) >= HEADER_SIZE and data[:4] == MAGIC:
+        return data
+    raise VaultCryptoError("crypto.file_corrupt")
+
+
 def _parse_file(data: bytes) -> tuple[bytes, list[UserSlotWrap], bytes]:
+    data = _strip_file_checksum(data)
     if len(data) < HEADER_SIZE + NONCE_SIZE + 16:
         raise VaultCryptoError("crypto.file_too_short")
     if data[:4] != MAGIC:
@@ -180,7 +199,7 @@ def build_vault_file(
             parts.append(_empty_wrap())
 
     parts.append(_encrypt_vault_blob(vault, dek))
-    return b"".join(parts)
+    return _finalize_vault_bytes(b"".join(parts))
 
 
 def write_vault_file_with_keys(
@@ -194,7 +213,7 @@ def write_vault_file_with_keys(
         parts.append(struct.pack("B", 1 if slot.enabled else 0))
         parts.append(slot.wrap)
     parts.append(_encrypt_vault_blob(vault, keys.dek))
-    path.write_bytes(b"".join(parts))
+    path.write_bytes(_finalize_vault_bytes(b"".join(parts)))
 
 
 def update_user_wraps(
@@ -246,7 +265,7 @@ def write_vault_file_updated(
         parts.append(struct.pack("B", 1 if slot.enabled else 0))
         parts.append(slot.wrap)
     parts.append(_encrypt_vault_blob(vault, new_keys.dek))
-    path.write_bytes(b"".join(parts))
+    path.write_bytes(_finalize_vault_bytes(b"".join(parts)))
     return new_keys
 
 
