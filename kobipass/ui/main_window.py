@@ -214,11 +214,10 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(self._status_right)
         self._add_row()
 
-        self._landing_page.btn_open_file.clicked.connect(self._mevcut_dosyayi_ac)
-        self._landing_page.btn_create_file.clicked.connect(
-            self._yeni_dosya_olusturma_ekranini_ac
-        )
-        self._landing_page.btn_security.clicked.connect(self._guvenlik_penceresini_ac)
+        # Karşılama ekranı buton sinyalleri
+        self.landing_page.btn_open_file.clicked.connect(self._mevcut_dosyayi_ac)
+        self.landing_page.btn_create_file.clicked.connect(self._yeni_dosya_olusturma_ekranini_ac)
+        self.landing_page.btn_security.clicked.connect(self._guvenlik_penceresini_ac)
         self._landing_page.btn_help.clicked.connect(self._show_help)
 
         self._show_landing_page()
@@ -242,7 +241,12 @@ class MainWindow(QMainWindow):
         self._vault = None
         self._snapshot_entries = []
         self._pending_user_passwords = None
-        self._save_new_vault([])
+
+        # Bomboş kasa modeli oluştur ve tabloya yükle
+        self._load_vault_data(KobiVault())
+
+        # Karşılama ekranını gizle, asıl çalışma ekranını göster
+        self._show_vault_view()
 
     def _guvenlik_penceresini_ac(self) -> None:
         self._open_security_dialog()
