@@ -271,7 +271,7 @@ class CompactField(QWidget):
             self._edit.setProperty("readOnlyPerm", "false")
         else:
             self.setEnabled(True)
-            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
             self._edit.setEnabled(False)
             self._edit.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             self._edit.clearFocus()
@@ -285,10 +285,10 @@ class CompactField(QWidget):
                 self._view_only,
             )
         if self._eye_btn is not None:
-            self._eye_btn.setEnabled(not self._view_only and can_view(effective))
+            self._eye_btn.setEnabled(can_view(effective))
             self._eye_btn.setAttribute(
                 Qt.WidgetAttribute.WA_TransparentForMouseEvents,
-                self._view_only,
+                False,
             )
         self._sync_echo()
 
