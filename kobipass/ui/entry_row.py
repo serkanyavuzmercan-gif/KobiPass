@@ -305,6 +305,9 @@ class EntryRowWidget(QWidget):
         self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
         self._extras_layout.setAlignment(_ROW_ALIGN)
 
+        self._scroll.setWidget(self._extras_host)
+        row.addWidget(self._scroll, stretch=1, alignment=_ROW_ALIGN)
+
         self._add_field_btn = QToolButton()
         self._add_field_btn.setObjectName("addFieldBtn")
         self._add_field_btn.setText("+")
@@ -312,10 +315,7 @@ class EntryRowWidget(QWidget):
         self._add_field_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_field_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._add_field_btn.clicked.connect(self._add_extra_field)
-        self._extras_layout.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
-
-        self._scroll.setWidget(self._extras_host)
-        row.addWidget(self._scroll, stretch=1, alignment=_ROW_ALIGN)
+        row.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
 
         self._remove_btn = QPushButton()
         self._remove_btn.setObjectName("dangerBtn")
@@ -366,7 +366,7 @@ class EntryRowWidget(QWidget):
             width += spacing * (visible_count - 1)
         self._extras_host.setFixedSize(max(0, width), ROW_CONTROL_HEIGHT)
         bar = self._scroll.horizontalScrollBar()
-        bar.setValue(bar.maximum())
+        bar.setValue(min(bar.value(), bar.maximum()))
 
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
         info_index = len(self._extra_fields) + 2
@@ -386,12 +386,7 @@ class EntryRowWidget(QWidget):
         field.set_permission(level)
         field.textChanged().connect(self._emit_changed)
 
-        self._extras_layout.insertWidget(
-            self._extras_layout.indexOf(self._add_field_btn),
-            field,
-            0,
-            _ROW_ALIGN,
-        )
+        self._extras_layout.addWidget(field, 0, _ROW_ALIGN)
         self._extra_fields.append(field)
         field.show()
         self._apply_sensitive_hidden(not self._show_sensitive)

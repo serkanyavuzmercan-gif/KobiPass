@@ -55,12 +55,12 @@ QScrollArea {
 
 QScrollBar:vertical {
     background: transparent;
-    width: 4px;
+    width: 6px;
     margin: 0 2px 0 0;
 }
 
 QScrollBar:vertical:hover {
-    width: 10px;
+    width: 12px;
     margin: 0;
 }
 
@@ -91,12 +91,12 @@ QScrollBar::sub-page:vertical {
 
 QScrollBar:horizontal {
     background: transparent;
-    height: 4px;
+    height: 6px;
     margin: 0 0 2px 0;
 }
 
 QScrollBar:horizontal:hover {
-    height: 10px;
+    height: 12px;
     margin: 0;
 }
 
@@ -495,12 +495,12 @@ QScrollArea {
 
 QScrollBar:vertical {
     background: transparent;
-    width: 4px;
+    width: 6px;
     margin: 0 2px 0 0;
 }
 
 QScrollBar:vertical:hover {
-    width: 10px;
+    width: 12px;
     margin: 0;
 }
 
@@ -531,12 +531,12 @@ QScrollBar::sub-page:vertical {
 
 QScrollBar:horizontal {
     background: transparent;
-    height: 4px;
+    height: 6px;
     margin: 0 0 2px 0;
 }
 
 QScrollBar:horizontal:hover {
-    height: 10px;
+    height: 12px;
     margin: 0;
 }
 
