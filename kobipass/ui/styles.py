@@ -281,6 +281,10 @@ QWidget#copyGroup QLineEdit:focus {
     background-color: transparent;
 }
 
+QWidget#copyGroup QLineEdit[readOnlyPerm="true"] {
+    color: #888ea0;
+}
+
 QWidget#copyGroup QToolButton#copyBtn {
     border: none;
     border-right: 1px solid #3d4450;
@@ -862,6 +866,10 @@ QWidget#copyGroup QLineEdit {
 QWidget#copyGroup QLineEdit:focus {
     border: none;
     background-color: transparent;
+}
+
+QWidget#copyGroup QLineEdit[readOnlyPerm="true"] {
+    color: #6b7280;
 }
 
 QWidget#copyGroup QToolButton#copyBtn {

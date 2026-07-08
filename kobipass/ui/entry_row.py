@@ -254,7 +254,9 @@ class CompactField(QWidget):
             return
         editable = can_edit(effective)
         self._edit.setReadOnly(not editable)
-        self._edit.setEnabled(editable)
+        self._edit.setEnabled(True)
+        self._edit.setProperty("readOnlyPerm", "true" if not editable else "false")
+        _restyle(self._edit)
         self._copy_btn.setEnabled(can_copy(effective))
         self._sync_echo()
 

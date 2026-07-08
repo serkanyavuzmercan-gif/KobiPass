@@ -629,6 +629,10 @@ class MainWindow(QMainWindow):
         self._clear_dirty()
         for row in self._row_widgets:
             row.set_sensitive_shown(False)
+        if self._session is not None:
+            perms = effective_permissions(self._session, vault.user_permissions)
+            for row in self._row_widgets:
+                row.apply_permissions(perms)
         self._apply_session_ui()
 
     def _open_security_dialog(self) -> None:
