@@ -34,7 +34,6 @@ NAME_FIELD_WIDTH = 180
 INFO_FIELD_WIDTH = 180
 FIELD_STEP_BTN_WIDTH = 26
 FIELD_STEP_BTN_HEIGHT = 17
-FIELD_STEP_COLUMN_WIDTH = FIELD_STEP_BTN_WIDTH
 
 _ICON_BTN_SIZE = COPY_BTN_SIZE
 _FIELD_EYE_BTN_SIZE = QSize(28, 28)
@@ -374,12 +373,8 @@ class EntryRowWidget(QWidget):
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
 
-        self._scroll.setWidget(self._extras_host)
-        row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
-
         self._field_step_column = QWidget()
         self._field_step_column.setObjectName("fieldStepColumn")
-        self._field_step_column.setFixedWidth(FIELD_STEP_COLUMN_WIDTH)
         field_step_layout = QVBoxLayout(self._field_step_column)
         field_step_layout.setContentsMargins(0, 0, 0, 0)
         field_step_layout.setSpacing(2)
@@ -396,8 +391,10 @@ class EntryRowWidget(QWidget):
         field_step_layout.addWidget(
             self._remove_field_btn, 0, Qt.AlignmentFlag.AlignHCenter
         )
+        self._extras_layout.addWidget(self._field_step_column, 0, Qt.AlignmentFlag.AlignTop)
 
-        row.addWidget(self._field_step_column, 0, Qt.AlignmentFlag.AlignTop)
+        self._scroll.setWidget(self._extras_host)
+        row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
 
         self._remove_btn = QPushButton()
         self._remove_btn.setObjectName("dangerBtn")
@@ -414,6 +411,9 @@ class EntryRowWidget(QWidget):
 
         self._wire_tab_order()
         self._update_field_step_buttons()
+
+    def _field_step_index(self) -> int:
+        return self._extras_layout.indexOf(self._field_step_column)
 
     def _update_field_step_buttons(self) -> None:
         self._remove_field_btn.setEnabled(len(self._extra_fields) > 0)
@@ -467,7 +467,12 @@ class EntryRowWidget(QWidget):
         field.set_permission(level)
         field.textChanged().connect(self._emit_changed)
 
-        self._extras_layout.addWidget(field, 0, _ROW_ALIGN)
+        self._extras_layout.insertWidget(
+            self._field_step_index(),
+            field,
+            0,
+            _ROW_ALIGN,
+        )
         self._extra_fields.append(field)
         field.show()
         self._sync_scroll_width(scroll_to_end=not block_signals)
