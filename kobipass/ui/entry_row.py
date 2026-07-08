@@ -263,17 +263,33 @@ class CompactField(QWidget):
         editable = can_edit(effective) and not self._view_only
         self._edit.setReadOnly(not editable)
         if editable:
+            self.setEnabled(True)
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
             self._edit.setEnabled(True)
+            self._edit.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
             self._edit.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
             self._edit.setProperty("readOnlyPerm", "false")
         else:
+            self.setEnabled(True)
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             self._edit.setEnabled(False)
+            self._edit.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            self._edit.clearFocus()
             self._edit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             self._edit.setProperty("readOnlyPerm", "true")
         _restyle(self._edit)
         self._copy_btn.setEnabled(can_copy(effective) and not self._view_only)
+        if self._copy_btn is not None:
+            self._copy_btn.setAttribute(
+                Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+                self._view_only,
+            )
         if self._eye_btn is not None:
             self._eye_btn.setEnabled(not self._view_only and can_view(effective))
+            self._eye_btn.setAttribute(
+                Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+                self._view_only,
+            )
         self._sync_echo()
 
     def _sync_echo(self) -> None:
@@ -527,6 +543,8 @@ class EntryRowWidget(QWidget):
         self._emit_changed()
 
     def _remove_last_extra_field(self) -> None:
+        if self._view_only:
+            return
         if not self._extra_fields:
             return
         field = self._extra_fields.pop()
@@ -557,6 +575,8 @@ class EntryRowWidget(QWidget):
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_permission(perms.level_for_info_index(index))
         self._field_step_column.setVisible(not view_only)
+        self._remove_btn.setVisible(not view_only and self._can_delete)
+        self._remove_btn.setEnabled(not view_only and self._can_delete)
         if view_only:
             self._add_field_btn.setEnabled(False)
             self._remove_field_btn.setEnabled(False)

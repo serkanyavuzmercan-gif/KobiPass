@@ -353,9 +353,9 @@ class MainWindow(QMainWindow):
         self._add_bar.setVisible(can_add)
         self._btn_save.setEnabled(can_save if is_unlocked else True)
 
-        for row in self._row_widgets:
-            row.set_can_delete(can_delete)
         self._apply_row_permissions()
+        for row in self._row_widgets:
+            row.set_can_delete(can_delete and not view_only)
 
         self._update_tab_order()
 
@@ -573,6 +573,9 @@ class MainWindow(QMainWindow):
         if self._vault is not None:
             self._vault.entries = self._collect_entries()
 
+    def _is_view_only_session(self) -> bool:
+        return self._session is not None and not isinstance(self._session, AdminSession)
+
     def _add_row(
         self,
         entry: VaultEntry | None = None,
@@ -597,6 +600,8 @@ class MainWindow(QMainWindow):
         self._update_tab_order()
 
     def _remove_row(self, row: EntryRowWidget) -> None:
+        if self._is_view_only_session():
+            return
         if row not in self._row_widgets:
             return
         if len(self._row_widgets) <= 1:
