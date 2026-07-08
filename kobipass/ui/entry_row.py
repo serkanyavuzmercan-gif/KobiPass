@@ -5,7 +5,7 @@ Tek vault kaydı satırı — sabit isim/1.bilgi, + ile dinamik ek alanlar.
 from __future__ import annotations
 
 from PyQt6.QtCore import QTimer, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QGuiApplication
+from PyQt6.QtGui import QGuiApplication, QWheelEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
@@ -76,6 +76,21 @@ def _info_label(info_index: int) -> str:
     if info_index <= 4:
         return tr(f"field_info{info_index}")
     return tr("field_info_n", n=info_index)
+
+
+class EntryFieldsScroll(QScrollArea):
+    """Yatay kaydırma — scrollbar gizli, tekerlek ile kayar."""
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        bar = self.horizontalScrollBar()
+        if bar.maximum() > 0:
+            delta = event.angleDelta()
+            step = delta.x() if delta.x() != 0 else delta.y()
+            if step != 0:
+                bar.setValue(bar.value() - step)
+                event.accept()
+                return
+        super().wheelEvent(event)
 
 
 class CompactField(QWidget):
@@ -252,17 +267,17 @@ class EntryRowWidget(QWidget):
         row.addWidget(self._name, 0, _ROW_ALIGN)
         row.addWidget(self._info1, 0, _ROW_ALIGN)
 
-        self._scroll = QScrollArea()
+        self._scroll = EntryFieldsScroll()
         self._scroll.setObjectName("entryFieldsScroll")
         self._scroll.setWidgetResizable(False)
         self._scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll.setFixedHeight(ROW_CONTROL_HEIGHT + 8)
+        self._scroll.setFixedHeight(ROW_CONTROL_HEIGHT)
         self._scroll.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
@@ -274,9 +289,6 @@ class EntryRowWidget(QWidget):
         self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
         self._extras_layout.setAlignment(_ROW_ALIGN)
 
-        self._scroll.setWidget(self._extras_host)
-        row.addWidget(self._scroll, stretch=1, alignment=_ROW_ALIGN)
-
         self._add_field_btn = QToolButton()
         self._add_field_btn.setObjectName("addFieldBtn")
         self._add_field_btn.setText("+")
@@ -284,7 +296,10 @@ class EntryRowWidget(QWidget):
         self._add_field_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_field_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._add_field_btn.clicked.connect(self._add_extra_field)
-        row.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
+        self._extras_layout.addWidget(self._add_field_btn, 0, _ROW_ALIGN)
+
+        self._scroll.setWidget(self._extras_host)
+        row.addWidget(self._scroll, stretch=1, alignment=_ROW_ALIGN)
 
         self._remove_btn = QPushButton()
         self._remove_btn.setObjectName("dangerBtn")
@@ -355,7 +370,12 @@ class EntryRowWidget(QWidget):
         field.set_permission(level)
         field.textChanged().connect(self._emit_changed)
 
-        self._extras_layout.addWidget(field, 0, _ROW_ALIGN)
+        self._extras_layout.insertWidget(
+            self._extras_layout.indexOf(self._add_field_btn),
+            field,
+            0,
+            _ROW_ALIGN,
+        )
         self._extra_fields.append(field)
         field.show()
         self._apply_sensitive_hidden(not self._show_sensitive)
