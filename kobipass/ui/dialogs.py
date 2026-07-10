@@ -18,15 +18,12 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
-    QScrollArea,
-    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
 
 from kobipass.i18n import MIN_PASSWORD_LENGTH, i18n, tr
 from kobipass.resources import app_icon
-from kobipass.ui.help_content import help_html
 from kobipass.vault_model import FIELD_NAMES, FieldLevel, UserPermissions, USER_SLOT_COUNT
 
 
@@ -365,12 +362,16 @@ class _HelpDragTitle(QLabel):
 
 
 class HelpDialog(QDialog):
+    """Hider'ın info paneli düzeninde yardım: adımlar · uyarı · kartlar · künye."""
+
+    _CARD_COUNT = 5
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowIcon(app_icon())
         self.setModal(False)
-        self.setMinimumSize(520, 480)
-        self.resize(560, 520)
+        self.setMinimumSize(700, 480)
+        self.resize(820, 540)
         self.setObjectName("helpDialog")
         self.setWindowFlags(
             Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
@@ -383,16 +384,94 @@ class HelpDialog(QDialog):
         self._title = _HelpDragTitle(self, tr("help_title"))
         layout.addWidget(self._title)
 
-        self._browser = QTextBrowser()
-        self._browser.setObjectName("helpBrowser")
-        self._browser.setOpenExternalLinks(False)
-        self._browser.setFrameShape(QTextBrowser.Shape.NoFrame)
+        # ── Üst satır: adımlar + uyarı (sol) · künye kartı (sağ) ─────────────
+        top_row = QHBoxLayout()
+        top_row.setSpacing(12)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setWidget(self._browser)
-        layout.addWidget(scroll, stretch=1)
+        left_col = QVBoxLayout()
+        left_col.setSpacing(8)
+
+        self._step_labels: list[QLabel] = []
+        for n in (1, 2, 3):
+            step_row = QHBoxLayout()
+            step_row.setSpacing(8)
+            badge = QLabel(str(n))
+            badge.setObjectName("helpStepBadge")
+            badge.setFixedSize(22, 22)
+            badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            text = QLabel()
+            text.setObjectName("helpStepText")
+            text.setWordWrap(True)
+            step_row.addWidget(badge, 0, Qt.AlignmentFlag.AlignTop)
+            step_row.addWidget(text, 1)
+            left_col.addLayout(step_row)
+            self._step_labels.append(text)
+
+        self._warn_box = QLabel()
+        self._warn_box.setObjectName("helpWarnBox")
+        self._warn_box.setWordWrap(True)
+        left_col.addWidget(self._warn_box)
+        left_col.addStretch()
+
+        top_row.addLayout(left_col, 3)
+
+        credits = QWidget()
+        credits.setObjectName("helpCreditsCard")
+        credits.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        cred_layout = QVBoxLayout(credits)
+        cred_layout.setContentsMargins(14, 12, 14, 12)
+        cred_layout.setSpacing(4)
+
+        self._cred_name = QLabel()
+        self._cred_name.setObjectName("helpCreditsName")
+        self._cred_by = QLabel()
+        self._cred_by.setObjectName("helpCreditsBy")
+        self._cred_by.setWordWrap(True)
+        self._cred_desc = QLabel()
+        self._cred_desc.setObjectName("helpCreditsText")
+        self._cred_desc.setWordWrap(True)
+        self._cred_ver = QLabel()
+        self._cred_ver.setObjectName("helpCreditsText")
+        self._cred_footer = QLabel()
+        self._cred_footer.setObjectName("helpCreditsFooter")
+        self._cred_footer.setWordWrap(True)
+
+        cred_layout.addWidget(self._cred_name)
+        cred_layout.addWidget(self._cred_by)
+        cred_layout.addWidget(self._cred_desc)
+        cred_layout.addSpacing(6)
+        cred_layout.addWidget(self._cred_ver)
+        cred_layout.addStretch()
+        cred_layout.addWidget(self._cred_footer)
+
+        top_row.addWidget(credits, 2)
+        layout.addLayout(top_row, 1)
+
+        # ── Alt satır: özellik kartları ───────────────────────────────────────
+        cards_row = QHBoxLayout()
+        cards_row.setSpacing(10)
+        self._card_titles: list[QLabel] = []
+        self._card_texts: list[QLabel] = []
+        for _ in range(self._CARD_COUNT):
+            card = QWidget()
+            card.setObjectName("helpFeatureCard")
+            card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(12, 12, 12, 12)
+            card_layout.setSpacing(6)
+            c_title = QLabel()
+            c_title.setObjectName("helpCardTitle")
+            c_title.setWordWrap(True)
+            c_text = QLabel()
+            c_text.setObjectName("helpCardText")
+            c_text.setWordWrap(True)
+            card_layout.addWidget(c_title)
+            card_layout.addWidget(c_text)
+            card_layout.addStretch()
+            cards_row.addWidget(card, 1)
+            self._card_titles.append(c_title)
+            self._card_texts.append(c_text)
+        layout.addLayout(cards_row, 1)
 
         self._close_btn = QPushButton(tr("help_close"))
         self._close_btn.clicked.connect(self.close)
@@ -405,7 +484,19 @@ class HelpDialog(QDialog):
         self.retranslate()
 
     def retranslate(self) -> None:
+        from kobipass import __version__
+
         self.setWindowTitle(tr("help_title"))
         self._title.setText(tr("help_title"))
-        self._browser.setHtml(help_html())
+        for idx, lbl in enumerate(self._step_labels, start=1):
+            lbl.setText(tr(f"help_step{idx}"))
+        self._warn_box.setText(tr("help_warn"))
+        for idx in range(self._CARD_COUNT):
+            self._card_titles[idx].setText(tr(f"help_card{idx + 1}_title"))
+            self._card_texts[idx].setText(tr(f"help_card{idx + 1}_text"))
+        self._cred_name.setText("KobiPass")
+        self._cred_by.setText(tr("help_credits_by"))
+        self._cred_desc.setText(tr("help_credits_desc"))
+        self._cred_ver.setText(tr("help_credits_ver", version=__version__))
+        self._cred_footer.setText(tr("help_credits_footer"))
         self._close_btn.setText(tr("help_close"))

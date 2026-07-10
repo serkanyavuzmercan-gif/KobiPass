@@ -455,6 +455,73 @@ QDialog#helpDialog {
     border-radius: 8px;
 }
 
+/* --- Yardım paneli (hider info düzeni) --- */
+QLabel#helpStepBadge {
+    background-color: #4b68f4;
+    color: #ffffff;
+    border-radius: 11px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 0;
+}
+
+QLabel#helpStepText {
+    color: #c8ccd2;
+    font-size: 13px;
+}
+
+QLabel#helpWarnBox {
+    background-color: #2d2820;
+    color: #c8a84b;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+}
+
+QWidget#helpCreditsCard {
+    background-color: #1a2035;
+    border-radius: 8px;
+}
+
+QLabel#helpCreditsName {
+    color: #e8eaed;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+QLabel#helpCreditsBy {
+    color: #c8d0e8;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+QLabel#helpCreditsText {
+    color: #7a8aac;
+    font-size: 12px;
+}
+
+QLabel#helpCreditsFooter {
+    color: #5a6a8a;
+    font-size: 11px;
+}
+
+QWidget#helpFeatureCard {
+    background-color: #1e2229;
+    border: 1px solid #343a46;
+    border-radius: 8px;
+}
+
+QLabel#helpCardTitle {
+    color: #e8eaed;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+QLabel#helpCardText {
+    color: #9aa0a8;
+    font-size: 11px;
+}
+
 QLabel#helpDialogTitle {
     color: #e8eaed;
     font-size: 16px;
@@ -1070,6 +1137,74 @@ QDialog#helpDialog {
     background-color: #ffffff;
     border: 1px solid #dde3f0;
     border-radius: 8px;
+}
+
+/* --- Yardım paneli (hider info düzeni) --- */
+QLabel#helpStepBadge {
+    background-color: #4b68f4;
+    color: #ffffff;
+    border-radius: 11px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 0;
+}
+
+QLabel#helpStepText {
+    color: #374151;
+    font-size: 13px;
+}
+
+QLabel#helpWarnBox {
+    background-color: #fffbeb;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+}
+
+QWidget#helpCreditsCard {
+    background-color: #1e293b;
+    border-radius: 8px;
+}
+
+QLabel#helpCreditsName {
+    color: #f1f5f9;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+QLabel#helpCreditsBy {
+    color: #c8d0e8;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+QLabel#helpCreditsText {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+QLabel#helpCreditsFooter {
+    color: #64748b;
+    font-size: 11px;
+}
+
+QWidget#helpFeatureCard {
+    background-color: #f8f9fd;
+    border: 1px solid #dde3f0;
+    border-radius: 8px;
+}
+
+QLabel#helpCardTitle {
+    color: #111827;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+QLabel#helpCardText {
+    color: #4b5563;
+    font-size: 11px;
 }
 
 QLabel#helpDialogTitle {

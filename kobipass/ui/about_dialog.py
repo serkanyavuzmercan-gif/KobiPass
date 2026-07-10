@@ -81,7 +81,7 @@ class AboutDialog(QDialog):
 
     def _get_security_html(self) -> str:
         return """
-        <h3 style="color: #3b82f6; margin-bottom: 5px;">KobiPass Güvenlik Mimarisi</h3>
+        <h3 style="color: #4b68f4; margin-bottom: 5px;">KobiPass Güvenlik Mimarisi</h3>
         <p style="margin-top: 0;">Verileriniz endüstri standartlarında kriptografik algoritmalarla korunmaktadır.</p>
         <ul style="line-height: 1.6;">
             <li><b>Sıfır Bilgi (Zero-Knowledge):</b> Kasa dosyalarınız (.enc) tamamen bu cihazda kilitlenir. İnternete veya hiçbir sunucuya veri gönderilmez.</li>
@@ -95,9 +95,9 @@ class AboutDialog(QDialog):
 
     def _get_credits_html(self) -> str:
         return f"""
-        <h3 style="color: #e07020; margin-bottom: 5px;">KobiPass v{__version__}</h3>
+        <h3 style="color: #4b68f4; margin-bottom: 5px;">KobiPass v{__version__}</h3>
         <p style="margin-top: 0; color: gray;">KOBİ'ler için güvenli, rol tabanlı parola kasası.</p>
-        <hr style="border: 1px solid #3d4450;">
+        <hr style="border: 1px solid #808698;">
         <h4 style="margin-bottom: 2px;">Geliştirici</h4>
         <p style="margin-top: 0;">Tüm Hakları Saklıdır &copy; 2026</p>
 
