@@ -105,31 +105,36 @@ class LandingPage(QWidget):
         split.addWidget(self.btn_create_file, 1)
         main_layout.addLayout(split, 1)
 
-        # ── Son açılanlar (yalnızca kayıt varsa görünür — boşluk bırakmaz) ────
-        self._recent_container = QWidget()
-        recent_layout = QVBoxLayout(self._recent_container)
-        recent_layout.setContentsMargins(0, 0, 0, 0)
-        recent_layout.setSpacing(6)
+        # ── Son açılanlar — "Dosya Aç" panelinin İÇİNDE, kaydırılabilir liste ──
+        # En son işlem gören dosya en üstte; liste uzadıkça kaydırma çubuğu çıkar.
+        open_layout = self.btn_open_file.layout()
 
         self._recent_title = QLabel()
         self._recent_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._recent_title.setObjectName("landingRecentTitle")
-        recent_layout.addWidget(self._recent_title)
+        self._recent_title.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+        )
+        open_layout.addWidget(self._recent_title)
 
         self._recent_list = QListWidget()
         self._recent_list.setObjectName("landingRecentList")
-        self._recent_list.setMaximumHeight(120)
-        self._recent_list.setMaximumWidth(560)
         self._recent_list.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._recent_list.setMaximumWidth(420)
+        self._recent_list.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
         self._recent_list.itemActivated.connect(self._on_recent_activated)
         self._recent_list.itemClicked.connect(self._on_recent_activated)
+
         recent_wrap = QHBoxLayout()
         recent_wrap.addStretch()
         recent_wrap.addWidget(self._recent_list)
         recent_wrap.addStretch()
-        recent_layout.addLayout(recent_wrap)
+        open_layout.addLayout(recent_wrap, 2)
 
-        main_layout.addWidget(self._recent_container)
+        # Liste görünürken alt stretch'i küçült ki liste alana yayılsın.
+        open_layout.addStretch(1)
 
         self.retranslate()
         self.refresh_recent()
@@ -194,10 +199,11 @@ class LandingPage(QWidget):
             self.recent_file_chosen.emit(str(path))
 
     def refresh_recent(self) -> None:
+        """En son işlem gören dosya en üstte; boşsa bölüm tamamen gizlenir."""
         self._recent_list.clear()
         recent = [p for p in get_recent_files() if Path(p).exists()]
-        # Boşsa tüm bölümü gizle — ekranda anlamsız boşluk kalmasın.
-        self._recent_container.setVisible(bool(recent))
+        self._recent_title.setVisible(bool(recent))
+        self._recent_list.setVisible(bool(recent))
         for path in recent:
             item = QListWidgetItem(Path(path).name)
             item.setToolTip(path)

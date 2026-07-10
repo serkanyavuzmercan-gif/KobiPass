@@ -11,7 +11,8 @@ from PyQt6.QtCore import QSettings
 ORG = "MercanSoftware"
 APP = "KobiPass"
 
-RECENT_MAX = 8
+# İlk açılan dosyaya kadar geriye gidilebilsin — liste panel içinde kayar.
+RECENT_MAX = 50
 DEFAULT_CLIPBOARD_CLEAR_MS = 30_000
 DEFAULT_IDLE_LOCK_MS = 5 * 60_000
 
