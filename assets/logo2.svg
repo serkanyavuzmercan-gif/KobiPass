@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#f4f4f5"/>
+  <rect x="192" y="192" width="640" height="640" rx="92" fill="#1e376e"/>
+
+  <!-- kilit kemeri: gövdeye gömülen yarım halka -->
+  <path d="M 560 540 L 560 402 A 95 95 0 0 1 750 402 L 750 530"
+        fill="none" stroke="#ffffff" stroke-width="54"/>
+
+  <!-- P: gövde (kilit) + bacak -->
+  <circle cx="650" cy="595" r="150" fill="#ffffff"/>
+  <rect x="500" y="468" width="62" height="350" fill="#ffffff"/>
+  <circle cx="655" cy="595" r="98" fill="#b3bac6"/>
+
+  <!-- K: dikey gövde + gri yüzeye çentik açan kollar -->
+  <rect x="288" y="455" width="62" height="350" fill="#ffffff"/>
+  <polygon points="350,585 490,455 598,455 462,612 598,805 488,805 350,662" fill="#ffffff"/>
+
+  <!-- anahtar deliği -->
+  <circle cx="668" cy="568" r="27" fill="#1e376e"/>
+  <path d="M 668 575 L 645 650 L 691 650 Z" fill="#1e376e"/>
+</svg>

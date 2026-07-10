@@ -1145,11 +1145,10 @@ QDialog#helpDialog {
     border-radius: 8px;
 }
 
-/* --- Gömülü yardım paneli (hider Info yapısı) ---
-   Panel iki temada da navy chrome üzerindedir; renkler sabittir. */
+/* --- Gömülü yardım paneli — AYDINLIK tema: panel de temayla değişir --- */
 QWidget#helpPanel {
-    background-color: #1e293b;
-    border-bottom: 1px solid #0f172a;
+    background-color: #ffffff;
+    border-bottom: 1px solid #dde3f0;
 }
 
 QLabel#helpStepBadge {
@@ -1162,25 +1161,26 @@ QLabel#helpStepBadge {
 }
 
 QLabel#helpStepText {
-    color: #cbd5e1;
+    color: #374151;
     font-size: 13px;
 }
 
 QLabel#helpWarnBox {
-    background-color: #2d2820;
-    color: #c8a84b;
+    background-color: #fffbeb;
+    color: #92400e;
+    border: 1px solid #f59e0b;
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 12px;
 }
 
 QWidget#helpCreditsCard {
-    background-color: #1a2035;
+    background-color: #1e293b;
     border-radius: 8px;
 }
 
 QLabel#helpCreditsName {
-    color: #e8eaed;
+    color: #f1f5f9;
     font-size: 15px;
     font-weight: 700;
 }
@@ -1192,29 +1192,29 @@ QLabel#helpCreditsBy {
 }
 
 QLabel#helpCreditsText {
-    color: #7a8aac;
+    color: #94a3b8;
     font-size: 12px;
 }
 
 QLabel#helpCreditsFooter {
-    color: #5a6a8a;
+    color: #64748b;
     font-size: 11px;
 }
 
 QWidget#helpFeatureCard {
-    background-color: #192030;
-    border: 1px solid #2a3346;
+    background-color: #f4f6fb;
+    border: 1px solid #dde3f0;
     border-radius: 8px;
 }
 
 QLabel#helpCardTitle {
-    color: #e8eaed;
+    color: #111827;
     font-size: 12px;
     font-weight: 700;
 }
 
 QLabel#helpCardText {
-    color: #94a3b8;
+    color: #4b5563;
     font-size: 11px;
 }
 
