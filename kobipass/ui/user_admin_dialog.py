@@ -1,5 +1,5 @@
 """
-Yönetici: kullanıcı parolaları ve ortak izin şablonu düzenleme.
+Yönetici: kullanıcı parolaları, alan etiketleri ve ortak izin şablonu.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 
 from kobipass.i18n import MIN_PASSWORD_LENGTH, tr
 from kobipass.resources import app_icon
-from kobipass.vault_model import FIELD_NAMES, FieldLevel, KobiVault, USER_SLOT_COUNT
+from kobipass.vault_model import FIELD_NAMES, KobiVault, USER_SLOT_COUNT
 
 
 class UserAdminDialog(QDialog):
@@ -29,15 +29,18 @@ class UserAdminDialog(QDialog):
         vault: KobiVault,
         enabled_flags: list[bool],
         parent: QWidget | None = None,
+        *,
+        require_admin_current: bool = True,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle(tr("users_title"))
         self.setWindowIcon(app_icon())
         self.setModal(True)
-        self.setMinimumWidth(520)
+        self.setMinimumWidth(560)
         self._vault = vault
         self._enabled_flags = list(enabled_flags)
         self._passwords_changed = False
+        self._require_admin_current = require_admin_current
         self._result: dict | None = None
 
         layout = QVBoxLayout(self)
@@ -45,16 +48,40 @@ class UserAdminDialog(QDialog):
         info.setWordWrap(True)
         layout.addWidget(info)
 
+        admin_group = QGroupBox(tr("admin_change_section"))
+        admin_form = QFormLayout(admin_group)
+        admin_info = QLabel(tr("admin_change_info"))
+        admin_info.setWordWrap(True)
+        admin_form.addRow(admin_info)
+        self._admin_current = QLineEdit()
+        self._admin_current.setEchoMode(QLineEdit.EchoMode.Password)
+        self._admin_new = QLineEdit()
+        self._admin_new.setEchoMode(QLineEdit.EchoMode.Password)
+        self._admin_new_repeat = QLineEdit()
+        self._admin_new_repeat.setEchoMode(QLineEdit.EchoMode.Password)
+        admin_form.addRow(tr("admin_pwd_current"), self._admin_current)
+        admin_form.addRow(tr("admin_pwd_new"), self._admin_new)
+        admin_form.addRow(tr("admin_pwd_new_repeat"), self._admin_new_repeat)
+        layout.addWidget(admin_group)
+
         pwd_group = QGroupBox(tr("users_title"))
         pwd_form = QFormLayout(pwd_group)
         self._enabled_boxes: list[QCheckBox] = []
         self._user_fields: list[tuple[QLineEdit, QLineEdit]] = []
+        self._label_edits: list[QLineEdit] = []
         for n in range(USER_SLOT_COUNT):
             enabled = QCheckBox(tr("user_pwd_label", n=n + 1))
             enabled.setChecked(
                 self._enabled_flags[n] if n < len(self._enabled_flags) else False
             )
             self._enabled_boxes.append(enabled)
+            label_edit = QLineEdit()
+            label_edit.setText(
+                vault.user_slot_labels[n]
+                if n < len(vault.user_slot_labels)
+                else f"Kullanıcı {n + 1}"
+            )
+            self._label_edits.append(label_edit)
             p1 = QLineEdit()
             p1.setEchoMode(QLineEdit.EchoMode.Password)
             p1.setPlaceholderText(tr("pwd_placeholder"))
@@ -63,9 +90,25 @@ class UserAdminDialog(QDialog):
             p2.setPlaceholderText(tr("pwd_repeat_placeholder"))
             self._user_fields.append((p1, p2))
             pwd_form.addRow(enabled)
+            pwd_form.addRow(tr("field_name"), label_edit)
             pwd_form.addRow(tr("pwd_label"), p1)
             pwd_form.addRow(tr("pwd_repeat_label"), p2)
         layout.addWidget(pwd_group)
+
+        labels_group = QGroupBox(tr("labels_section"))
+        labels_form = QFormLayout(labels_group)
+        labels_info = QLabel(tr("labels_info"))
+        labels_info.setWordWrap(True)
+        labels_form.addRow(labels_info)
+        self._field_label_edits: dict[str, QLineEdit] = {}
+        current_labels = vault.resolved_field_labels()
+        for field_name in FIELD_NAMES:
+            edit = QLineEdit()
+            edit.setPlaceholderText(tr(f"field_{field_name}"))
+            edit.setText(current_labels.get(field_name, ""))
+            self._field_label_edits[field_name] = edit
+            labels_form.addRow(tr(f"field_{field_name}"), edit)
+        layout.addWidget(labels_group)
 
         perm_group = QGroupBox(tr("perm_section"))
         perm_layout = QGridLayout(perm_group)
@@ -111,6 +154,20 @@ class UserAdminDialog(QDialog):
     def _on_accept(self) -> None:
         from kobipass.vault_model import UserPermissions
 
+        admin_current = self._admin_current.text()
+        admin_new = self._admin_new.text()
+        admin_repeat = self._admin_new_repeat.text()
+        if admin_new or admin_repeat:
+            if self._require_admin_current and not admin_current:
+                self._error.setText(tr("pwd_admin_required"))
+                return
+            if len(admin_new) < MIN_PASSWORD_LENGTH:
+                self._error.setText(tr("pwd_too_short", min_len=MIN_PASSWORD_LENGTH))
+                return
+            if admin_new != admin_repeat:
+                self._error.setText(tr("pwd_mismatch"))
+                return
+
         user_passwords: list[tuple[bool, str]] = []
         for index, (enabled_box, (p1, p2)) in enumerate(
             zip(self._enabled_boxes, self._user_fields)
@@ -142,10 +199,23 @@ class UserAdminDialog(QDialog):
             info3=self._perm_combos["info3"].currentData(),
             info4=self._perm_combos["info4"].currentData(),
         )
+        field_labels = {
+            key: edit.text().strip()
+            for key, edit in self._field_label_edits.items()
+            if edit.text().strip()
+        }
+        slot_labels = [
+            edit.text().strip() or f"Kullanıcı {index + 1}"
+            for index, edit in enumerate(self._label_edits)
+        ]
         self._result = {
             "user_passwords": user_passwords,
             "permissions": perms,
             "passwords_changed": self._passwords_changed,
+            "field_labels": field_labels,
+            "user_slot_labels": slot_labels,
+            "admin_current": admin_current,
+            "admin_new": admin_new if admin_new else None,
         }
         self.accept()
 

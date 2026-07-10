@@ -1,43 +1,50 @@
 """
-Tek vault kaydı satırı — alan bazlı izin desteği.
+Tek vault kaydı satırı — sabit isim/1.bilgi, + ile dinamik ek alanlar.
 """
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QTimer, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QGuiApplication
+from PyQt6.QtCore import QMimeData, QPoint, QTimer, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QDrag, QMouseEvent, QWheelEvent
 from PyQt6.QtWidgets import (
     QApplication,
+    QFrame,
     QHBoxLayout,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QToolButton,
+    QVBoxLayout,
     QWidget,
 )
 
+from kobipass.clipboard import copy_text
 from kobipass.i18n import tr
 from kobipass.permissions import can_copy, can_edit, can_view
 from kobipass.ui.icons import icon_copy, icon_eye, icon_eye_off
-from kobipass.vault_model import FIELD_NAMES, FieldLevel, UserPermissions, VaultEntry
+from kobipass.vault_model import FieldLevel, UserPermissions, VaultEntry
+
+ROW_MIME = "application/x-kobipass-row-index"
 
 ROW_CONTROL_HEIGHT = 38
 COPY_BTN_SIZE = QSize(32, 32)
 COPY_GROUP_INSET = (5, 3, 0, 3)
-EYE_BTN_SIZE = QSize(ROW_CONTROL_HEIGHT, ROW_CONTROL_HEIGHT)
 ROW_MARGINS = (0, 4, 12, 4)
 ROW_LAYOUT_SPACING = 8
 
+NAME_FIELD_WIDTH = 180
+INFO_FIELD_WIDTH = 180
+FIELD_STEP_BTN_WIDTH = 30
+FIELD_STEP_BTN_HEIGHT = 20
+
 _ICON_BTN_SIZE = COPY_BTN_SIZE
+_FIELD_EYE_BTN_SIZE = QSize(28, 28)
 _ROW_ALIGN = Qt.AlignmentFlag.AlignVCenter
 _ICON_SIZE = QSize(20, 20)
 _COPY_FLASH_MS = 900
 
 _active_copy_field: "CompactField | None" = None
-
-
-def _copy_to_clipboard(text: str) -> None:
-    QGuiApplication.clipboard().setText(text)
 
 
 def _notify_copied(source: QWidget, field_label: str, has_text: bool) -> None:
@@ -61,6 +68,16 @@ def _icon_button(icon, tooltip: str, object_name: str) -> QToolButton:
     return btn
 
 
+def _field_step_button(label: str, object_name: str) -> QToolButton:
+    btn = QToolButton()
+    btn.setObjectName(object_name)
+    btn.setText(label)
+    btn.setFixedSize(FIELD_STEP_BTN_WIDTH, FIELD_STEP_BTN_HEIGHT)
+    btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+    return btn
+
+
 def _restyle(widget: QWidget) -> None:
     style = widget.style()
     style.unpolish(widget)
@@ -68,32 +85,104 @@ def _restyle(widget: QWidget) -> None:
     widget.update()
 
 
+def _default_info_label(info_index: int) -> str:
+    if info_index <= 4:
+        return tr(f"field_info{info_index}")
+    return tr("field_info_n", n=info_index)
+
+
+def _password_strength_color(text: str) -> str:
+    if not text:
+        return "transparent"
+    score = 0
+    if len(text) >= 6:
+        score += 1
+    if len(text) >= 10:
+        score += 1
+    if len(text) >= 14:
+        score += 1
+    if any(ch.islower() for ch in text) and any(ch.isupper() for ch in text):
+        score += 1
+    if any(ch.isdigit() for ch in text):
+        score += 1
+    if any(not ch.isalnum() for ch in text):
+        score += 1
+    if score <= 2:
+        return "#c42b1c"
+    if score <= 4:
+        return "#e07020"
+    return "#3ddc84"
+
+
+class EntryFieldsScroll(QScrollArea):
+    """Yatay kaydırma — scrollbar gizli, tekerlek ile kayar."""
+
+    def sizeHint(self) -> QSize:
+        return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        bar = self.horizontalScrollBar()
+        delta = event.angleDelta()
+        if bar.maximum() > 0 and delta.x() != 0:
+            bar.setValue(bar.value() - delta.x())
+            event.accept()
+            return
+        if (
+            bar.maximum() > 0
+            and event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+            and delta.y() != 0
+        ):
+            bar.setValue(bar.value() - delta.y())
+            event.accept()
+            return
+        event.ignore()
+
+
 class CompactField(QWidget):
-    """Yatay: giriş kutusu + kopyala ikonu."""
+    """Yatay: giriş kutusu + kopyala ikonu (sabit genişlik)."""
 
     def __init__(
         self,
-        field_key: str,
-        min_width: int = 140,
-        stretch: int = 1,
+        info_index: int | None = None,
         *,
+        field_key: str | None = None,
+        fixed_width: int = INFO_FIELD_WIDTH,
         sensitive: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("copyGroup")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._info_index = info_index
         self._field_key = field_key
         self._permission: FieldLevel = "write"
         self._sensitive = sensitive
         self._hidden = sensitive
-        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self._always_show = False
+        self._view_only = False
+        self._custom_label = ""
+        self._eye_btn: QToolButton | None = None
+        self._strength_meter: QFrame | None = None
+        self.setFixedWidth(fixed_width)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
-        layout = QHBoxLayout(self)
+        if sensitive:
+            outer = QVBoxLayout(self)
+            outer.setContentsMargins(0, 0, 0, 0)
+            outer.setSpacing(0)
+            row_host = QWidget(self)
+            layout = QHBoxLayout(row_host)
+            self.setFixedHeight(ROW_CONTROL_HEIGHT + 3)
+        else:
+            layout = QHBoxLayout(self)
+            self.setFixedHeight(ROW_CONTROL_HEIGHT)
+
         layout.setContentsMargins(*COPY_GROUP_INSET)
         layout.setSpacing(4)
         layout.setAlignment(_ROW_ALIGN)
-        self.setFixedHeight(ROW_CONTROL_HEIGHT)
 
         self._copy_btn = _icon_button(icon_copy(), "", "copyBtn")
         self._copy_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -101,13 +190,42 @@ class CompactField(QWidget):
         layout.addWidget(self._copy_btn, 0, _ROW_ALIGN)
 
         inner_h = ROW_CONTROL_HEIGHT - COPY_GROUP_INSET[1] - COPY_GROUP_INSET[3]
-        self._edit = QLineEdit()
-        self._edit.setMinimumWidth(min_width)
-        self._edit.setFixedHeight(inner_h)
-        self._edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        trailing_btn_width = _FIELD_EYE_BTN_SIZE.width() if sensitive else 0
+        gap_count = 2 if sensitive else 1
+        edit_width = (
+            fixed_width
+            - COPY_BTN_SIZE.width()
+            - trailing_btn_width
+            - COPY_GROUP_INSET[0]
+            - COPY_GROUP_INSET[2]
+            - 4 * gap_count
         )
-        layout.addWidget(self._edit, stretch=stretch, alignment=_ROW_ALIGN)
+        self._edit = QLineEdit()
+        self._edit.setFixedWidth(max(72, edit_width))
+        self._edit.setFixedHeight(inner_h)
+        self._edit.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        layout.addWidget(self._edit, 0, _ROW_ALIGN)
+
+        if sensitive:
+            self._eye_btn = QToolButton()
+            self._eye_btn.setObjectName("fieldEyeBtn")
+            self._eye_btn.setIconSize(_ICON_SIZE)
+            self._eye_btn.setFixedSize(_FIELD_EYE_BTN_SIZE)
+            self._eye_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._eye_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._eye_btn.setCheckable(True)
+            self._eye_btn.setAutoRaise(True)
+            self._eye_btn.setChecked(not self._hidden)
+            self._eye_btn.clicked.connect(self._on_eye_clicked)
+            layout.addWidget(self._eye_btn, 0, _ROW_ALIGN)
+
+        if sensitive:
+            outer.addWidget(row_host)
+            self._strength_meter = QFrame(self)
+            self._strength_meter.setFixedHeight(3)
+            self._strength_meter.setStyleSheet("background-color: transparent;")
+            outer.addWidget(self._strength_meter, 0, Qt.AlignmentFlag.AlignBottom)
+            self._edit.textChanged.connect(self._update_strength)
 
         self.setFocusProxy(self._edit)
         self._sync_echo()
@@ -118,7 +236,17 @@ class CompactField(QWidget):
         self.retranslate()
 
     def _label_text(self) -> str:
-        return tr(self._field_key)
+        if self._custom_label:
+            return self._custom_label
+        if self._info_index is not None:
+            return _default_info_label(self._info_index)
+        if self._field_key:
+            return tr(self._field_key)
+        return ""
+
+    def set_custom_label(self, label: str) -> None:
+        self._custom_label = label.strip()
+        self.retranslate()
 
     def retranslate(self) -> None:
         label = self._label_text()
@@ -126,20 +254,81 @@ class CompactField(QWidget):
         self._edit.setPlaceholderText(label)
         if not self.property("copied"):
             self._copy_btn.setToolTip(self._copy_tooltip_base)
+        self._refresh_eye()
+
+    def _refresh_eye(self) -> None:
+        if self._eye_btn is None:
+            return
+        shown = not self._hidden
+        self._eye_btn.setIcon(icon_eye() if shown else icon_eye_off())
+        self._eye_btn.setToolTip(tr("eye_hide") if shown else tr("eye_show"))
+
+    def _update_strength(self, text: str) -> None:
+        if not self._sensitive:
+            return
+        color = _password_strength_color(text)
+        if self._strength_meter is not None:
+            self._strength_meter.setStyleSheet(f"background-color: {color};")
+
+    def set_view_only(self, view_only: bool) -> None:
+        self._view_only = view_only
 
     def set_permission(self, level: FieldLevel) -> None:
         self._permission = level
-        visible = can_view(level)
+        effective = level
+        if (
+            self._always_show
+            and not self._view_only
+            and (level == "none" or not can_edit(level))
+        ):
+            effective = "write"
+        elif level == "none":
+            effective = "read"
+        visible = can_view(effective)
         self.setVisible(visible)
         if not visible:
             return
-        editable = can_edit(level)
+        editable = can_edit(effective) and not self._view_only
         self._edit.setReadOnly(not editable)
-        self._copy_btn.setEnabled(can_copy(level))
+        if editable:
+            self.setEnabled(True)
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+            self._edit.setEnabled(True)
+            self._edit.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+            self._edit.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            self._edit.setProperty("readOnlyPerm", "false")
+        else:
+            self.setEnabled(True)
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+            self._edit.setEnabled(False)
+            self._edit.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            self._edit.clearFocus()
+            self._edit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._edit.setProperty("readOnlyPerm", "true")
+        _restyle(self._edit)
+        self._copy_btn.setEnabled(can_copy(effective) and not self._view_only)
+        if self._copy_btn is not None:
+            self._copy_btn.setAttribute(
+                Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+                self._view_only,
+            )
+        if self._eye_btn is not None:
+            self._eye_btn.setEnabled(can_view(effective))
+            self._eye_btn.setAttribute(
+                Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+                False,
+            )
         self._sync_echo()
 
     def _sync_echo(self) -> None:
         if not self.isVisible() and self._permission == "hidden":
+            return
+        if self._sensitive and self._eye_btn is not None:
+            self._edit.setEchoMode(
+                QLineEdit.EchoMode.Password
+                if self._hidden
+                else QLineEdit.EchoMode.Normal
+            )
             return
         if self._permission == "hidden_read":
             self._edit.setEchoMode(QLineEdit.EchoMode.Password)
@@ -155,7 +344,7 @@ class CompactField(QWidget):
         if _active_copy_field is not None and _active_copy_field is not self:
             _active_copy_field._clear_copy_flash()
         text = self._edit.text()
-        _copy_to_clipboard(text)
+        copy_text(text)
         self._show_copy_flash()
         _active_copy_field = self
         _notify_copied(self, self._label_text(), bool(text.strip()))
@@ -180,6 +369,18 @@ class CompactField(QWidget):
 
     def set_hidden(self, hidden: bool) -> None:
         self._hidden = hidden
+        if self._eye_btn is not None:
+            self._eye_btn.blockSignals(True)
+            self._eye_btn.setChecked(not hidden)
+            self._eye_btn.blockSignals(False)
+            self._refresh_eye()
+        self._sync_echo()
+
+    def _on_eye_clicked(self) -> None:
+        if self._eye_btn is None:
+            return
+        self._hidden = not self._eye_btn.isChecked()
+        self._refresh_eye()
         self._sync_echo()
 
     def text(self) -> str:
@@ -196,7 +397,7 @@ class CompactField(QWidget):
 
 
 class EntryRowWidget(QWidget):
-    """Bir kasa kaydı — tüm alanlar soldan sağa tek satırda."""
+    """Bir kasa kaydı — isim + 1.bilgi sabit, + ile ek alanlar."""
 
     changed = pyqtSignal()
     remove_requested = pyqtSignal(object)
@@ -205,52 +406,88 @@ class EntryRowWidget(QWidget):
         super().__init__(parent)
         self.setObjectName("entryRow")
         self._can_delete = True
-        self._show_sensitive = False
+        self._view_only = False
+        self._permissions = UserPermissions()
+        self._extra_fields: list[CompactField] = []
+        self._field_labels: dict[str, str] = {}
+        self._drag_start: QPoint | None = None
+        self.vault_index: int | None = None
+        self.setToolTip(tr("drag_row_tip"))
 
         row = QHBoxLayout(self)
         row.setContentsMargins(*ROW_MARGINS)
         row.setSpacing(ROW_LAYOUT_SPACING)
         row.setAlignment(_ROW_ALIGN)
 
-        self._eye_btn = _icon_button(icon_eye(), "", "eyeBtn")
-        self._eye_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._eye_btn.setCheckable(True)
-        self._eye_btn.clicked.connect(self._on_eye_clicked)
-        row.addWidget(self._eye_btn, 0, _ROW_ALIGN)
-
-        self._name = CompactField("field_name", min_width=165, stretch=2)
+        self._name = CompactField(
+            field_key="field_name",
+            fixed_width=NAME_FIELD_WIDTH,
+            sensitive=False,
+        )
         self._info1 = CompactField(
-            "field_info1", min_width=160, stretch=2, sensitive=True
+            info_index=1,
+            fixed_width=INFO_FIELD_WIDTH,
+            sensitive=True,
         )
-        self._info2 = CompactField(
-            "field_info2", min_width=105, stretch=1, sensitive=True
+        row.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
+        row.addWidget(self._info1, 0, Qt.AlignmentFlag.AlignTop)
+
+        self._scroll = EntryFieldsScroll()
+        self._scroll.setObjectName("entryFieldsScroll")
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Minimum,
         )
-        self._info3 = CompactField(
-            "field_info3", min_width=120, stretch=1, sensitive=True
+        self._scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
-        self._info4 = CompactField(
-            "field_info4", min_width=120, stretch=1, sensitive=True
+        self._scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        # Scrollarea yüksekliğine scrollbar nefes payı (+14)
+        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT + 14)
+
+        # Kutular 14px boşluğun ortasında yüzmesin — yukarı yasla
+        self._scroll.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
 
-        self._fields = {
-            "name": self._name,
-            "info1": self._info1,
-            "info2": self._info2,
-            "info3": self._info3,
-            "info4": self._info4,
-        }
-        self._sensitive_fields = (
-            self._info1,
-            self._info2,
-            self._info3,
-            self._info4,
+        self._extras_host = QWidget()
+        self._extras_host.setObjectName("entryExtrasHost")
+        self._extras_layout = QHBoxLayout(self._extras_host)
+        self._extras_layout.setContentsMargins(0, 0, 0, 0)
+        self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
+
+        # İçeriği sola ve yukarı hizala
+        self._extras_layout.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
 
-        row.addWidget(self._name, stretch=2, alignment=_ROW_ALIGN)
-        row.addWidget(self._info1, stretch=2, alignment=_ROW_ALIGN)
-        row.addWidget(self._info2, stretch=1, alignment=_ROW_ALIGN)
-        row.addWidget(self._info3, stretch=1, alignment=_ROW_ALIGN)
-        row.addWidget(self._info4, stretch=1, alignment=_ROW_ALIGN)
+        self._field_step_column = QWidget()
+        self._field_step_column.setObjectName("fieldStepColumn")
+        field_step_layout = QVBoxLayout(self._field_step_column)
+        field_step_layout.setContentsMargins(0, 0, 0, 0)
+        field_step_layout.setSpacing(2)
+        field_step_layout.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
+        )
+
+        self._add_field_btn = _field_step_button("+", "addFieldBtn")
+        self._add_field_btn.clicked.connect(self._add_extra_field)
+        field_step_layout.addWidget(self._add_field_btn, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        self._remove_field_btn = _field_step_button("-", "removeFieldBtn")
+        self._remove_field_btn.clicked.connect(self._remove_last_extra_field)
+        field_step_layout.addWidget(
+            self._remove_field_btn, 0, Qt.AlignmentFlag.AlignHCenter
+        )
+        self._extras_layout.addWidget(self._field_step_column, 0, Qt.AlignmentFlag.AlignTop)
+
+        self._scroll.setWidget(self._extras_host)
+        row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
 
         self._remove_btn = QPushButton()
         self._remove_btn.setObjectName("dangerBtn")
@@ -258,74 +495,184 @@ class EntryRowWidget(QWidget):
         self._remove_btn.setFixedHeight(ROW_CONTROL_HEIGHT)
         self._remove_btn.setMinimumWidth(ROW_CONTROL_HEIGHT)
         self._remove_btn.clicked.connect(lambda: self.remove_requested.emit(self))
-        row.addWidget(self._remove_btn, 0, _ROW_ALIGN)
+        row.addWidget(self._remove_btn, 0, Qt.AlignmentFlag.AlignTop)
 
-        self._eye_btn.setChecked(False)
-        self._apply_sensitive_hidden(True)
         self.retranslate()
 
-        for field in self._fields.values():
-            field.textChanged().connect(self._emit_changed)
+        self._name.textChanged().connect(self._emit_changed)
+        self._info1.textChanged().connect(self._emit_changed)
 
         self._wire_tab_order()
+        self._update_field_step_buttons()
+
+    def _field_step_index(self) -> int:
+        return self._extras_layout.indexOf(self._field_step_column)
+
+    def _update_field_step_buttons(self) -> None:
+        self._remove_field_btn.setEnabled(len(self._extra_fields) > 0)
+
+    def _sensitive_fields(self) -> list[CompactField]:
+        return [self._info1, *self._extra_fields]
 
     def focus_edits(self) -> list[QLineEdit]:
-        return [
-            field.focus_edit()
-            for field in self._fields.values()
-            if field.isVisible() and field.focus_edit().isEnabled()
-        ]
+        edits = [self._name.focus_edit(), self._info1.focus_edit()]
+        for field in self._extra_fields:
+            if field.isVisible() and field.focus_edit().isEnabled():
+                edits.append(field.focus_edit())
+        return edits
 
     def _wire_tab_order(self) -> None:
         edits = self.focus_edits()
         for prev, nxt in zip(edits, edits[1:]):
             QWidget.setTabOrder(prev, nxt)
 
-    def set_field_permission(self, field_name: str, level: FieldLevel) -> None:
-        field = self._fields.get(field_name)
-        if field is not None:
-            field.set_permission(level)
+    def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
+        # Manuel pikselleri hesaplama kodları (for döngüsü ve setFixedSize) tamamen silindi.
+        # Genişlik hesabını artık setWidgetResizable(True) sayesinde QHBoxLayout kendisi yapacak.
 
-    def apply_permissions(self, perms: UserPermissions) -> None:
-        for field_name in FIELD_NAMES:
-            self.set_field_permission(field_name, perms.field_level(field_name))
+        def update_scroll():
+            bar = self._scroll.horizontalScrollBar()
+            if scroll_to_end:
+                bar.setValue(bar.maximum())
+            else:
+                bar.setValue(min(bar.value(), bar.maximum()))
+
+        # Yeni alan eklendiğinde Qt'nin arayüzü çizmesi birkaç milisaniye sürer.
+        # Scroll barın doğru maksimum değere ulaşması için çizimin bitmesini sıfır gecikmeli timer ile bekliyoruz.
+        QTimer.singleShot(0, update_scroll)
+
+    def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
+        info_index = len(self._extra_fields) + 2
+        field = CompactField(
+            info_index=info_index,
+            fixed_width=INFO_FIELD_WIDTH,
+            sensitive=True,
+            parent=self._extras_host,
+        )
+        field._always_show = True
+        field.set_custom_label(self._field_labels.get(f"info{info_index}", ""))
+        if block_signals:
+            field._edit.blockSignals(True)
+        field.setText(initial_text)
+        if block_signals:
+            field._edit.blockSignals(False)
+
+        level = self._permissions.level_for_info_index(info_index)
+        field.set_permission(level)
+        field.textChanged().connect(self._emit_changed)
+
+        self._extras_layout.insertWidget(
+            self._field_step_index(),
+            field,
+            0,
+            _ROW_ALIGN,
+        )
+        self._extra_fields.append(field)
+        field.show()
+        self._sync_scroll_width(scroll_to_end=not block_signals)
         self._wire_tab_order()
-        self._apply_visibility()
+        self._update_field_step_buttons()
+        self._emit_changed()
+
+    def _remove_last_extra_field(self) -> None:
+        if self._view_only:
+            return
+        if not self._extra_fields:
+            return
+        field = self._extra_fields.pop()
+        self._extras_layout.removeWidget(field)
+        field.deleteLater()
+        self._sync_scroll_width()
+        self._wire_tab_order()
+        self._update_field_step_buttons()
+        self._emit_changed()
+
+    def _clear_extra_fields(self) -> None:
+        for field in self._extra_fields:
+            self._extras_layout.removeWidget(field)
+            field.deleteLater()
+        self._extra_fields.clear()
+        self._sync_scroll_width()
+        self._update_field_step_buttons()
+
+    def apply_permissions(
+        self, perms: UserPermissions, *, view_only: bool = False
+    ) -> None:
+        self._view_only = view_only
+        self._permissions = perms
+        for field in (self._name, self._info1, *self._extra_fields):
+            field.set_view_only(view_only)
+        self._name.set_permission(perms.name)
+        self._info1.set_permission(perms.info1)
+        for index, field in enumerate(self._extra_fields, start=2):
+            field.set_permission(perms.level_for_info_index(index))
+        self._field_step_column.setVisible(not view_only)
+        self._remove_btn.setVisible(not view_only and self._can_delete)
+        self._remove_btn.setEnabled(not view_only and self._can_delete)
+        if view_only:
+            self._add_field_btn.setEnabled(False)
+            self._remove_field_btn.setEnabled(False)
+        else:
+            self._update_field_step_buttons()
+        self._sync_scroll_width()
+        self._wire_tab_order()
+
+    def apply_field_labels(self, labels: dict[str, str]) -> None:
+        self._field_labels = dict(labels)
+        self._name.set_custom_label(labels.get("name", ""))
+        self._info1.set_custom_label(labels.get("info1", ""))
+        for index, field in enumerate(self._extra_fields, start=2):
+            field.set_custom_label(labels.get(f"info{index}", ""))
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton and not self._view_only:
+            self._drag_start = event.position().toPoint()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if (
+            self._drag_start is not None
+            and event.buttons() & Qt.MouseButton.LeftButton
+            and not self._view_only
+            and self.vault_index is not None
+        ):
+            if (event.position().toPoint() - self._drag_start).manhattanLength() >= 8:
+                self._start_drag()
+                self._drag_start = None
+                return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        self._drag_start = None
+        super().mouseReleaseEvent(event)
+
+    def _start_drag(self) -> None:
+        if self.vault_index is None:
+            return
+        drag = QDrag(self)
+        mime = QMimeData()
+        mime.setData(ROW_MIME, str(self.vault_index).encode("utf-8"))
+        drag.setMimeData(mime)
+        drag.exec(Qt.DropAction.MoveAction)
 
     def set_sensitive_shown(self, shown: bool) -> None:
-        self._show_sensitive = shown
-        self._eye_btn.blockSignals(True)
-        self._eye_btn.setChecked(shown)
-        self._eye_btn.blockSignals(False)
-        self._apply_visibility()
+        for field in self._sensitive_fields():
+            if field.isVisible():
+                field.set_hidden(not shown)
 
     def set_can_delete(self, allowed: bool) -> None:
         self._can_delete = allowed
-        self._remove_btn.setVisible(allowed)
-
-    def _apply_sensitive_hidden(self, hidden: bool) -> None:
-        for field in self._sensitive_fields:
-            if field.isVisible():
-                field.set_hidden(hidden)
-
-    def _apply_visibility(self) -> None:
-        self._apply_sensitive_hidden(not self._show_sensitive)
-        self._eye_btn.setIcon(
-            icon_eye() if self._show_sensitive else icon_eye_off()
-        )
-        self._eye_btn.setToolTip(
-            tr("eye_hide") if self._show_sensitive else tr("eye_show")
-        )
+        self._remove_btn.setVisible(allowed and not self._view_only)
+        self._remove_btn.setEnabled(allowed and not self._view_only)
 
     def retranslate(self) -> None:
-        for field in self._fields.values():
+        self._name.retranslate()
+        self._info1.retranslate()
+        for field in self._extra_fields:
             field.retranslate()
+        self._add_field_btn.setToolTip(tr("add_field_tip"))
+        self._remove_field_btn.setToolTip(tr("remove_field_tip"))
         self._remove_btn.setText(tr("btn_delete"))
-        self._apply_visibility()
-
-    def _on_eye_clicked(self) -> None:
-        self._show_sensitive = self._eye_btn.isChecked()
-        self._apply_visibility()
 
     def _emit_changed(self) -> None:
         self.changed.emit()
@@ -334,19 +681,20 @@ class EntryRowWidget(QWidget):
         return VaultEntry(
             name=self._name.text().strip(),
             info1=self._info1.text(),
-            info2=self._info2.text(),
-            info3=self._info3.text(),
-            info4=self._info4.text(),
+            more_infos=[field.text() for field in self._extra_fields],
         )
 
     def load_entry(self, entry: VaultEntry) -> None:
         self._name.setText(entry.name)
         self._info1.setText(entry.info1)
-        self._info2.setText(entry.info2)
-        self._info3.setText(entry.info3)
-        self._info4.setText(entry.info4)
+        self._clear_extra_fields()
+        for value in entry.more_infos:
+            self._add_extra_field(initial_text=value, block_signals=True)
+        self._sync_scroll_width()
         self.set_sensitive_shown(False)
 
     def block_change_signals(self, block: bool) -> None:
-        for field in self._fields.values():
+        self._name._edit.blockSignals(block)
+        self._info1._edit.blockSignals(block)
+        for field in self._extra_fields:
             field._edit.blockSignals(block)

@@ -19,6 +19,9 @@ from kobipass.i18n import tr
 from kobipass.platform_win import clear_maximized_style, set_window_geometry
 from kobipass.resources import logo_pixmap
 
+DEFAULT_WINDOW_WIDTH = 1280
+DEFAULT_WINDOW_HEIGHT = 760
+
 
 class CustomTitleBar(QWidget):
     """Frameless pencere için üst çubuk ve sağ üst pencere düğmeleri."""
@@ -28,7 +31,7 @@ class CustomTitleBar(QWidget):
         self._window = window
         self._drag_pos: QPoint | None = None
         self._maximized = False
-        self._normal_geometry: QRect | None = None
+        self._restore_size: tuple[int, int] | None = None
         self._toggle_busy = False
 
         self.setObjectName("customTitleBar")
@@ -96,11 +99,35 @@ class CustomTitleBar(QWidget):
         layout.addWidget(self._btn_close)
 
         self.retranslate()
-        self.capture_normal_geometry()
+
+    @staticmethod
+    def _is_near_fullscreen(geom: QRect, avail: QRect, margin: int = 4) -> bool:
+        return (
+            abs(geom.width() - avail.width()) <= margin
+            and abs(geom.height() - avail.height()) <= margin
+        )
 
     def capture_normal_geometry(self) -> None:
-        if not self._maximized:
-            self._normal_geometry = self._window.geometry()
+        if self._maximized:
+            return
+        geom = self._window.geometry()
+        avail = self._available_screen_geometry()
+        if self._is_near_fullscreen(geom, avail):
+            return
+        self._restore_size = (geom.width(), geom.height())
+
+    def center_on_screen(
+        self,
+        width: int = DEFAULT_WINDOW_WIDTH,
+        height: int = DEFAULT_WINDOW_HEIGHT,
+    ) -> None:
+        """Pencereyi ekranın ortasına yerleştirir (tam ekran değil)."""
+        target = self._centered_geometry(width, height)
+        self._window.winId()
+        set_window_geometry(self._window, target, restoring=False)
+        self._restore_size = (width, height)
+        self._maximized = False
+        self._refresh_maximize_button()
 
     def retranslate(self) -> None:
         self._brand.setText(tr("app_name"))
@@ -117,6 +144,12 @@ class CustomTitleBar(QWidget):
         if isinstance(app, QApplication) and app.primaryScreen():
             return app.primaryScreen().availableGeometry()
         return self._window.geometry()
+
+    def _centered_geometry(self, width: int, height: int) -> QRect:
+        avail = self._available_screen_geometry()
+        x = avail.x() + max(0, (avail.width() - width) // 2)
+        y = avail.y() + max(0, (avail.height() - height) // 2)
+        return QRect(x, y, width, height)
 
     def _refresh_maximize_button(self) -> None:
         if self._maximized:
@@ -137,16 +170,23 @@ class CustomTitleBar(QWidget):
 
     def _toggle_maximize(self) -> None:
         w = self._window
+        w.winId()
+
         if self._maximized:
-            target = self._normal_geometry or QRect(100, 100, 1280, 760)
+            if self._restore_size:
+                w_norm, h_norm = self._restore_size
+            else:
+                w_norm, h_norm = DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT
+            target = self._centered_geometry(w_norm, h_norm)
             set_window_geometry(w, target, restoring=True)
+            self._restore_size = (target.width(), target.height())
             self._maximized = False
         else:
-            self._normal_geometry = QRect(w.geometry())
             target = self._available_screen_geometry()
             set_window_geometry(w, target, restoring=False)
             clear_maximized_style(w)
             self._maximized = True
+
         self._refresh_maximize_button()
 
     def _is_draggable_target(self, pos) -> bool:
@@ -181,6 +221,8 @@ class CustomTitleBar(QWidget):
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         self._drag_pos = None
+        if not self._maximized:
+            self.capture_normal_geometry()
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:

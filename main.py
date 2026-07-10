@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import QApplication
 from kobipass.resources import app_icon
 from kobipass.single_instance import SingleInstanceGuard, activate_existing_instance
 from kobipass.ui.main_window import MainWindow
-from kobipass.ui.styles import DARK_STYLESHEET
+from kobipass.ui.theme import theme_manager
 from kobipass.i18n import tr
 
 
@@ -31,7 +31,8 @@ def main() -> int:
     app.setApplicationName(tr("app_name"))
     app.setOrganizationName("MercanSoftware")
     app.setWindowIcon(app_icon())
-    app.setStyleSheet(DARK_STYLESHEET)
+    app.setStyleSheet(theme_manager.stylesheet())
+    theme_manager.theme_changed.connect(lambda: app.setStyleSheet(theme_manager.stylesheet()))
 
     if activate_existing_instance():
         return 0

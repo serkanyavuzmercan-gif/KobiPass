@@ -7,8 +7,10 @@ from __future__ import annotations
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -16,7 +18,7 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.i18n import tr
-from kobipass.permissions import field_label
+from kobipass.permissions import field_label, is_sensitive_audit_field, mask_audit_value
 from kobipass.resources import app_icon
 from kobipass.vault_model import AuditEntry, KobiVault
 
@@ -24,10 +26,14 @@ from kobipass.vault_model import AuditEntry, KobiVault
 def _audit_value_display(entry: AuditEntry, which: str) -> str:
     if entry.action != "field_edit":
         return ""
-    if not entry.old_value and not entry.new_value:
-        return "—"
     raw = entry.old_value if which == "old" else entry.new_value
-    return raw if raw else tr("audit_empty_value")
+    if is_sensitive_audit_field(entry.field):
+        if entry.old_value or entry.new_value or entry.summary:
+            return tr("audit_masked_value")
+        return tr("audit_masked_value")
+    if not entry.old_value and not entry.new_value and entry.field == "info1":
+        return tr("audit_masked_value")
+    return mask_audit_value(raw, entry.field)
 
 
 class AuditLogDialog(QDialog):
@@ -36,9 +42,23 @@ class AuditLogDialog(QDialog):
         self.setWindowTitle(tr("audit_title"))
         self.setWindowIcon(app_icon())
         self.setModal(True)
-        self.resize(1020, 480)
+        self.resize(1020, 520)
+        self._vault = vault
+        self._all_logs = list(reversed(vault.audit_log))
 
         layout = QVBoxLayout(self)
+
+        filter_row = QHBoxLayout()
+        self._filter = QLineEdit()
+        self._filter.setPlaceholderText(tr("audit_filter_placeholder"))
+        self._filter.textChanged.connect(self._apply_filter)
+        filter_row.addWidget(self._filter)
+        layout.addLayout(filter_row)
+
+        self._empty = QLabel(tr("audit_empty"))
+        self._empty.setVisible(not self._all_logs)
+        layout.addWidget(self._empty)
+
         self._table = QTableWidget()
         self._table.setColumnCount(7)
         self._table.setHorizontalHeaderLabels(
@@ -66,10 +86,7 @@ class AuditLogDialog(QDialog):
         )
         layout.addWidget(self._table)
 
-        if not vault.audit_log:
-            layout.insertWidget(0, QLabel(tr("audit_empty")))
-
-        self._populate(vault)
+        self._populate(self._all_logs)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self.reject)
@@ -79,12 +96,33 @@ class AuditLogDialog(QDialog):
         buttons.accepted.connect(self.accept)
         layout.addWidget(buttons)
 
-    def _populate(self, vault: KobiVault) -> None:
-        logs = list(reversed(vault.audit_log))
+    def _apply_filter(self, text: str) -> None:
+        term = text.strip().lower()
+        if not term:
+            self._populate(self._all_logs)
+            return
+        filtered: list[AuditEntry] = []
+        for entry in self._all_logs:
+            haystack = " ".join(
+                [
+                    entry.at,
+                    entry.user_label,
+                    entry.entry_name,
+                    entry.field,
+                    entry.summary,
+                    field_label(entry.field, self._vault) if entry.field else "",
+                ]
+            ).lower()
+            if term in haystack:
+                filtered.append(entry)
+        self._populate(filtered)
+
+    def _populate(self, logs: list[AuditEntry]) -> None:
+        self._empty.setVisible(not self._all_logs)
         self._table.setRowCount(len(logs))
         for row, entry in enumerate(logs):
             field_display = (
-                field_label(entry.field) if entry.field else ""
+                field_label(entry.field, self._vault) if entry.field else ""
             )
             self._table.setItem(row, 0, QTableWidgetItem(entry.at))
             self._table.setItem(row, 1, QTableWidgetItem(entry.user_label))

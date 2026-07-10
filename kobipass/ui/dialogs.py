@@ -253,6 +253,62 @@ class OpenPasswordDialog(QDialog):
         return self._password
 
 
+class UnlockDialog(QDialog):
+    """Kilitli oturumu yeniden açmak için parola ister."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(tr("lock_title"))
+        self.setWindowIcon(app_icon())
+        self.setModal(True)
+        self.setMinimumWidth(400)
+        self._password: str | None = None
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        label = QLabel(tr("lock_text"))
+        label.setWordWrap(True)
+        layout.addWidget(label)
+
+        self._pwd = QLineEdit()
+        self._pwd.setEchoMode(QLineEdit.EchoMode.Password)
+        self._pwd.setPlaceholderText(tr("pwd_placeholder"))
+        self._pwd.returnPressed.connect(self._on_accept)
+        layout.addWidget(self._pwd)
+
+        self._error = QLabel("")
+        self._error.setStyleSheet("color: #f08080;")
+        layout.addWidget(self._error)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        ok_btn = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        cancel_btn = buttons.button(QDialogButtonBox.StandardButton.Cancel)
+        if ok_btn:
+            ok_btn.setText(tr("lock_unlock"))
+        if cancel_btn:
+            cancel_btn.setText(tr("cancel"))
+
+    def show_error(self, message: str) -> None:
+        self._error.setText(message)
+
+    def _on_accept(self) -> None:
+        text = self._pwd.text()
+        if not text:
+            self.show_error(tr("lock_wrong"))
+            return
+        self._password = text
+        self.accept()
+
+    def password(self) -> str | None:
+        return self._password
+
+
 def _message_box(
     parent: QWidget | None,
     icon: QMessageBox.Icon,

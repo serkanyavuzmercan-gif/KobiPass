@@ -42,12 +42,14 @@ def set_window_geometry(widget: QWidget, rect: QRect, *, restoring: bool = False
         widget.setGeometry(rect)
         return
 
+    widget.winId()
+    widget.setGeometry(rect)
+
     try:
         import ctypes
 
         hwnd = _hwnd(widget)
         if not hwnd:
-            widget.setGeometry(rect)
             return
 
         user32 = ctypes.windll.user32
@@ -66,6 +68,7 @@ def set_window_geometry(widget: QWidget, rect: QRect, *, restoring: bool = False
             int(rect.height()),
             flags,
         )
+        widget.setGeometry(rect)
         return
     except Exception:
         pass
