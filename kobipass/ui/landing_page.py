@@ -23,7 +23,13 @@ from PyQt6.QtWidgets import (
 
 from kobipass.i18n import tr
 from kobipass.settings import get_recent_files
-from kobipass.ui.theme import ThemeManager
+from kobipass.ui.icons import (
+    icon_file_new,
+    icon_folder_open,
+    icon_help,
+    icon_shield,
+    icon_theme,
+)
 
 
 class _ActionPanel(QFrame):
@@ -63,17 +69,20 @@ class LandingPage(QWidget):
         top_layout = QHBoxLayout()
         top_layout.addStretch()
 
-        self.btn_theme = QPushButton(ThemeManager.button_label())
+        self.btn_theme = QPushButton()
         self.btn_theme.setObjectName("themeBtn")
         self.btn_theme.setFixedWidth(56)
+        self.btn_theme.setIcon(icon_theme())
         self.btn_theme.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.btn_security = QPushButton()
         self.btn_security.setObjectName("headerSecurityBtn")
+        self.btn_security.setIcon(icon_shield())
         self.btn_security.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.btn_help = QPushButton()
         self.btn_help.setObjectName("helpBtn")
+        self.btn_help.setIcon(icon_help())
         self.btn_help.setCursor(Qt.CursorShape.PointingHandCursor)
 
         top_layout.addWidget(self.btn_theme)
@@ -85,8 +94,12 @@ class LandingPage(QWidget):
         split = QHBoxLayout()
         split.setSpacing(16)
 
-        self.btn_open_file, self._open_title, self._open_sub = self._make_panel("📂")
-        self.btn_create_file, self._create_title, self._create_sub = self._make_panel("✨")
+        self.btn_open_file, self._open_title, self._open_sub = self._make_panel(
+            icon_folder_open()
+        )
+        self.btn_create_file, self._create_title, self._create_sub = self._make_panel(
+            icon_file_new()
+        )
 
         split.addWidget(self.btn_open_file, 1)
         split.addWidget(self.btn_create_file, 1)
@@ -121,7 +134,7 @@ class LandingPage(QWidget):
         self.retranslate()
         self.refresh_recent()
 
-    def _make_panel(self, icon: str) -> tuple[_ActionPanel, QLabel, QLabel]:
+    def _make_panel(self, icon) -> tuple[_ActionPanel, QLabel, QLabel]:
         panel = _ActionPanel()
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(28, 28, 28, 28)
@@ -130,8 +143,9 @@ class LandingPage(QWidget):
 
         layout.addStretch(1)
 
-        icon_lbl = QLabel(icon)
+        icon_lbl = QLabel()
         icon_lbl.setObjectName("landingPanelIcon")
+        icon_lbl.setPixmap(icon.pixmap(48, 48))
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         layout.addWidget(icon_lbl)

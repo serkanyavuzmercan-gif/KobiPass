@@ -56,7 +56,8 @@ from kobipass.ui.dialogs import (
 )
 from kobipass.ui.entry_row import ROW_MIME, EntryRowWidget
 from kobipass.ui.landing_page import LandingPage
-from kobipass.ui.theme import ThemeManager, theme_manager
+from kobipass.ui.icons import icon_home, icon_theme
+from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
 from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry
@@ -199,8 +200,9 @@ class MainWindow(QMainWindow):
         toolbar.setSpacing(8)
         toolbar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        self._btn_home = QPushButton("🏠")
+        self._btn_home = QPushButton()
         self._btn_home.setObjectName("homeBtn")
+        self._btn_home.setIcon(icon_home())
         self._btn_home.setFixedWidth(42)
         self._btn_home.setToolTip(tr("btn_home_tip"))
         self._btn_home.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -232,8 +234,9 @@ class MainWindow(QMainWindow):
 
         toolbar.addStretch()
 
-        self._btn_theme = QPushButton(ThemeManager.button_label())
+        self._btn_theme = QPushButton()
         self._btn_theme.setObjectName("themeBtn")
+        self._btn_theme.setIcon(icon_theme())
         self._btn_theme.setFixedWidth(56)
         self._btn_theme.clicked.connect(theme_manager.toggle)
         toolbar.addWidget(self._btn_theme, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -631,7 +634,6 @@ class MainWindow(QMainWindow):
         self._apply_session_ui()
 
     def _retranslate_ui(self) -> None:
-        self._btn_home.setText("🏠")
         self._btn_home.setToolTip(tr("btn_home_tip"))
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
