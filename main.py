@@ -17,6 +17,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+from PyQt6.QtGui import QFont, QFontDatabase
 from PyQt6.QtWidgets import QApplication
 
 from kobipass.resources import app_icon
@@ -26,10 +27,20 @@ from kobipass.ui.theme import theme_manager
 from kobipass.i18n import tr
 
 
+def _preferred_ui_font() -> QFont:
+    """Modern arayüz fontu: Inter → Manrope → IBM Plex Sans → Segoe UI."""
+    families = set(QFontDatabase.families())
+    for name in ("Inter", "Manrope", "IBM Plex Sans", "Segoe UI"):
+        if name in families:
+            return QFont(name)
+    return QFont("Segoe UI")
+
+
 def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(tr("app_name"))
     app.setOrganizationName("MercanSoftware")
+    app.setFont(_preferred_ui_font())
     app.setWindowIcon(app_icon())
     app.setStyleSheet(theme_manager.stylesheet())
     theme_manager.theme_changed.connect(lambda: app.setStyleSheet(theme_manager.stylesheet()))

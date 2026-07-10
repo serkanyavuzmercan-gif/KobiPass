@@ -16,7 +16,8 @@ class ThemeManager(QObject):
 
     def __init__(self) -> None:
         super().__init__()
-        self._dark = True
+        # Hider ile aynı görsel dil: navy chrome + aydınlık gövde varsayılan.
+        self._dark = False
 
     def is_dark(self) -> bool:
         return self._dark

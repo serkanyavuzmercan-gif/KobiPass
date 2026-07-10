@@ -35,6 +35,8 @@ class CustomTitleBar(QWidget):
         self._toggle_busy = False
 
         self.setObjectName("customTitleBar")
+        # QWidget alt sınıfının QSS arka planını (navy chrome) boyayabilmesi için.
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFixedHeight(38)
 
         layout = QHBoxLayout(self)

@@ -6,8 +6,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, pyqtSignal
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
+    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -65,6 +67,29 @@ class LandingPage(QWidget):
         center_layout.addWidget(self.btn_open_file)
         center_layout.addWidget(self.btn_create_file)
         main_layout.addLayout(center_layout)
+
+        # Hider'daki "nefes alan" indigo kenarlığın karşılığı: kare butonlarda
+        # yumuşakça büyüyüp küçülen bir accent parıltısı.
+        self._glow_anims: list[QPropertyAnimation] = []
+        for offset, btn in enumerate((self.btn_open_file, self.btn_create_file)):
+            glow = QGraphicsDropShadowEffect(btn)
+            glow.setColor(QColor(75, 104, 244, 170))  # #4b68f4
+            glow.setOffset(0, 0)
+            glow.setBlurRadius(12)
+            btn.setGraphicsEffect(glow)
+
+            anim = QPropertyAnimation(glow, b"blurRadius", self)
+            anim.setDuration(3200)
+            anim.setStartValue(10)
+            anim.setKeyValueAt(0.5, 34)
+            anim.setEndValue(10)
+            anim.setEasingCurve(QEasingCurve.Type.InOutSine)
+            anim.setLoopCount(-1)
+            # İki butonu hafifçe kaydır ki senkron nefes almasınlar.
+            anim.start()
+            if offset:
+                anim.setCurrentTime(1600)
+            self._glow_anims.append(anim)
 
         main_layout.addSpacing(24)
 

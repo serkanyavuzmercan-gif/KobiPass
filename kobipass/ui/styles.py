@@ -10,7 +10,7 @@ QMainWindow, QDialog {
 }
 
 QWidget#customTitleBar {
-    background-color: #15181d;
+    background-color: #1e293b;
     border-bottom: 1px solid #2d3340;
 }
 
@@ -208,7 +208,7 @@ QWidget#entriesContainer {
 QWidget#entryRow {
     background-color: #252830;
     border: 1px solid #343a46;
-    border-radius: 8px;
+    border-radius: 10px;
 }
 
 QLabel {
@@ -234,7 +234,7 @@ QLabel#brandTitle {
 QLabel#brandSlogan {
     font-size: 11px;
     font-weight: 400;
-    color: #6b7280;
+    color: #94a3b8;
     padding: 0 0 1px 0;
     margin: 0;
 }
@@ -250,7 +250,7 @@ QLineEdit {
 }
 
 QLineEdit:focus {
-    border-color: #3d7eea;
+    border-color: #4b68f4;
 }
 
 /* Kopyala + giriş kutusu tek çerçeve (satır yüksekliği 38px ile hizalı) */
@@ -263,7 +263,7 @@ QWidget#copyGroup {
 }
 
 QWidget#copyGroup[copied="true"] {
-    border-color: #4a85e0;
+    border-color: #4b68f4;
     background-color: #252d3d;
 }
 
@@ -347,25 +347,25 @@ QPushButton:pressed {
 }
 
 QPushButton#primaryBtn {
-    background-color: #e07020;
-    border-color: #c45e15;
+    background-color: #4b68f4;
+    border-color: #3854e0;
     color: #ffffff;
     font-weight: 600;
 }
 
 QPushButton#primaryBtn:hover {
-    background-color: #f08030;
-    border-color: #e07020;
+    background-color: #3854e0;
+    border-color: #2d47c8;
 }
 
 QPushButton#primaryBtn:pressed {
-    background-color: #c45e15;
-    border-color: #a84e10;
+    background-color: #2d47c8;
+    border-color: #2d47c8;
 }
 
 QPushButton#primaryBtn:disabled {
-    background-color: #5c4030;
-    border-color: #4a3528;
+    background-color: #2f3557;
+    border-color: #2a2f47;
     color: #9aa0a8;
 }
 
@@ -429,16 +429,16 @@ QPushButton#securityBadge:hover {
 
 QPushButton#headerSecurityBtn {
     background-color: #1e293b;
-    color: #38bdf8;
-    border: 1px solid #0284c7;
+    color: #8aabf0;
+    border: 1px solid #4b68f4;
     border-radius: 6px;
     padding: 6px 12px;
     font-weight: 600;
 }
 
 QPushButton#headerSecurityBtn:hover {
-    background-color: #0c4a6e;
-    border-color: #38bdf8;
+    background-color: #334155;
+    border-color: #6b83f6;
     color: #ffffff;
 }
 
@@ -520,11 +520,11 @@ QToolButton#eyeBtn {
 
 QToolButton#eyeBtn:checked {
     background-color: #2a3548;
-    border-color: #3d7eea;
+    border-color: #4b68f4;
 }
 
 QStatusBar {
-    background-color: #15181d;
+    background-color: #1e293b;
     color: #9aa0a8;
     border-top: 1px solid #2d3340;
 }
@@ -580,13 +580,13 @@ QPushButton#landingSquareBtn {
 
 QPushButton#landingSquareBtn:hover {
     background-color: #252830;
-    border-color: #3b82f6;
+    border-color: #4b68f4;
     color: #ffffff;
 }
 
 QPushButton#landingSquareBtn:pressed {
     background-color: #1a1d23;
-    border-color: #2563eb;
+    border-color: #2d47c8;
 }
 
 QLabel#landingRecentTitle {
@@ -621,14 +621,14 @@ QListWidget#landingRecentList::item:selected {
 
 LIGHT_STYLESHEET = """
 QMainWindow, QDialog {
-    background-color: #f3f4f6;
+    background-color: #f4f6fb;
     color: #1f2937;
-    border: 1px solid #d1d5db;
+    border: 1px solid #dde3f0;
 }
 
 QWidget#customTitleBar {
-    background-color: #ffffff;
-    border-bottom: 1px solid #d1d5db;
+    background-color: #1e293b;
+    border-bottom: 1px solid #0f172a;
 }
 
 QWidget#titleDragArea {
@@ -639,7 +639,7 @@ QPushButton#titleBtnMin,
 QPushButton#titleBtnMax,
 QPushButton#titleBtnClose {
     background-color: transparent;
-    color: #6b7280;
+    color: #cbd5e1;
     border: none;
     border-radius: 0;
     padding: 0;
@@ -652,8 +652,8 @@ QPushButton#titleBtnClose {
 
 QPushButton#titleBtnMin:hover,
 QPushButton#titleBtnMax:hover {
-    background-color: #e5e7eb;
-    color: #1f2937;
+    background-color: #334155;
+    color: #ffffff;
 }
 
 QPushButton#titleBtnClose:hover {
@@ -667,7 +667,7 @@ QPushButton#titleBtnClose:pressed {
 
 QScrollArea {
     border: none;
-    background-color: #f3f4f6;
+    background-color: #f4f6fb;
 }
 
 QScrollBar:vertical {
@@ -682,7 +682,7 @@ QScrollBar:vertical:hover {
 }
 
 QScrollBar::handle:vertical {
-    background: #d1d5db;
+    background: #dde3f0;
     border-radius: 2px;
     min-height: 24px;
 }
@@ -718,7 +718,7 @@ QScrollBar:horizontal:hover {
 }
 
 QScrollBar::handle:horizontal {
-    background: #d1d5db;
+    background: #dde3f0;
     border-radius: 2px;
     min-width: 24px;
 }
@@ -759,7 +759,7 @@ QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover {
 }
 
 QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal {
-    background: #d1d5db;
+    background: #dde3f0;
     border-radius: 2px;
     min-width: 24px;
 }
@@ -797,8 +797,8 @@ QWidget#fieldStepColumn {
 
 QToolButton#addFieldBtn,
 QToolButton#removeFieldBtn {
-    background-color: #e5e7eb;
-    border: 1px solid #d1d5db;
+    background-color: #edf0fa;
+    border: 1px solid #dde3f0;
     border-radius: 4px;
     font-size: 15px;
     font-weight: 600;
@@ -808,24 +808,24 @@ QToolButton#removeFieldBtn {
 
 QToolButton#addFieldBtn:hover,
 QToolButton#removeFieldBtn:hover:enabled {
-    background-color: #d1d5db;
+    background-color: #dde3f0;
     border-color: #9ca3af;
 }
 
 QToolButton#removeFieldBtn:disabled {
     color: #9ca3af;
-    border-color: #e5e7eb;
-    background-color: #f3f4f6;
+    border-color: #edf0fa;
+    background-color: #f4f6fb;
 }
 
 QWidget#entriesContainer {
-    background-color: #f3f4f6;
+    background-color: #f4f6fb;
 }
 
 QWidget#entryRow {
     background-color: #ffffff;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border: 1px solid #dde3f0;
+    border-radius: 10px;
 }
 
 QLabel {
@@ -843,7 +843,7 @@ QLabel#rowTitle {
 QLabel#brandTitle {
     font-size: 18px;
     font-weight: 700;
-    color: #1f2937;
+    color: #f1f5f9;
     padding: 0;
     margin: 0;
 }
@@ -851,7 +851,7 @@ QLabel#brandTitle {
 QLabel#brandSlogan {
     font-size: 11px;
     font-weight: 400;
-    color: #9ca3af;
+    color: #94a3b8;
     padding: 0 0 1px 0;
     margin: 0;
 }
@@ -859,7 +859,7 @@ QLabel#brandSlogan {
 QLineEdit {
     background-color: #ffffff;
     color: #1f2937;
-    border: 1px solid #d1d5db;
+    border: 1px solid #dde3f0;
     border-radius: 6px;
     padding: 8px 10px;
     font-size: 13px;
@@ -867,11 +867,11 @@ QLineEdit {
 }
 
 QLineEdit:focus {
-    border-color: #3b82f6;
+    border-color: #4b68f4;
 }
 
 QWidget#copyGroup {
-    border: 2px solid #d1d5db;
+    border: 2px solid #dde3f0;
     border-radius: 8px;
     background-color: #ffffff;
     min-height: 38px;
@@ -879,7 +879,7 @@ QWidget#copyGroup {
 }
 
 QWidget#copyGroup[copied="true"] {
-    border-color: #3b82f6;
+    border-color: #4b68f4;
     background-color: #eff6ff;
 }
 
@@ -903,9 +903,9 @@ QWidget#copyGroup QLineEdit[readOnlyPerm="true"] {
 
 QWidget#copyGroup QToolButton#copyBtn {
     border: none;
-    border-right: 1px solid #d1d5db;
+    border-right: 1px solid #dde3f0;
     border-radius: 5px;
-    background-color: #e5e7eb;
+    background-color: #edf0fa;
     min-width: 32px;
     max-width: 32px;
     min-height: 32px;
@@ -915,11 +915,11 @@ QWidget#copyGroup QToolButton#copyBtn {
 }
 
 QWidget#copyGroup QToolButton#copyBtn:hover {
-    background-color: #d1d5db;
+    background-color: #dde3f0;
 }
 
 QWidget#copyGroup[copied="true"] QToolButton#copyBtn {
-    border-right: 1px solid #d1d5db;
+    border-right: 1px solid #dde3f0;
     background-color: #dbeafe;
 }
 
@@ -944,9 +944,9 @@ QLineEdit:disabled {
 }
 
 QPushButton {
-    background-color: #e5e7eb;
+    background-color: #edf0fa;
     color: #1f2937;
-    border: 1px solid #d1d5db;
+    border: 1px solid #dde3f0;
     border-radius: 6px;
     padding: 8px 16px;
     font-size: 13px;
@@ -954,35 +954,35 @@ QPushButton {
 }
 
 QPushButton:hover {
-    background-color: #d1d5db;
+    background-color: #dde3f0;
     border-color: #9ca3af;
 }
 
 QPushButton:pressed {
-    background-color: #f3f4f6;
+    background-color: #f4f6fb;
 }
 
 QPushButton#primaryBtn {
-    background-color: #e07020;
-    border-color: #c45e15;
+    background-color: #4b68f4;
+    border-color: #3854e0;
     color: #ffffff;
     font-weight: 600;
 }
 
 QPushButton#primaryBtn:hover {
-    background-color: #f08030;
-    border-color: #e07020;
+    background-color: #3854e0;
+    border-color: #2d47c8;
 }
 
 QPushButton#primaryBtn:pressed {
-    background-color: #c45e15;
-    border-color: #a84e10;
+    background-color: #2d47c8;
+    border-color: #2d47c8;
 }
 
 QPushButton#primaryBtn:disabled {
-    background-color: #d4a574;
-    border-color: #c4956a;
-    color: #f3f4f6;
+    background-color: #b9c4f6;
+    border-color: #a9b6f2;
+    color: #f4f6fb;
 }
 
 QPushButton#clearBtn {
@@ -1008,7 +1008,7 @@ QPushButton#clearBtn:pressed {
 QPushButton#clearBtn:disabled {
     background-color: #fca5a5;
     border-color: #f87171;
-    color: #f3f4f6;
+    color: #f4f6fb;
 }
 
 QPushButton#helpBtn {
@@ -1039,17 +1039,17 @@ QPushButton#securityBadge:hover {
 }
 
 QPushButton#headerSecurityBtn {
-    background-color: #eff6ff;
-    color: #0284c7;
-    border: 1px solid #38bdf8;
+    background-color: #eef1fe;
+    color: #3854e0;
+    border: 1px solid #4b68f4;
     border-radius: 6px;
     padding: 6px 12px;
     font-weight: 600;
 }
 
 QPushButton#headerSecurityBtn:hover {
-    background-color: #0ea5e9;
-    border-color: #0284c7;
+    background-color: #4b68f4;
+    border-color: #3854e0;
     color: #ffffff;
 }
 
@@ -1062,7 +1062,7 @@ QTextBrowser#helpBrowser {
 
 QDialog#helpDialog {
     background-color: #ffffff;
-    border: 1px solid #d1d5db;
+    border: 1px solid #dde3f0;
     border-radius: 8px;
 }
 
@@ -1075,9 +1075,9 @@ QLabel#helpDialogTitle {
 }
 
 QPushButton#addRecordBtn {
-    background-color: #e5e7eb;
+    background-color: #edf0fa;
     color: #1f2937;
-    border: 1px solid #d1d5db;
+    border: 1px solid #dde3f0;
     border-radius: 6px;
     padding: 0 10px;
     font-size: 12px;
@@ -1087,7 +1087,7 @@ QPushButton#addRecordBtn {
 }
 
 QPushButton#addRecordBtn:hover {
-    background-color: #d1d5db;
+    background-color: #dde3f0;
     border-color: #9ca3af;
 }
 
@@ -1105,19 +1105,19 @@ QPushButton#dangerBtn:hover {
 }
 
 QToolButton {
-    background-color: #e5e7eb;
-    border: 1px solid #d1d5db;
+    background-color: #edf0fa;
+    border: 1px solid #dde3f0;
     border-radius: 6px;
     padding: 4px;
 }
 
 QToolButton:hover {
-    background-color: #d1d5db;
+    background-color: #dde3f0;
     border-color: #9ca3af;
 }
 
 QToolButton:pressed {
-    background-color: #f3f4f6;
+    background-color: #f4f6fb;
 }
 
 QToolButton#copyBtn,
@@ -1131,13 +1131,13 @@ QToolButton#eyeBtn {
 
 QToolButton#eyeBtn:checked {
     background-color: #dbeafe;
-    border-color: #3b82f6;
+    border-color: #4b68f4;
 }
 
 QStatusBar {
-    background-color: #ffffff;
-    color: #6b7280;
-    border-top: 1px solid #d1d5db;
+    background-color: #1e293b;
+    color: #94a3b8;
+    border-top: 1px solid #0f172a;
 }
 
 QMessageBox {
@@ -1145,22 +1145,22 @@ QMessageBox {
 }
 
 QFileDialog {
-    background-color: #f3f4f6;
+    background-color: #f4f6fb;
 }
 
 /* --- QTabWidget (Sekmeler) Aydınlık Tema --- */
 QTabWidget::pane {
-    border: 1px solid #d1d5db;
+    border: 1px solid #dde3f0;
     background-color: #ffffff;
     border-radius: 6px;
     margin-top: -1px;
 }
 
 QTabBar::tab {
-    background-color: #f3f4f6;
+    background-color: #f4f6fb;
     color: #6b7280;
     padding: 8px 16px;
-    border: 1px solid #d1d5db;
+    border: 1px solid #dde3f0;
     border-bottom: none;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
@@ -1175,7 +1175,7 @@ QTabBar::tab:selected {
 }
 
 QTabBar::tab:hover:!selected {
-    background-color: #e5e7eb;
+    background-color: #edf0fa;
     color: #1f2937;
 }
 
@@ -1185,19 +1185,19 @@ QPushButton#landingSquareBtn {
     font-weight: bold;
     border-radius: 20px;
     background-color: #ffffff;
-    border: 2px solid #d1d5db;
+    border: 2px solid #dde3f0;
     color: #1f2937;
 }
 
 QPushButton#landingSquareBtn:hover {
     background-color: #eff6ff;
-    border-color: #3b82f6;
+    border-color: #4b68f4;
     color: #1d2937;
 }
 
 QPushButton#landingSquareBtn:pressed {
     background-color: #dbeafe;
-    border-color: #2563eb;
+    border-color: #2d47c8;
 }
 
 QLabel#landingRecentTitle {
@@ -1213,7 +1213,7 @@ QLabel#landingRecentEmpty {
 
 QListWidget#landingRecentList {
     background-color: #ffffff;
-    border: 1px solid #d1d5db;
+    border: 1px solid #dde3f0;
     border-radius: 10px;
     color: #1f2937;
     padding: 6px;
