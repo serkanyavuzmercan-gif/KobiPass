@@ -86,7 +86,8 @@ class AboutDialog(QDialog):
         <ul style="line-height: 1.6;">
             <li><b>Sıfır Bilgi (Zero-Knowledge):</b> Kasa dosyalarınız (.enc) tamamen bu cihazda kilitlenir. İnternete veya hiçbir sunucuya veri gönderilmez.</li>
             <li><b>Askeri Sınıf Şifreleme:</b> Verileriniz, uluslararası güvenlik standardı olan <strong>AES-256-GCM</strong> algoritması ile şifrelenir.</li>
-            <li><b>Zırhlı Parola Koruma:</b> Girdiğiniz parolalar <strong>PBKDF2-HMAC-SHA256</strong> (100.000 iterasyon) ile kaba kuvvet saldırılarına (brute-force) karşı kilitlenir.</li>
+            <li><b>Zırhlı Parola Koruma:</b> Yeni kasalar <strong>Argon2id</strong> ile türetilir; eski dosyalar <strong>PBKDF2-HMAC-SHA256</strong> (100.000 iterasyon) ile açılmaya devam eder.</li>
+            <li><b>Oturum Koruması:</b> Boşta kalınca ve küçültülünce hassas alanlar kilitlenir; panoya kopyalanan metin otomatik temizlenir.</li>
             <li><b>Zarf Şifreleme (Envelope Encryption):</b> Yönetici ve kullanıcı parolaları ana veri anahtarını (DEK) ayrı ayrı sararak, yetki izolasyonunu maksimum seviyede tutar.</li>
             <li><b>Değişiklik İzi (Audit Log):</b> Kasada yapılan her değişiklik, şifreli ve zaman damgalı olarak kayıt altına alınır.</li>
         </ul>
@@ -104,7 +105,8 @@ class AboutDialog(QDialog):
         <p style="margin-top: 0;">Bu yazılım, aşağıdaki açık kaynaklı teknolojilerin gücüyle geliştirilmiştir:</p>
         <ul style="line-height: 1.6;">
             <li><b>PyQt6:</b> Masaüstü arayüz motoru (GPLv3).</li>
-            <li><b>Python Cryptography:</b> Şifreleme ve PBKDF2 işlemleri.</li>
+            <li><b>Python Cryptography:</b> AES-GCM ve PBKDF2.</li>
+            <li><b>argon2-cffi:</b> Argon2id anahtar türetme.</li>
         </ul>
         <br>
         <p><i>Güvenliğiniz önceliğimizdir.</i></p>

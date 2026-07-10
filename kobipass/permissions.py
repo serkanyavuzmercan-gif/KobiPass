@@ -9,10 +9,13 @@ from kobipass.session import Session, UserSession
 from kobipass.vault_model import (
     AuditEntry,
     FieldLevel,
+    KobiVault,
     UserPermissions,
     VaultEntry,
     utc_now_iso,
 )
+
+SENSITIVE_AUDIT_FIELDS = frozenset({"info1"})
 
 
 def can_view(level: FieldLevel) -> bool:
@@ -53,7 +56,11 @@ def view_only_permissions(perms: UserPermissions) -> UserPermissions:
     )
 
 
-def field_label(field_name: str) -> str:
+def field_label(field_name: str, vault: KobiVault | None = None) -> str:
+    if vault is not None:
+        custom = vault.label_for(field_name)
+        if custom:
+            return custom
     if field_name == "name":
         return tr("field_name")
     if field_name == "info1":
@@ -64,6 +71,18 @@ def field_label(field_name: str) -> str:
             return tr(f"field_info{number}")
         return tr("field_info_n", n=number)
     return field_name
+
+
+def is_sensitive_audit_field(field_name: str) -> bool:
+    return field_name in SENSITIVE_AUDIT_FIELDS or field_name == "info1"
+
+
+def mask_audit_value(value: str, field_name: str) -> str:
+    if not value:
+        return tr("audit_empty_value")
+    if is_sensitive_audit_field(field_name):
+        return tr("audit_masked_value")
+    return value
 
 
 def _entry_field_names(entry: VaultEntry) -> list[str]:
@@ -78,6 +97,7 @@ def diff_entries_for_audit(
     new_entries: list[VaultEntry],
     session: UserSession,
     permissions: UserPermissions,
+    vault: KobiVault | None = None,
 ) -> list[AuditEntry]:
     """Kullanıcı kaydında değişen alanları audit kaydına çevirir."""
     logs: list[AuditEntry] = []
@@ -103,11 +123,15 @@ def diff_entries_for_audit(
             if old_val == new_val:
                 continue
 
-            label = field_label(field_name)
-            if field_name == "info2":
+            label = field_label(field_name, vault)
+            if is_sensitive_audit_field(field_name):
                 summary = tr("audit_password_updated")
+                stored_old = ""
+                stored_new = ""
             else:
                 summary = tr("audit_field_updated", field=label)
+                stored_old = old_val
+                stored_new = new_val
 
             logs.append(
                 AuditEntry(
@@ -118,8 +142,8 @@ def diff_entries_for_audit(
                     entry_name=entry_name,
                     field=field_name,
                     summary=summary,
-                    old_value=old_val,
-                    new_value=new_val,
+                    old_value=stored_old,
+                    new_value=stored_new,
                 )
             )
 

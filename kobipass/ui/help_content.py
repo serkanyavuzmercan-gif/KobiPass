@@ -57,15 +57,17 @@ def _crack_estimate_paragraph() -> str:
             f"sayısı yaklaşık <b>{comb_display}</b> "
             f"(≈ <b>{entropy_bits:.1f}".replace(".", sep)
             + f" bit</b> entropi) değerindedir. "
-            f"KobiPass her tahminde <b>{_format_number(PBKDF2_ITERATIONS)}</b> iterasyonlu "
-            f"PBKDF2 uyguladığından tek bir tahmin maliyetlidir."
+            f"KobiPass yeni dosyalarda <b>Argon2id</b>, eski dosyalarda "
+            f"<b>{_format_number(PBKDF2_ITERATIONS)}</b> iterasyonlu PBKDF2 kullandığından "
+            f"tek bir tahmin maliyetlidir."
         )
 
     return (
         f"For example, a strong <b>{password_len}-character</b> password has about "
         f"<b>{comb_display}</b> combinations (≈ <b>{entropy_bits:.1f} bits</b> of entropy). "
-        f"KobiPass runs PBKDF2 with <b>{_format_number(PBKDF2_ITERATIONS)}</b> "
-        f"iterations per guess, so each attempt is costly."
+        f"KobiPass uses <b>Argon2id</b> for new vaults and PBKDF2 "
+        f"(<b>{_format_number(PBKDF2_ITERATIONS)}</b> iterations) for legacy files, "
+        f"so each guess is costly."
     )
 
 
@@ -105,7 +107,7 @@ def help_html() -> str:
     <h3 style="color:#e8eaed;">Şifreleme (KBPS)</h3>
     <ul style="color:#c8ccd2;line-height:1.55;">
     <li>Zarf şifreleme: rastgele DEK + yönetici/kullanıcı sarmalayıcıları.</li>
-    <li><b>PBKDF2-HMAC-SHA256</b> — {iterations} iterasyon, {SALT_SIZE} bayt salt.</li>
+    <li><b>Argon2id</b> — yeni kasalar (v2); eski dosyalar PBKDF2 ({iterations} iterasyon).</li>
     <li><b>AES-256-GCM</b> — {NONCE_SIZE} bayt nonce.</li>
     <li>Dosya başlığı: <code>KBPS</code> (<code>PFRT</code> formatıyla uyumsuz).</li>
     </ul>
@@ -141,7 +143,7 @@ def help_html() -> str:
     <h3 style="color:#e8eaed;">Encryption (KBPS)</h3>
     <ul style="color:#c8ccd2;line-height:1.55;">
     <li>Envelope encryption: random DEK + admin/user wraps.</li>
-    <li><b>PBKDF2-HMAC-SHA256</b> — {iterations} iterations, {SALT_SIZE}-byte salt.</li>
+    <li><b>Argon2id</b> — new vaults (v2); legacy files use PBKDF2 ({iterations} iterations).</li>
     <li><b>AES-256-GCM</b> — {NONCE_SIZE}-byte nonce.</li>
     <li>File header: <code>KBPS</code> (not compatible with <code>PFRT</code> format).</li>
     </ul>

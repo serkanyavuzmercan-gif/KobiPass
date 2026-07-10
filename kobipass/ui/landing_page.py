@@ -1,16 +1,29 @@
 """
-KobiPass karşılama ekranı — dosya aç / yeni kasa oluştur.
+KobiPass karşılama ekranı — dosya aç / yeni kasa oluştur / son dosyalar.
 """
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+from pathlib import Path
+
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from kobipass.i18n import tr
+from kobipass.settings import get_recent_files
 
 
 class LandingPage(QWidget):
+    recent_file_chosen = pyqtSignal(str)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("landingPage")
@@ -53,8 +66,49 @@ class LandingPage(QWidget):
         center_layout.addWidget(self.btn_create_file)
         main_layout.addLayout(center_layout)
 
+        main_layout.addSpacing(24)
+
+        self._recent_title = QLabel()
+        self._recent_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._recent_title.setObjectName("landingRecentTitle")
+        main_layout.addWidget(self._recent_title)
+
+        self._recent_list = QListWidget()
+        self._recent_list.setObjectName("landingRecentList")
+        self._recent_list.setMaximumHeight(140)
+        self._recent_list.setMaximumWidth(560)
+        self._recent_list.itemActivated.connect(self._on_recent_activated)
+        self._recent_list.itemClicked.connect(self._on_recent_activated)
+        recent_wrap = QHBoxLayout()
+        recent_wrap.addStretch()
+        recent_wrap.addWidget(self._recent_list)
+        recent_wrap.addStretch()
+        main_layout.addLayout(recent_wrap)
+
+        self._recent_empty = QLabel()
+        self._recent_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._recent_empty.setObjectName("landingRecentEmpty")
+        main_layout.addWidget(self._recent_empty)
+
         main_layout.addStretch()
         self.retranslate()
+        self.refresh_recent()
+
+    def _on_recent_activated(self, item: QListWidgetItem) -> None:
+        path = item.data(Qt.ItemDataRole.UserRole)
+        if path:
+            self.recent_file_chosen.emit(str(path))
+
+    def refresh_recent(self) -> None:
+        self._recent_list.clear()
+        recent = [p for p in get_recent_files() if Path(p).exists()]
+        self._recent_empty.setVisible(not recent)
+        self._recent_list.setVisible(bool(recent))
+        for path in recent:
+            item = QListWidgetItem(Path(path).name)
+            item.setToolTip(path)
+            item.setData(Qt.ItemDataRole.UserRole, path)
+            self._recent_list.addItem(item)
 
     def retranslate(self) -> None:
         self.btn_security.setText(tr("landing_security"))
@@ -63,3 +117,5 @@ class LandingPage(QWidget):
         self.btn_help.setToolTip(tr("btn_help_tip"))
         self.btn_open_file.setText(tr("landing_open"))
         self.btn_create_file.setText(tr("landing_create"))
+        self._recent_title.setText(tr("landing_recent"))
+        self._recent_empty.setText(tr("landing_recent_empty"))

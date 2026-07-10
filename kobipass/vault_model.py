@@ -12,6 +12,20 @@ from typing import Any, Literal
 FieldLevel = Literal["none", "read", "hidden_read", "write"]
 FIELD_NAMES = ("name", "info1", "info2", "info3", "info4")
 USER_SLOT_COUNT = 3
+DEFAULT_FIELD_LABELS: dict[str, str] = {
+    "name": "",
+    "info1": "",
+    "info2": "",
+    "info3": "",
+    "info4": "",
+}
+
+
+def field_label_for(field_name: str, custom: dict[str, str] | None = None) -> str:
+    """Özel etiket varsa onu, yoksa boş (i18n katmanı doldurur) döner."""
+    if custom and field_name in custom and custom[field_name].strip():
+        return custom[field_name].strip()
+    return ""
 
 
 @dataclass
@@ -187,14 +201,30 @@ class KobiVault:
     user_slot_labels: list[str] = field(
         default_factory=lambda: [f"Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)]
     )
+    field_labels: dict[str, str] = field(default_factory=dict)
     audit_log: list[AuditEntry] = field(default_factory=list)
+
+    def resolved_field_labels(self) -> dict[str, str]:
+        result = dict(DEFAULT_FIELD_LABELS)
+        for key, value in self.field_labels.items():
+            if isinstance(key, str) and isinstance(value, str) and value.strip():
+                result[key] = value.strip()
+        return result
+
+    def label_for(self, field_name: str) -> str:
+        return field_label_for(field_name, self.field_labels)
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "version": 1,
+            "version": 2,
             "entries": [e.to_dict() for e in self.entries],
             "user_permissions": self.user_permissions.to_dict(),
             "user_slot_labels": list(self.user_slot_labels),
+            "field_labels": {
+                key: value
+                for key, value in self.resolved_field_labels().items()
+                if value
+            },
             "audit_log": [a.to_dict() for a in self.audit_log],
         }
 
@@ -207,6 +237,16 @@ class KobiVault:
             labels = [f"Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)]
         else:
             labels = [str(x) for x in labels]
+        raw_field_labels = data.get("field_labels", {})
+        field_labels: dict[str, str] = {}
+        if isinstance(raw_field_labels, dict):
+            for key, value in raw_field_labels.items():
+                if str(key) in FIELD_NAMES or (
+                    str(key).startswith("info") and str(key)[4:].isdigit()
+                ):
+                    text = str(value).strip()
+                    if text:
+                        field_labels[str(key)] = text
         audit = [
             AuditEntry.from_dict(item) for item in data.get("audit_log", [])
         ]
@@ -214,6 +254,7 @@ class KobiVault:
             entries=entries,
             user_permissions=perms,
             user_slot_labels=labels,
+            field_labels=field_labels,
             audit_log=audit,
         )
 

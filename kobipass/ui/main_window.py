@@ -8,7 +8,9 @@ import copy
 from pathlib import Path
 
 from PyQt6.QtCore import QEvent, Qt, QThread, QTimer, pyqtSignal
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -27,11 +29,12 @@ from PyQt6.QtWidgets import (
 from kobipass.crypto import (
     AccessDeniedError,
     VaultCryptoError,
-    build_vault_file,
     read_vault_file,
+    verify_password_against_keys,
     write_vault_file,
     write_vault_file_updated,
 )
+from kobipass.export import export_format_from_path, export_vault_csv, export_vault_json
 from kobipass.i18n import crypto_message, i18n, tr
 from kobipass.permissions import (
     diff_entries_for_audit,
@@ -40,6 +43,7 @@ from kobipass.permissions import (
 )
 from kobipass.resources import app_icon
 from kobipass.session import AdminSession, Session, UserSession, session_from_unlock
+from kobipass.settings import add_recent_file, get_clipboard_clear_ms, get_idle_lock_ms
 from kobipass.ui.about_dialog import AboutDialog
 from kobipass.ui.add_record_bar import AddRecordBar
 from kobipass.ui.audit_log_dialog import AuditLogDialog
@@ -47,15 +51,16 @@ from kobipass.ui.dialogs import (
     HelpDialog,
     OpenPasswordDialog,
     SetupVaultDialog,
+    UnlockDialog,
     show_error,
     show_info,
 )
-from kobipass.ui.entry_row import EntryRowWidget
+from kobipass.ui.entry_row import ROW_MIME, EntryRowWidget
 from kobipass.ui.landing_page import LandingPage
-from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.theme import ThemeManager, theme_manager
+from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
-from kobipass.vault_model import KobiVault, VaultEntry
+from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry
 
 _FILTER_PAGE_SIZE = 100
 _FILTER_DEBOUNCE_MS = 300
@@ -72,8 +77,47 @@ class WorkerThread(QThread):
         self.term = search_term
 
     def run(self) -> None:
-        result = [entry for entry in self.data if self.term in entry.name.lower()]
+        term = self.term
+        if not term:
+            self.finished.emit(list(self.data))
+            return
+        result = [
+            entry
+            for entry in self.data
+            if term in entry.name.lower()
+            or term in entry.info1.lower()
+            or any(term in value.lower() for value in entry.more_infos)
+        ]
         self.finished.emit(result)
+
+
+class EntriesHost(QWidget):
+    """Kayıt satırları konteyneri — satır sürükle-bırak hedefini taşır."""
+
+    row_drop = pyqtSignal(object)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
+        if event.mimeData().hasFormat(ROW_MIME):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event) -> None:  # noqa: N802
+        if event.mimeData().hasFormat(ROW_MIME):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802
+        if event.mimeData().hasFormat(ROW_MIME):
+            self.row_drop.emit(event)
+            event.acceptProposedAction()
+        else:
+            event.ignore()
 
 
 class MainWindow(QMainWindow):
@@ -102,6 +146,7 @@ class MainWindow(QMainWindow):
         self._session: Session | None = None
         self._snapshot_entries: list[VaultEntry] = []
         self._pending_user_passwords: list[tuple[bool, str]] | None = None
+        self._pending_admin_password: str | None = None
         self._kilitli_mi = False
         self._worker: WorkerThread | None = None
         self._filter_request_id = 0
@@ -115,10 +160,17 @@ class MainWindow(QMainWindow):
         self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
         self._search_timer.timeout.connect(self._run_filter)
+        self._idle_timer = QTimer(self)
+        self._idle_timer.setSingleShot(True)
+        self._idle_timer.timeout.connect(self._on_idle_timeout)
         i18n.language_changed.connect(self._retranslate_ui)
         self._retranslate_ui()
         self._apply_session_ui()
         self.setAcceptDrops(True)
+        app = QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
+        self._reset_idle_timer()
 
     def _build_ui(self) -> None:
         central = QWidget()
@@ -169,13 +221,17 @@ class MainWindow(QMainWindow):
         self._btn_audit.clicked.connect(self._show_audit)
         toolbar.addWidget(self._btn_audit, 0, Qt.AlignmentFlag.AlignVCenter)
 
+        self._btn_export = QPushButton()
+        self._btn_export.clicked.connect(self._export_vault)
+        toolbar.addWidget(self._btn_export, 0, Qt.AlignmentFlag.AlignVCenter)
+
         self._btn_clear = QPushButton()
         self._btn_clear.setObjectName("clearBtn")
         self._btn_clear.clicked.connect(self._clear_vault)
         toolbar.addWidget(self._btn_clear, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._search_bar = QLineEdit()
-        self._search_bar.setPlaceholderText("İsim ile ara...")
+        self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self._search_bar.textChanged.connect(self._filter_rows)
         toolbar.addWidget(self._search_bar)
 
@@ -212,9 +268,12 @@ class MainWindow(QMainWindow):
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self._scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        self._scroll.setAcceptDrops(True)
+        self._scroll.viewport().setAcceptDrops(True)
 
-        self._entries_host = QWidget()
+        self._entries_host = EntriesHost()
         self._entries_host.setObjectName("entriesContainer")
+        self._entries_host.row_drop.connect(self._handle_row_drop)
         self._entries_host.setSizePolicy(
             QSizePolicy.Policy.Preferred,
             QSizePolicy.Policy.Minimum,
@@ -241,17 +300,40 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(self._status_right)
         self._add_row()
 
-        # Karşılama ekranı buton sinyalleri
         self.landing_page.btn_open_file.clicked.connect(self._mevcut_dosyayi_ac)
-        self.landing_page.btn_create_file.clicked.connect(self._yeni_dosya_olusturma_ekranini_ac)
+        self.landing_page.btn_create_file.clicked.connect(
+            self._yeni_dosya_olusturma_ekranini_ac
+        )
         self.landing_page.btn_security.clicked.connect(self._guvenlik_penceresini_ac)
         self._landing_page.btn_help.clicked.connect(self._show_help)
+        self._landing_page.recent_file_chosen.connect(self._open_recent_path)
 
         self._show_landing_page()
+
+    def eventFilter(self, obj, event):  # noqa: N802
+        if event.type() in (
+            QEvent.Type.MouseMove,
+            QEvent.Type.MouseButtonPress,
+            QEvent.Type.KeyPress,
+            QEvent.Type.Wheel,
+        ):
+            self._reset_idle_timer()
+        return super().eventFilter(obj, event)
+
+    def _reset_idle_timer(self) -> None:
+        self._idle_timer.stop()
+        if self._session is not None and not self._kilitli_mi:
+            self._idle_timer.start(get_idle_lock_ms())
+
+    def _on_idle_timeout(self) -> None:
+        if self._session is not None and not self._kilitli_mi:
+            self._guvenlik_kilidini_aktif_et()
+            self._kilit_ekranini_goster()
 
     def _show_landing_page(self) -> None:
         self._stacked_widget.setCurrentWidget(self._landing_page)
         self.statusBar().hide()
+        self._landing_page.refresh_recent()
 
     def _show_vault_view(self) -> None:
         self._stacked_widget.setCurrentWidget(self._vault_view)
@@ -265,6 +347,11 @@ class MainWindow(QMainWindow):
     def _mevcut_dosyayi_ac(self) -> None:
         self._open_vault()
 
+    def _open_recent_path(self, path_str: str) -> None:
+        if self._dirty and not self._confirm_discard():
+            return
+        self._unlock_path(Path(path_str))
+
     def _yeni_dosya_olusturma_ekranini_ac(self) -> None:
         if self._dirty and not self._confirm_discard():
             return
@@ -273,11 +360,9 @@ class MainWindow(QMainWindow):
         self._vault = None
         self._snapshot_entries = []
         self._pending_user_passwords = None
-
-        # Bomboş kasa modeli oluştur ve tabloya yükle
+        self._pending_admin_password = None
+        self._kilitli_mi = False
         self._load_vault_data(KobiVault())
-
-        # Karşılama ekranını gizle, asıl çalışma ekranını göster
         self._show_vault_view()
 
     def _guvenlik_penceresini_ac(self) -> None:
@@ -301,18 +386,33 @@ class MainWindow(QMainWindow):
     def _guvenlik_kilidini_aktif_et(self) -> None:
         if self._session is None:
             return
-
         self._kilitli_mi = True
-
-        for i in range(self._entries_layout.count()):
-            item = self._entries_layout.itemAt(i)
-            if item and item.widget():
-                widget = item.widget()
-                if hasattr(widget, "set_sensitive_shown"):
-                    widget.set_sensitive_shown(False)
+        self._idle_timer.stop()
+        for row in self._row_widgets:
+            row.set_sensitive_shown(False)
+        self._update_status()
 
     def _kilit_ekranini_goster(self) -> None:
-        pass
+        if not self._kilitli_mi or self._session is None:
+            return
+        keys = getattr(self._session, "keys", None)
+        if keys is None:
+            self._kilitli_mi = False
+            return
+
+        while self._kilitli_mi:
+            dlg = UnlockDialog(self)
+            if dlg.exec() != dlg.DialogCode.Accepted:
+                # Kullanıcı iptal ederse kilitli kalır; hassas alanlar gizli.
+                self._update_status()
+                return
+            password = dlg.password() or ""
+            if verify_password_against_keys(keys, password):
+                self._kilitli_mi = False
+                self._reset_idle_timer()
+                self._update_status()
+                return
+            show_error(self, tr("lock_title"), tr("lock_wrong"))
 
     def _role_label(self) -> str:
         if self._session is None:
@@ -332,10 +432,14 @@ class MainWindow(QMainWindow):
 
     def _apply_row_permissions(self) -> None:
         perms, view_only = self._row_permissions()
+        labels = self._vault.resolved_field_labels() if self._vault else {}
         if not perms:
+            for row in self._row_widgets:
+                row.apply_field_labels(labels)
             return
         for row in self._row_widgets:
             row.apply_permissions(perms, view_only=view_only)
+            row.apply_field_labels(labels)
 
     def _apply_session_ui(self) -> None:
         is_unlocked = self._session is not None
@@ -343,6 +447,7 @@ class MainWindow(QMainWindow):
 
         self._btn_users.setVisible(is_admin)
         self._btn_audit.setVisible(is_admin)
+        self._btn_export.setVisible(is_admin)
 
         perms, view_only = self._row_permissions()
 
@@ -350,12 +455,12 @@ class MainWindow(QMainWindow):
         can_delete = perms.can_delete_entry if perms else True
         can_save = perms.can_save if perms else True
 
-        self._add_bar.setVisible(can_add)
-        self._btn_save.setEnabled(can_save if is_unlocked else True)
+        self._add_bar.setVisible(can_add and not self._kilitli_mi)
+        self._btn_save.setEnabled((can_save if is_unlocked else True) and not self._kilitli_mi)
 
         self._apply_row_permissions()
         for row in self._row_widgets:
-            row.set_can_delete(can_delete and not view_only)
+            row.set_can_delete(can_delete and not view_only and not self._kilitli_mi)
 
         self._update_tab_order()
 
@@ -378,7 +483,7 @@ class MainWindow(QMainWindow):
         request_id = self._filter_request_id
         self._worker = WorkerThread(
             list(self._vault.entries),
-            self._search_bar.text().lower(),
+            self._search_bar.text().lower().strip(),
         )
         self._worker.finished.connect(
             lambda results, req_id=request_id: self._apply_filter_results(
@@ -416,7 +521,11 @@ class MainWindow(QMainWindow):
     def _load_next_batch(self) -> None:
         if not self._vault or self._loading_batch:
             return
-        source = self._display_entries if self._display_entries is not None else self._vault.entries
+        source = (
+            self._display_entries
+            if self._display_entries is not None
+            else self._vault.entries
+        )
         current_count = len(self._row_widgets)
         next_batch = source[current_count : current_count + _FILTER_PAGE_SIZE]
         if not next_batch:
@@ -452,19 +561,79 @@ class MainWindow(QMainWindow):
             if vault_index is not None and 0 <= vault_index < len(self._vault.entries):
                 self._vault.entries[vault_index] = entry
 
-    def dragEnterEvent(self, event) -> None:  # noqa: N802
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
+        if event.mimeData().hasFormat(ROW_MIME):
+            event.acceptProposedAction()
+            return
         if event.mimeData().hasUrls():
-            event.accept()
+            event.acceptProposedAction()
+            return
+        event.ignore()
+
+    def dragMoveEvent(self, event) -> None:  # noqa: N802
+        if event.mimeData().hasFormat(ROW_MIME) or event.mimeData().hasUrls():
+            event.acceptProposedAction()
         else:
             event.ignore()
 
-    def dropEvent(self, event) -> None:  # noqa: N802
+    def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802
         files = [u.toLocalFile() for u in event.mimeData().urls()]
         if files and files[0].endswith(".enc"):
             self._unlock_path(Path(files[0]))
-            event.accept()
-        else:
-            event.ignore()
+            event.acceptProposedAction()
+            return
+        event.ignore()
+
+    def _handle_row_drop(self, event: QDropEvent) -> None:
+        if self._vault is None or self._is_view_only_session() or self._kilitli_mi:
+            return
+        raw = bytes(event.mimeData().data(ROW_MIME)).decode("utf-8")
+        try:
+            source_index = int(raw)
+        except ValueError:
+            return
+
+        local_pos = event.position().toPoint()
+        target_index = self._row_index_at(local_pos)
+        if target_index is None:
+            target_index = len(self._vault.entries) - 1
+        if source_index == target_index:
+            return
+        if not (0 <= source_index < len(self._vault.entries)):
+            return
+
+        self._merge_row_edits_into_vault()
+        entry = self._vault.entries.pop(source_index)
+        target_index = max(0, min(target_index, len(self._vault.entries)))
+        self._vault.entries.insert(target_index, entry)
+        self._display_entries = list(self._vault.entries)
+        self._reload_visible_rows()
+        self._mark_dirty()
+
+    def _row_index_at(self, local_pos) -> int | None:
+        for row in self._row_widgets:
+            if row.geometry().contains(local_pos) and row.vault_index is not None:
+                return row.vault_index
+        return None
+    def _reload_visible_rows(self) -> None:
+        if self._vault is None:
+            return
+        source = (
+            self._display_entries
+            if self._display_entries is not None
+            else self._vault.entries
+        )
+        keep = max(len(self._row_widgets), _FILTER_PAGE_SIZE)
+        self._clear_all_rows()
+        for entry in source[:keep]:
+            self._add_row(
+                entry,
+                vault_index=self._vault_entry_index(entry, 0),
+                refresh_session=False,
+            )
+        if not self._row_widgets:
+            self._add_row(refresh_session=False)
+        self._apply_session_ui()
 
     def _retranslate_ui(self) -> None:
         self._btn_home.setText("🏠")
@@ -472,9 +641,12 @@ class MainWindow(QMainWindow):
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
+        self._btn_export.setText(tr("btn_export"))
+        self._btn_export.setToolTip(tr("btn_export_tip"))
         self._btn_clear.setText(tr("btn_clear"))
         self._btn_lang.setToolTip(tr("btn_lang_tip"))
         self._btn_theme.setToolTip(tr("btn_theme_tip"))
+        self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))
         self._title_bar.retranslate()
@@ -503,8 +675,12 @@ class MainWindow(QMainWindow):
         self._copy_notice_timer.stop()
         self._showing_copy_notice = True
         self._status_left.setStyleSheet("color: #3ddc84; font-weight: 600;")
+        seconds = max(1, get_clipboard_clear_ms() // 1000)
         if has_text:
-            self._status_left.setText(tr("copy_notice", field=field_label))
+            self._status_left.setText(
+                f"{tr('copy_notice', field=field_label)} — "
+                f"{tr('status_clipboard_clear', seconds=seconds)}"
+            )
         else:
             self._status_left.setText(tr("copy_notice_empty"))
         self._copy_notice_timer.start(2200)
@@ -517,11 +693,14 @@ class MainWindow(QMainWindow):
     def _update_status(self) -> None:
         if self._showing_copy_notice:
             return
-        filled_count = len(self._collect_entries())
-        if filled_count == 0:
-            self._status_left.setText(tr("status_no_records"))
+        if self._kilitli_mi:
+            self._status_left.setText(tr("status_locked"))
         else:
-            self._status_left.setText(tr("status_records", count=filled_count))
+            filled_count = len(self._collect_entries())
+            if filled_count == 0:
+                self._status_left.setText(tr("status_no_records"))
+            else:
+                self._status_left.setText(tr("status_records", count=filled_count))
 
         path_txt = (
             str(self._current_path) if self._current_path else tr("status_unsaved")
@@ -600,7 +779,7 @@ class MainWindow(QMainWindow):
         self._update_tab_order()
 
     def _remove_row(self, row: EntryRowWidget) -> None:
-        if self._is_view_only_session():
+        if self._is_view_only_session() or self._kilitli_mi:
             return
         if row not in self._row_widgets:
             return
@@ -647,6 +826,7 @@ class MainWindow(QMainWindow):
         for row in self._row_widgets:
             row.set_sensitive_shown(False)
         self._apply_session_ui()
+        self._reset_idle_timer()
 
     def _open_security_dialog(self) -> None:
         if self._about_dialog is None:
@@ -673,10 +853,22 @@ class MainWindow(QMainWindow):
         data = dlg.result_data()
         if not data:
             return
+
+        if data.get("admin_new"):
+            current = data.get("admin_current") or ""
+            if current != self._session.admin_password:
+                show_error(self, tr("warn_title"), tr("admin_pwd_wrong"))
+                return
+            self._pending_admin_password = data["admin_new"]
+            self._session.admin_password = data["admin_new"]
+
         self._vault.user_permissions = data["permissions"]
+        self._vault.field_labels = data.get("field_labels", {})
+        self._vault.user_slot_labels = data.get(
+            "user_slot_labels", self._vault.user_slot_labels
+        )
         self._pending_user_passwords = data["user_passwords"]
-        if isinstance(self._session, AdminSession):
-            self._session.user_passwords = data["user_passwords"]
+        self._session.user_passwords = data["user_passwords"]
         self._mark_dirty()
         self._apply_session_ui()
 
@@ -686,6 +878,33 @@ class MainWindow(QMainWindow):
             return
         dlg = AuditLogDialog(self._vault, self)
         dlg.exec()
+
+    def _export_vault(self) -> None:
+        if not isinstance(self._session, AdminSession) or self._vault is None:
+            show_error(self, tr("warn_title"), tr("warn_locked"))
+            return
+        self._sync_vault_entries()
+        default = "vault-export.json"
+        if self._current_path:
+            default = f"{self._current_path.stem}-export.json"
+        path_str, _ = QFileDialog.getSaveFileName(
+            self,
+            tr("dlg_export_vault"),
+            str(Path.home() / default),
+            tr("filter_export"),
+        )
+        if not path_str:
+            return
+        path = Path(path_str)
+        try:
+            if export_format_from_path(path) == "csv":
+                export_vault_csv(self._vault, path)
+            else:
+                export_vault_json(self._vault, path)
+        except OSError as exc:
+            show_error(self, tr("err_save_title"), str(exc))
+            return
+        show_info(self, tr("exported_title"), tr("exported_text", path=str(path)))
 
     def _clear_vault(self) -> None:
         """Kasa ekranından çıkmadan tüm alanları temizler."""
@@ -697,6 +916,8 @@ class MainWindow(QMainWindow):
         self._session = None
         self._snapshot_entries = []
         self._pending_user_passwords = None
+        self._pending_admin_password = None
+        self._kilitli_mi = False
         self._load_vault_data(KobiVault())
         self._apply_session_ui()
         self._show_vault_view()
@@ -722,6 +943,10 @@ class MainWindow(QMainWindow):
         return False
 
     def _save_vault(self) -> None:
+        if self._kilitli_mi:
+            self._kilit_ekranini_goster()
+            if self._kilitli_mi:
+                return
         entries = self._collect_entries()
         if not entries:
             show_error(
@@ -747,6 +972,7 @@ class MainWindow(QMainWindow):
                 new_entries,
                 self._session,
                 self._vault.user_permissions,
+                self._vault,
             )
             self._vault.audit_log.extend(logs)
             try:
@@ -817,6 +1043,7 @@ class MainWindow(QMainWindow):
             return
 
         self._current_path = path
+        add_recent_file(path)
         self._load_vault_data(unlock.vault)
         self._show_vault_view()
         show_info(self, tr("saved_title"), tr("saved_text", path=path_str))
@@ -834,21 +1061,19 @@ class MainWindow(QMainWindow):
         self._vault.entries = entries
 
         try:
-            if self._pending_user_passwords is not None and self._session.keys:
+            if self._session.keys:
                 new_keys = write_vault_file_updated(
                     path,
                     self._vault,
                     self._session.keys,
                     self._pending_user_passwords,
+                    admin_password=self._pending_admin_password,
                 )
                 self._session.keys = new_keys
-                self._session.user_passwords = self._pending_user_passwords
+                if self._pending_user_passwords is not None:
+                    self._session.user_passwords = self._pending_user_passwords
                 self._pending_user_passwords = None
-            elif self._session.keys:
-                new_keys = write_vault_file_updated(
-                    path, self._vault, self._session.keys
-                )
-                self._session.keys = new_keys
+                self._pending_admin_password = None
             else:
                 write_vault_file(
                     path,
@@ -858,10 +1083,13 @@ class MainWindow(QMainWindow):
                 )
                 unlock = read_vault_file(path, self._session.admin_password)
                 self._session.keys = unlock.keys
+                self._pending_user_passwords = None
+                self._pending_admin_password = None
         except VaultCryptoError as exc:
             show_error(self, tr("err_save_title"), crypto_message(str(exc)))
             return
 
+        add_recent_file(path)
         self._snapshot_entries = copy.deepcopy(entries)
         self._clear_dirty()
         show_info(self, tr("saved_title"), tr("saved_text", path=str(path)))
@@ -904,8 +1132,12 @@ class MainWindow(QMainWindow):
         self._current_path = path
         self._session = session
         self._pending_user_passwords = None
+        self._pending_admin_password = None
+        self._kilitli_mi = False
+        add_recent_file(path)
         self._load_vault_data(unlock.vault)
         self._show_vault_view()
+        self._landing_page.refresh_recent()
         show_info(
             self,
             tr("opened_title"),

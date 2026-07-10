@@ -4,21 +4,24 @@ Hidroteknik Yazılım ekibi tarafından geliştirilen, PyQt6 tabanlı parola yö
 
 ## Özellikler
 
-- Kayıt formatı: **İsim — 1. Bilgi — 2. Bilgi — 3. Bilgi (opsiyonel) — 4. Bilgi (opsiyonel)**
+- Kayıt formatı: **İsim — 1. Bilgi — ek bilgi alanları (dinamik)**
 - Her `.enc` dosyasında **1 yönetici** + **3 kullanıcı** parolası (boş slot destekli)
-- Yönetici: sınırsız yetki, kullanıcı/izin yönetimi, değişiklik geçmişi
-- Kullanıcılar: ortak izin şablonu; yalnızca izinli alanları görür/düzenler
-- Kullanıcı değişiklikleri audit log'a yazılır (önceki / sonraki değerler)
-- Koyu tema, TR/EN dil desteği, taşınabilir Windows `.exe`
+- Yönetici: sınırsız yetki, kullanıcı/izin yönetimi, alan etiketleri, dışa aktarma, değişiklik geçmişi
+- Kullanıcılar: ortak izin şablonu; yalnızca izinli alanları görür
+- Arama, sonsuz kaydırma, sürükle-bırak sıralama
+- Koyu / aydınlık tema, TR/EN dil desteği, karşılama ekranı ve son dosyalar
+- Güvenlik: pano otomatik temizleme, boşta / küçültünce kilit, Argon2id (yeni dosyalar)
+- Taşınabilir Windows `.exe`
 
 ## Güvenlik
 
 | Bileşen | Detay |
 |---------|--------|
-| Format | `KBPS` (`PFRT` formatıyla uyumsuz) |
+| Format | `KBPS` v1 (PBKDF2) / v2 (Argon2id) |
 | Zarf şifreleme | Rastgele DEK + yönetici/kullanıcı sarmalayıcıları |
-| Anahtar türetme | PBKDF2-HMAC-SHA256, **100.000** iterasyon |
+| Anahtar türetme | **Argon2id** (yeni) · PBKDF2-HMAC-SHA256 100.000 (eski) |
 | Şifreleme | **AES-256-GCM** |
+| Bütünlük | Dosya sonu SHA-256 özeti |
 
 ## Geliştirme
 
@@ -28,6 +31,7 @@ python -m venv .venv
 pip install -r requirements.txt
 python scripts\make_assets.py   # logo_source.png → logo.png + icon.ico
 python main.py
+pytest
 ```
 
 ## EXE derleme

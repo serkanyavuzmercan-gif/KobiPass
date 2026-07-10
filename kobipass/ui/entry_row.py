@@ -4,8 +4,8 @@ Tek vault kaydı satırı — sabit isim/1.bilgi, + ile dinamik ek alanlar.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QTimer, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QGuiApplication, QWheelEvent
+from PyQt6.QtCore import QMimeData, QPoint, QTimer, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QDrag, QMouseEvent, QWheelEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
@@ -19,10 +19,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from kobipass.clipboard import copy_text
 from kobipass.i18n import tr
 from kobipass.permissions import can_copy, can_edit, can_view
 from kobipass.ui.icons import icon_copy, icon_eye, icon_eye_off
 from kobipass.vault_model import FieldLevel, UserPermissions, VaultEntry
+
+ROW_MIME = "application/x-kobipass-row-index"
 
 ROW_CONTROL_HEIGHT = 38
 COPY_BTN_SIZE = QSize(32, 32)
@@ -42,10 +45,6 @@ _ICON_SIZE = QSize(20, 20)
 _COPY_FLASH_MS = 900
 
 _active_copy_field: "CompactField | None" = None
-
-
-def _copy_to_clipboard(text: str) -> None:
-    QGuiApplication.clipboard().setText(text)
 
 
 def _notify_copied(source: QWidget, field_label: str, has_text: bool) -> None:
@@ -86,10 +85,33 @@ def _restyle(widget: QWidget) -> None:
     widget.update()
 
 
-def _info_label(info_index: int) -> str:
+def _default_info_label(info_index: int) -> str:
     if info_index <= 4:
         return tr(f"field_info{info_index}")
     return tr("field_info_n", n=info_index)
+
+
+def _password_strength_color(text: str) -> str:
+    if not text:
+        return "transparent"
+    score = 0
+    if len(text) >= 6:
+        score += 1
+    if len(text) >= 10:
+        score += 1
+    if len(text) >= 14:
+        score += 1
+    if any(ch.islower() for ch in text) and any(ch.isupper() for ch in text):
+        score += 1
+    if any(ch.isdigit() for ch in text):
+        score += 1
+    if any(not ch.isalnum() for ch in text):
+        score += 1
+    if score <= 2:
+        return "#c42b1c"
+    if score <= 4:
+        return "#e07020"
+    return "#3ddc84"
 
 
 class EntryFieldsScroll(QScrollArea):
@@ -141,6 +163,7 @@ class CompactField(QWidget):
         self._hidden = sensitive
         self._always_show = False
         self._view_only = False
+        self._custom_label = ""
         self._eye_btn: QToolButton | None = None
         self._strength_meter: QFrame | None = None
         self.setFixedWidth(fixed_width)
@@ -213,11 +236,17 @@ class CompactField(QWidget):
         self.retranslate()
 
     def _label_text(self) -> str:
+        if self._custom_label:
+            return self._custom_label
         if self._info_index is not None:
-            return _info_label(self._info_index)
+            return _default_info_label(self._info_index)
         if self._field_key:
             return tr(self._field_key)
         return ""
+
+    def set_custom_label(self, label: str) -> None:
+        self._custom_label = label.strip()
+        self.retranslate()
 
     def retranslate(self) -> None:
         label = self._label_text()
@@ -237,8 +266,7 @@ class CompactField(QWidget):
     def _update_strength(self, text: str) -> None:
         if not self._sensitive:
             return
-        score = len(text)
-        color = "red" if score < 6 else "orange" if score < 10 else "green"
+        color = _password_strength_color(text)
         if self._strength_meter is not None:
             self._strength_meter.setStyleSheet(f"background-color: {color};")
 
@@ -316,7 +344,7 @@ class CompactField(QWidget):
         if _active_copy_field is not None and _active_copy_field is not self:
             _active_copy_field._clear_copy_flash()
         text = self._edit.text()
-        _copy_to_clipboard(text)
+        copy_text(text)
         self._show_copy_flash()
         _active_copy_field = self
         _notify_copied(self, self._label_text(), bool(text.strip()))
@@ -381,7 +409,10 @@ class EntryRowWidget(QWidget):
         self._view_only = False
         self._permissions = UserPermissions()
         self._extra_fields: list[CompactField] = []
+        self._field_labels: dict[str, str] = {}
+        self._drag_start: QPoint | None = None
         self.vault_index: int | None = None
+        self.setToolTip(tr("drag_row_tip"))
 
         row = QHBoxLayout(self)
         row.setContentsMargins(*ROW_MARGINS)
@@ -519,6 +550,7 @@ class EntryRowWidget(QWidget):
             parent=self._extras_host,
         )
         field._always_show = True
+        field.set_custom_label(self._field_labels.get(f"info{info_index}", ""))
         if block_signals:
             field._edit.blockSignals(True)
         field.setText(initial_text)
@@ -584,6 +616,44 @@ class EntryRowWidget(QWidget):
             self._update_field_step_buttons()
         self._sync_scroll_width()
         self._wire_tab_order()
+
+    def apply_field_labels(self, labels: dict[str, str]) -> None:
+        self._field_labels = dict(labels)
+        self._name.set_custom_label(labels.get("name", ""))
+        self._info1.set_custom_label(labels.get("info1", ""))
+        for index, field in enumerate(self._extra_fields, start=2):
+            field.set_custom_label(labels.get(f"info{index}", ""))
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton and not self._view_only:
+            self._drag_start = event.position().toPoint()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if (
+            self._drag_start is not None
+            and event.buttons() & Qt.MouseButton.LeftButton
+            and not self._view_only
+            and self.vault_index is not None
+        ):
+            if (event.position().toPoint() - self._drag_start).manhattanLength() >= 8:
+                self._start_drag()
+                self._drag_start = None
+                return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        self._drag_start = None
+        super().mouseReleaseEvent(event)
+
+    def _start_drag(self) -> None:
+        if self.vault_index is None:
+            return
+        drag = QDrag(self)
+        mime = QMimeData()
+        mime.setData(ROW_MIME, str(self.vault_index).encode("utf-8"))
+        drag.setMimeData(mime)
+        drag.exec(Qt.DropAction.MoveAction)
 
     def set_sensitive_shown(self, shown: bool) -> None:
         for field in self._sensitive_fields():

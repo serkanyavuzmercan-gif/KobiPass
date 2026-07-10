@@ -588,6 +588,35 @@ QPushButton#landingSquareBtn:pressed {
     background-color: #1a1d23;
     border-color: #2563eb;
 }
+
+QLabel#landingRecentTitle {
+    color: #9aa0a8;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+QLabel#landingRecentEmpty {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+QListWidget#landingRecentList {
+    background-color: #1e2229;
+    border: 1px solid #3d4450;
+    border-radius: 10px;
+    color: #e8eaed;
+    padding: 6px;
+}
+
+QListWidget#landingRecentList::item {
+    padding: 8px 10px;
+    border-radius: 6px;
+}
+
+QListWidget#landingRecentList::item:hover,
+QListWidget#landingRecentList::item:selected {
+    background-color: #2d3340;
+}
 """
 
 LIGHT_STYLESHEET = """
@@ -1169,5 +1198,34 @@ QPushButton#landingSquareBtn:hover {
 QPushButton#landingSquareBtn:pressed {
     background-color: #dbeafe;
     border-color: #2563eb;
+}
+
+QLabel#landingRecentTitle {
+    color: #4b5563;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+QLabel#landingRecentEmpty {
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+QListWidget#landingRecentList {
+    background-color: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    color: #1f2937;
+    padding: 6px;
+}
+
+QListWidget#landingRecentList::item {
+    padding: 8px 10px;
+    border-radius: 6px;
+}
+
+QListWidget#landingRecentList::item:hover,
+QListWidget#landingRecentList::item:selected {
+    background-color: #eff6ff;
 }
 """
