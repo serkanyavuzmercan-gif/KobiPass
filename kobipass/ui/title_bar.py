@@ -82,18 +82,7 @@ class CustomTitleBar(QWidget):
         drag_area.setObjectName("titleDragArea")
         layout.addWidget(drag_area, stretch=1)
 
-        self._btn_min = QPushButton("\u2212")
-        self._btn_min.setObjectName("titleBtnMin")
-        self._btn_min.setFixedSize(46, 38)
-        self._btn_min.clicked.connect(self._window.showMinimized)
-        layout.addWidget(self._btn_min)
-
-        self._btn_max = QPushButton("\u25a1")
-        self._btn_max.setObjectName("titleBtnMax")
-        self._btn_max.setFixedSize(46, 38)
-        self._btn_max.clicked.connect(self._on_maximize_clicked)
-        layout.addWidget(self._btn_max)
-
+        # Yaln\u0131zca kapat d\u00fc\u011fmesi \u2014 simge durumuna k\u00fc\u00e7\u00fclt / ekran\u0131 kapla yok.
         self._btn_close = QPushButton("\u00d7")
         self._btn_close.setObjectName("titleBtnClose")
         self._btn_close.setFixedSize(46, 38)
@@ -134,9 +123,7 @@ class CustomTitleBar(QWidget):
     def retranslate(self) -> None:
         self._brand.setText(tr("app_name"))
         self._slogan.setText(tr("slogan"))
-        self._btn_min.setToolTip(tr("title_minimize"))
         self._btn_close.setToolTip(tr("title_close"))
-        self._refresh_maximize_button()
 
     def _available_screen_geometry(self) -> QRect:
         screen = self._window.screen()
@@ -154,12 +141,8 @@ class CustomTitleBar(QWidget):
         return QRect(x, y, width, height)
 
     def _refresh_maximize_button(self) -> None:
-        if self._maximized:
-            self._btn_max.setText("\u29c9")
-            self._btn_max.setToolTip(tr("title_restore"))
-        else:
-            self._btn_max.setText("\u25a1")
-            self._btn_max.setToolTip(tr("title_maximize"))
+        # B\u00fcy\u00fct/geri al d\u00fc\u011fmesi kald\u0131r\u0131ld\u0131 \u2014 yaln\u0131zca kapat d\u00fc\u011fmesi var.
+        return
 
     def _on_maximize_clicked(self) -> None:
         if self._toggle_busy:
@@ -228,8 +211,5 @@ class CustomTitleBar(QWidget):
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
-        if self._is_draggable_target(event.pos()):
-            self._on_maximize_clicked()
-            event.accept()
-            return
+        # Ekranı kapla kaldırıldı — çift tıklama bir şey yapmaz.
         super().mouseDoubleClickEvent(event)

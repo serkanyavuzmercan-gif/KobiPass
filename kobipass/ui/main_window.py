@@ -306,6 +306,7 @@ class MainWindow(QMainWindow):
         )
         self.landing_page.btn_security.clicked.connect(self._guvenlik_penceresini_ac)
         self._landing_page.btn_help.clicked.connect(self._show_help)
+        self._landing_page.btn_theme.clicked.connect(theme_manager.toggle)
         self._landing_page.recent_file_chosen.connect(self._open_recent_path)
 
         self._show_landing_page()

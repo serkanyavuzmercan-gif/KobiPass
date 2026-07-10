@@ -71,6 +71,15 @@ def _crack_estimate_paragraph() -> str:
     )
 
 
+def _help_colors() -> dict[str, str]:
+    """Yardım metni renklerini aktif temaya göre seçer (silik görünmesin)."""
+    from kobipass.ui.theme import theme_manager
+
+    if theme_manager.is_dark():
+        return {"h": "#e8eaed", "p": "#9aa0a8", "li": "#c8ccd2", "warn": "#f0c14b"}
+    return {"h": "#111827", "p": "#4b5563", "li": "#374151", "warn": "#b45309"}
+
+
 def help_html() -> str:
     iterations = (
         f"{PBKDF2_ITERATIONS:,}".replace(",", ".")
@@ -78,25 +87,26 @@ def help_html() -> str:
         else f"{PBKDF2_ITERATIONS:,}"
     )
     crack_note = _crack_estimate_paragraph()
+    c = _help_colors()
 
     if i18n.is_tr():
         return f"""
-    <h2 style="color:#e8eaed;margin-top:0;">KobiPass</h2>
-    <p style="color:#9aa0a8;line-height:1.5;">
+    <h2 style="color:{c['h']};margin-top:0;">KobiPass</h2>
+    <p style="color:{c['p']};line-height:1.5;">
     Hidroteknik Yazılım ekibi tarafından geliştirilen KobiPass parola kasası. Her <code>.enc</code> dosyasında
     <b>1 yönetici</b> ve en fazla <b>3 kullanıcı</b> parolası tanımlanır.
     Yönetici tam yetkilidir; kullanıcılar yalnızca izin verilen alanları görür veya düzenler.
   </p>
-    <p style="color:#9aa0a8;line-height:1.5;">{crack_note}</p>
+    <p style="color:{c['p']};line-height:1.5;">{crack_note}</p>
 
-    <h3 style="color:#e8eaed;">Roller</h3>
-    <ul style="color:#c8ccd2;line-height:1.55;">
+    <h3 style="color:{c['h']};">Roller</h3>
+    <ul style="color:{c['li']};line-height:1.55;">
     <li><b>Yönetici</b> — Tüm kayıtlar, kullanıcı parolaları, izinler ve değişiklik geçmişi.</li>
     <li><b>Kullanıcı 1–3</b> — Ortak izin şablonu; değişiklikler loglanır.</li>
     </ul>
 
-    <h3 style="color:#e8eaed;">Nasıl kullanılır?</h3>
-    <ul style="color:#c8ccd2;line-height:1.55;">
+    <h3 style="color:{c['h']};">Nasıl kullanılır?</h3>
+    <ul style="color:{c['li']};line-height:1.55;">
     <li><b>Dosya Aç</b> — <code>.enc</code> seçin; yönetici veya kullanıcı parolanızı girin.</li>
     <li><b>Kaydet</b> — İlk kayıtta yönetici + kullanıcı parolaları ve izinler belirlenir.</li>
     <li><b>Temizle</b> — Oturumu kapatır; boş kasa ekranına dönersiniz.</li>
@@ -104,35 +114,35 @@ def help_html() -> str:
     <li><b>Değişiklik Geçmişi</b> — Yalnızca yönetici (kullanıcı düzenlemeleri).</li>
     </ul>
 
-    <h3 style="color:#e8eaed;">Şifreleme (KBPS)</h3>
-    <ul style="color:#c8ccd2;line-height:1.55;">
+    <h3 style="color:{c['h']};">Şifreleme (KBPS)</h3>
+    <ul style="color:{c['li']};line-height:1.55;">
     <li>Zarf şifreleme: rastgele DEK + yönetici/kullanıcı sarmalayıcıları.</li>
     <li><b>Argon2id</b> — yeni kasalar (v2); eski dosyalar PBKDF2 ({iterations} iterasyon).</li>
     <li><b>AES-256-GCM</b> — {NONCE_SIZE} bayt nonce.</li>
     <li>Dosya başlığı: <code>KBPS</code> (<code>PFRT</code> formatıyla uyumsuz).</li>
     </ul>
-    <p style="color:#f0c14b;font-size:12px;">
+    <p style="color:{c['warn']};font-size:12px;">
     Parolayı unutursanız veriler kurtarılamaz.
     </p>
     """
 
     return f"""
-    <h2 style="color:#e8eaed;margin-top:0;">KobiPass</h2>
-    <p style="color:#9aa0a8;line-height:1.5;">
+    <h2 style="color:{c['h']};margin-top:0;">KobiPass</h2>
+    <p style="color:{c['p']};line-height:1.5;">
     SMB password vault developed by the Hidroteknik Yazılım team. Each <code>.enc</code> file has
     <b>1 admin</b> and up to <b>3 user</b> passwords.
     The admin has full access; users may only view or edit permitted fields.
     </p>
-    <p style="color:#9aa0a8;line-height:1.5;">{crack_note}</p>
+    <p style="color:{c['p']};line-height:1.5;">{crack_note}</p>
 
-    <h3 style="color:#e8eaed;">Roles</h3>
-    <ul style="color:#c8ccd2;line-height:1.55;">
+    <h3 style="color:{c['h']};">Roles</h3>
+    <ul style="color:{c['li']};line-height:1.55;">
     <li><b>Administrator</b> — All records, user passwords, permissions, change history.</li>
     <li><b>Users 1–3</b> — Shared permission template; changes are logged.</li>
     </ul>
 
-    <h3 style="color:#e8eaed;">How to use</h3>
-    <ul style="color:#c8ccd2;line-height:1.55;">
+    <h3 style="color:{c['h']};">How to use</h3>
+    <ul style="color:{c['li']};line-height:1.55;">
     <li><b>Open File</b> — Select <code>.enc</code>; enter admin or user password.</li>
     <li><b>Save</b> — On first save, set admin + user passwords and permissions.</li>
     <li><b>Clear</b> — End session and return to an empty vault screen.</li>
@@ -140,14 +150,14 @@ def help_html() -> str:
     <li><b>Change History</b> — Admin only (user edits).</li>
     </ul>
 
-    <h3 style="color:#e8eaed;">Encryption (KBPS)</h3>
-    <ul style="color:#c8ccd2;line-height:1.55;">
+    <h3 style="color:{c['h']};">Encryption (KBPS)</h3>
+    <ul style="color:{c['li']};line-height:1.55;">
     <li>Envelope encryption: random DEK + admin/user wraps.</li>
     <li><b>Argon2id</b> — new vaults (v2); legacy files use PBKDF2 ({iterations} iterations).</li>
     <li><b>AES-256-GCM</b> — {NONCE_SIZE}-byte nonce.</li>
     <li>File header: <code>KBPS</code> (not compatible with <code>PFRT</code> format).</li>
     </ul>
-    <p style="color:#f0c14b;font-size:12px;">
+    <p style="color:{c['warn']};font-size:12px;">
     If you forget your password, data cannot be recovered.
     </p>
     """

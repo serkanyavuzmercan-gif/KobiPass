@@ -568,25 +568,31 @@ QTabBar::tab:hover:!selected {
     color: #e8eaed;
 }
 
-/* --- Karşılama Ekranı Kare Butonları --- */
-QPushButton#landingSquareBtn {
-    font-size: 18px;
-    font-weight: bold;
-    border-radius: 20px;
+/* --- Karşılama Ekranı: ikiye bölen paneller --- */
+QFrame#landingPanel {
     background-color: #1e2229;
-    border: 2px solid #3d4450;
+    border: 1px solid #343a46;
+    border-radius: 18px;
+}
+
+QFrame#landingPanel:hover {
+    background-color: #252d3d;
+    border: 1px solid #4b68f4;
+}
+
+QLabel#landingPanelIcon {
+    font-size: 46px;
+}
+
+QLabel#landingPanelTitle {
+    font-size: 22px;
+    font-weight: 700;
     color: #e8eaed;
 }
 
-QPushButton#landingSquareBtn:hover {
-    background-color: #252830;
-    border-color: #4b68f4;
-    color: #ffffff;
-}
-
-QPushButton#landingSquareBtn:pressed {
-    background-color: #1a1d23;
-    border-color: #2d47c8;
+QLabel#landingPanelSubtitle {
+    font-size: 13px;
+    color: #9aa0a8;
 }
 
 QLabel#landingRecentTitle {
@@ -1179,25 +1185,31 @@ QTabBar::tab:hover:!selected {
     color: #1f2937;
 }
 
-/* --- Karşılama Ekranı Kare Butonları --- */
-QPushButton#landingSquareBtn {
-    font-size: 18px;
-    font-weight: bold;
-    border-radius: 20px;
+/* --- Karşılama Ekranı: ikiye bölen paneller --- */
+QFrame#landingPanel {
     background-color: #ffffff;
-    border: 2px solid #dde3f0;
+    border: 1px solid #dde3f0;
+    border-radius: 18px;
+}
+
+QFrame#landingPanel:hover {
+    background-color: #eef1fe;
+    border: 1px solid #4b68f4;
+}
+
+QLabel#landingPanelIcon {
+    font-size: 46px;
+}
+
+QLabel#landingPanelTitle {
+    font-size: 22px;
+    font-weight: 700;
     color: #1f2937;
 }
 
-QPushButton#landingSquareBtn:hover {
-    background-color: #eff6ff;
-    border-color: #4b68f4;
-    color: #1d2937;
-}
-
-QPushButton#landingSquareBtn:pressed {
-    background-color: #dbeafe;
-    border-color: #2d47c8;
+QLabel#landingPanelSubtitle {
+    font-size: 13px;
+    color: #6b7280;
 }
 
 QLabel#landingRecentTitle {
