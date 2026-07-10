@@ -138,6 +138,15 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_create_sub": "Sıfırdan yeni bir parola kasası oluşturun",
         "landing_recent": "Son açılanlar",
         "landing_recent_empty": "Henüz son dosya yok",
+        "backup_missing_title": "Kasa dosyası bulunamadı",
+        "backup_missing_text": (
+            "Kasa dosyası silinmiş veya taşınmış:\n{path}\n\n"
+            "Otomatik yedek mevcut: {backup}\n"
+            "Yedekten geri yüklensin mi?"
+        ),
+        "backup_restored_title": "Geri yüklendi",
+        "backup_restored_text": "Kasa yedekten geri yüklendi:\n{path}",
+        "backup_restore_failed_title": "Geri yükleme hatası",
         "search_placeholder": "İsim ile ara...",
         "labels_section": "Alan etiketleri (isteğe bağlı)",
         "labels_info": "Boş bırakılan etiketler varsayılan çeviriyi kullanır.",
@@ -301,6 +310,15 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_create_sub": "Start a brand-new password vault",
         "landing_recent": "Recent files",
         "landing_recent_empty": "No recent files yet",
+        "backup_missing_title": "Vault file not found",
+        "backup_missing_text": (
+            "The vault file was deleted or moved:\n{path}\n\n"
+            "An automatic backup exists: {backup}\n"
+            "Restore from backup?"
+        ),
+        "backup_restored_title": "Restored",
+        "backup_restored_text": "Vault restored from backup:\n{path}",
+        "backup_restore_failed_title": "Restore error",
         "search_placeholder": "Search by name...",
         "labels_section": "Field labels (optional)",
         "labels_info": "Empty labels fall back to the default translation.",

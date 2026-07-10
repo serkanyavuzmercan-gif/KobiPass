@@ -179,3 +179,44 @@ def test_no_export_module() -> None:
     import importlib.util
 
     assert importlib.util.find_spec("kobipass.export") is None
+
+
+def test_backup_create_rotate_restore(tmp_path: Path, monkeypatch) -> None:
+    """Yedekleme: kopya oluşur, rotasyon çalışır, geri yükleme birebir aynıdır."""
+    import os
+    import stat as stat_mod
+
+    from kobipass import backup
+
+    monkeypatch.setenv("KOBIPASS_BACKUP_DIR", str(tmp_path / "backups"))
+
+    vault_file = tmp_path / "sirket.enc"
+    vault_file.write_bytes(b"KBPS-encrypted-bytes-v1")
+
+    created = backup.create_backup(vault_file)
+    assert created is not None and created.is_file()
+    assert created.read_bytes() == vault_file.read_bytes()
+
+    # Rotasyon: BACKUP_KEEP üstü eski kopyalar silinir.
+    for i in range(backup.BACKUP_KEEP + 4):
+        vault_file.write_bytes(f"payload-{i}".encode())
+        backup.create_backup(vault_file)
+    backups = backup.find_backups(vault_file)
+    assert len(backups) == backup.BACKUP_KEEP
+
+    # Silinme + geri yükleme: en yeni yedek asıl konuma döner.
+    latest_payload = vault_file.read_bytes()
+    os.chmod(vault_file, 0o600)
+    vault_file.unlink()
+    assert not vault_file.exists()
+    backup.restore_backup(backup.find_backups(vault_file)[0], vault_file)
+    assert vault_file.read_bytes() == latest_payload
+
+    # Geri yüklenen dosya salt-okunur işaretlenir; kayıt öncesi tekrar açılır.
+    # (root altında os.access yanıltır — izin bitini doğrudan kontrol et)
+    def _writable(p: Path) -> bool:
+        return bool(stat_mod.S_IMODE(p.stat().st_mode) & stat_mod.S_IWUSR)
+
+    assert not _writable(vault_file)
+    backup.clear_read_only(vault_file)
+    assert _writable(vault_file)

@@ -42,7 +42,12 @@ from kobipass.permissions import (
 )
 from kobipass.resources import app_icon
 from kobipass.session import AdminSession, Session, UserSession, session_from_unlock
-from kobipass.settings import add_recent_file, get_clipboard_clear_ms, get_idle_lock_ms
+from kobipass.settings import (
+    add_recent_file,
+    get_clipboard_clear_ms,
+    get_idle_lock_ms,
+    get_recent_files,
+)
 from kobipass.ui.about_dialog import AboutDialog
 from kobipass.ui.add_record_bar import AddRecordBar
 from kobipass.ui.audit_log_dialog import AuditLogDialog
@@ -56,6 +61,13 @@ from kobipass.ui.dialogs import (
 )
 from kobipass.ui.entry_row import ROW_MIME, EntryRowWidget
 from kobipass.ui.landing_page import LandingPage
+from kobipass.backup import (
+    clear_read_only,
+    create_backup,
+    find_backups,
+    restore_backup,
+    set_read_only,
+)
 from kobipass.ui.icons import icon_home, icon_theme
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
@@ -308,6 +320,8 @@ class MainWindow(QMainWindow):
         self._landing_page.recent_file_chosen.connect(self._open_recent_path)
 
         self._show_landing_page()
+        # Açılışta silinmiş kasa tespiti — pencere göründükten sonra sor.
+        QTimer.singleShot(0, self._check_missing_vaults)
 
     def eventFilter(self, obj, event):  # noqa: N802
         if event.type() in (
@@ -910,6 +924,46 @@ class MainWindow(QMainWindow):
             return True
         return False
 
+    def _protect_vault_file(self, path: Path) -> None:
+        """Başarılı kayıt sonrası: şifreli yedek al + salt-okunur kilidi bas."""
+        create_backup(path)
+        set_read_only(path)
+
+    def _check_missing_vaults(self) -> None:
+        """Son kullanılan kasa silinmişse ve yedeği varsa geri yüklemeyi öner."""
+        for path_str in get_recent_files():
+            path = Path(path_str)
+            if path.exists():
+                continue
+            backups = find_backups(path)
+            if not backups:
+                continue
+            latest = backups[0]
+            answer = QMessageBox.question(
+                self,
+                tr("backup_missing_title"),
+                tr(
+                    "backup_missing_text",
+                    path=str(path),
+                    backup=latest.name,
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                continue
+            try:
+                restore_backup(latest, path)
+            except OSError as exc:
+                show_error(self, tr("backup_restore_failed_title"), str(exc))
+                continue
+            show_info(
+                self,
+                tr("backup_restored_title"),
+                tr("backup_restored_text", path=str(path)),
+            )
+            self._landing_page.refresh_recent()
+
     def _save_vault(self) -> None:
         if self._kilitli_mi:
             self._kilit_ekranini_goster()
@@ -944,6 +998,7 @@ class MainWindow(QMainWindow):
             )
             self._vault.audit_log.extend(logs)
             try:
+                clear_read_only(self._current_path)  # type: ignore[arg-type]
                 new_keys = write_vault_file_updated(
                     self._current_path,  # type: ignore[arg-type]
                     self._vault,
@@ -953,6 +1008,7 @@ class MainWindow(QMainWindow):
             except VaultCryptoError as exc:
                 show_error(self, tr("err_save_title"), crypto_message(str(exc)))
                 return
+            self._protect_vault_file(self._current_path)  # type: ignore[arg-type]
             self._snapshot_entries = copy.deepcopy(new_entries)
             self._clear_dirty()
             show_info(
@@ -994,12 +1050,14 @@ class MainWindow(QMainWindow):
         )
         path = Path(path_str)
         try:
+            clear_read_only(path)
             write_vault_file(
                 path,
                 vault,
                 data["admin_password"],
                 data["user_passwords"],
             )
+            self._protect_vault_file(path)
             unlock = read_vault_file(path, data["admin_password"])
             self._session = session_from_unlock(
                 unlock, data["admin_password"], unlock.vault
@@ -1029,6 +1087,7 @@ class MainWindow(QMainWindow):
         self._vault.entries = entries
 
         try:
+            clear_read_only(path)
             if self._session.keys:
                 new_keys = write_vault_file_updated(
                     path,
@@ -1057,6 +1116,7 @@ class MainWindow(QMainWindow):
             show_error(self, tr("err_save_title"), crypto_message(str(exc)))
             return
 
+        self._protect_vault_file(path)
         add_recent_file(path)
         self._snapshot_entries = copy.deepcopy(entries)
         self._clear_dirty()

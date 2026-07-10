@@ -23,6 +23,7 @@ Hidroteknik Yazılım ekibi tarafından geliştirilen, PyQt6 tabanlı parola yö
 | Anahtar türetme | **Argon2id** (yeni) · PBKDF2-HMAC-SHA256 100.000 (eski) |
 | Şifreleme | **AES-256-GCM** |
 | Bütünlük | Dosya sonu SHA-256 özeti |
+| Silinme koruması | Her kayıtta AppData'ya şifreli yedek (son 10) + salt-okunur kilidi + açılışta silinme tespiti ve yedekten geri yükleme |
 
 ## Geliştirme
 
