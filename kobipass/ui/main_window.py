@@ -34,7 +34,6 @@ from kobipass.crypto import (
     write_vault_file,
     write_vault_file_updated,
 )
-from kobipass.export import export_format_from_path, export_vault_csv, export_vault_json
 from kobipass.i18n import crypto_message, i18n, tr
 from kobipass.permissions import (
     diff_entries_for_audit,
@@ -220,10 +219,6 @@ class MainWindow(QMainWindow):
         self._btn_audit = QPushButton()
         self._btn_audit.clicked.connect(self._show_audit)
         toolbar.addWidget(self._btn_audit, 0, Qt.AlignmentFlag.AlignVCenter)
-
-        self._btn_export = QPushButton()
-        self._btn_export.clicked.connect(self._export_vault)
-        toolbar.addWidget(self._btn_export, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_clear = QPushButton()
         self._btn_clear.setObjectName("clearBtn")
@@ -448,7 +443,6 @@ class MainWindow(QMainWindow):
 
         self._btn_users.setVisible(is_admin)
         self._btn_audit.setVisible(is_admin)
-        self._btn_export.setVisible(is_admin)
 
         perms, view_only = self._row_permissions()
 
@@ -642,8 +636,6 @@ class MainWindow(QMainWindow):
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
-        self._btn_export.setText(tr("btn_export"))
-        self._btn_export.setToolTip(tr("btn_export_tip"))
         self._btn_clear.setText(tr("btn_clear"))
         self._btn_lang.setToolTip(tr("btn_lang_tip"))
         self._btn_theme.setToolTip(tr("btn_theme_tip"))
@@ -879,33 +871,6 @@ class MainWindow(QMainWindow):
             return
         dlg = AuditLogDialog(self._vault, self)
         dlg.exec()
-
-    def _export_vault(self) -> None:
-        if not isinstance(self._session, AdminSession) or self._vault is None:
-            show_error(self, tr("warn_title"), tr("warn_locked"))
-            return
-        self._sync_vault_entries()
-        default = "vault-export.json"
-        if self._current_path:
-            default = f"{self._current_path.stem}-export.json"
-        path_str, _ = QFileDialog.getSaveFileName(
-            self,
-            tr("dlg_export_vault"),
-            str(Path.home() / default),
-            tr("filter_export"),
-        )
-        if not path_str:
-            return
-        path = Path(path_str)
-        try:
-            if export_format_from_path(path) == "csv":
-                export_vault_csv(self._vault, path)
-            else:
-                export_vault_json(self._vault, path)
-        except OSError as exc:
-            show_error(self, tr("err_save_title"), str(exc))
-            return
-        show_info(self, tr("exported_title"), tr("exported_text", path=str(path)))
 
     def _clear_vault(self) -> None:
         """Kasa ekranından çıkmadan tüm alanları temizler."""

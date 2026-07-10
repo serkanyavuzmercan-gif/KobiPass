@@ -1,8 +1,7 @@
-"""Unit tests for vault model, crypto, permissions, and export."""
+"""Unit tests for vault model, crypto, and permissions."""
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -19,7 +18,6 @@ from kobipass.crypto import (
     write_vault_file,
     write_vault_file_updated,
 )
-from kobipass.export import export_vault_csv, export_vault_json
 from kobipass.permissions import (
     can_edit,
     can_view,
@@ -176,18 +174,8 @@ def test_audit_masks_sensitive_fields(tmp_path: Path) -> None:
     assert "•" in mask_audit_value("secret", "info1")
 
 
-def test_export_json_and_csv(tmp_path: Path) -> None:
-    vault = KobiVault(
-        entries=[VaultEntry(name="Mail", info1="pw", more_infos=["url"])],
-        field_labels={"name": "Hesap", "info1": "Parola"},
-    )
-    json_path = tmp_path / "out.json"
-    csv_path = tmp_path / "out.csv"
-    export_vault_json(vault, json_path)
-    export_vault_csv(vault, csv_path)
-    payload = json.loads(json_path.read_text(encoding="utf-8"))
-    assert payload["entries"][0]["name"] == "Mail"
-    assert payload["field_labels"]["info1"] == "Parola"
-    csv_text = csv_path.read_text(encoding="utf-8")
-    assert "Hesap" in csv_text
-    assert "Mail" in csv_text
+def test_no_export_module() -> None:
+    """Güvenlik: dışa aktarma özelliği kaldırıldı — geri gelmediğini doğrula."""
+    import importlib.util
+
+    assert importlib.util.find_spec("kobipass.export") is None
