@@ -1,0 +1,7 @@
+{
+  "PackageName": "MercanSoftware.KobiPass",
+  "Publisher": "CN=Mercan Software",
+  "PublisherDisplayName": "Mercan Software",
+  "DisplayName": "KobiPass",
+  "_NOT": "Publisher (CN=...) ve PackageName degerlerini Partner Center > Urun Kimligi (Product Identity) sayfasindaki GERCEK degerlerle degistirin; aksi halde Store paketi reddedilir. StoreId/PackageFamilyName gibi alanlar da oradan alinir."
+}

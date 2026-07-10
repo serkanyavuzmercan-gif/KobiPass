@@ -2,8 +2,8 @@
 """
 KobiPass logo işleme: arka plan temizleme, logo.png ve icon.ico üretimi.
 
-Kaynak: assets/logo_source.png (veya komut satırı argümanı)
-Beyaz veya siyah arka plan desteklenir.
+Kaynak öncelik sırası: assets/logo2.png → assets/logo_source.png
+(veya komut satırı argümanı). Beyaz veya siyah arka plan desteklenir.
 """
 
 from __future__ import annotations
@@ -17,7 +17,20 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
-SOURCE = ASSETS / "logo_source.png"
+
+# Yeni logo (logo2.png) varsa onu kaynak al; yoksa eski logo_source.png'ye düş.
+_SOURCE_CANDIDATES = ("logo2.png", "logo_source.png")
+
+
+def _default_source() -> Path:
+    for name in _SOURCE_CANDIDATES:
+        candidate = ASSETS / name
+        if candidate.is_file():
+            return candidate
+    return ASSETS / _SOURCE_CANDIDATES[-1]
+
+
+SOURCE = _default_source()
 LOGO_OUT = ASSETS / "logo.png"
 ICON_OUT = ASSETS / "icon.ico"
 
