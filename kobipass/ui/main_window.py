@@ -316,20 +316,7 @@ class MainWindow(QMainWindow):
         # Search fills leftover width; theme/lang stay right-aligned with fixed spacing.
         toolbar.addWidget(self._search_bar, 1, Qt.AlignmentFlag.AlignVCenter)
 
-        self._btn_theme = QPushButton()
-        self._btn_theme.setObjectName("themeBtn")
-        self._btn_theme.setFixedWidth(56)
-        self._btn_theme.clicked.connect(theme_manager.toggle)
-        toolbar.addWidget(self._btn_theme, 0, Qt.AlignmentFlag.AlignVCenter)
-        self._update_theme_icon()
-        theme_manager.theme_changed.connect(self._update_theme_icon)
-
-        self._btn_lang = QPushButton("TR/EN")
-        self._btn_lang.setObjectName("langBtn")
-        self._btn_lang.setFixedWidth(50)
-        self._btn_lang.clicked.connect(i18n.toggle)
-        toolbar.addWidget(self._btn_lang, 0, Qt.AlignmentFlag.AlignVCenter)
-
+        # Tema/dil düğmeleri artık üst başlık çubuğunda.
         command_layout.addLayout(toolbar)
 
         self.security_badge = QPushButton()
@@ -400,23 +387,17 @@ class MainWindow(QMainWindow):
         self.landing_page.btn_create_file.clicked.connect(
             self._yeni_dosya_olusturma_ekranini_ac
         )
-        self.landing_page.btn_security.clicked.connect(self._guvenlik_penceresini_ac)
-        self._landing_page.btn_about.clicked.connect(self._open_about_dialog)
-        self._landing_page.btn_lang.clicked.connect(i18n.toggle)
-        self._landing_page.btn_theme.clicked.connect(theme_manager.toggle)
         self._landing_page.recent_file_chosen.connect(self._open_recent_path)
+
+        # Güvenlik/Hakkında düğmeleri artık üst başlık çubuğunda.
+        self._title_bar.btn_security.clicked.connect(self._guvenlik_penceresini_ac)
+        self._title_bar.btn_about.clicked.connect(self._open_about_dialog)
 
         self._setup_shortcuts()
 
         self._show_landing_page()
         # Açılışta silinmiş kasa tespiti — pencere göründükten sonra sor.
         QTimer.singleShot(0, self._check_missing_vaults)
-
-    def _update_theme_icon(self) -> None:
-        """Buton, basınca geçilecek modu gösterir: koyu→güneş, aydınlık→ay."""
-        self._btn_theme.setIcon(
-            icon_sun() if theme_manager.is_dark() else icon_theme()
-        )
 
     def _setup_shortcuts(self) -> None:
         """Klavye kısayolları: kaydet, ara, kayıt ekle, kilitle."""
@@ -873,8 +854,6 @@ class MainWindow(QMainWindow):
         self._btn_report.setText(tr("btn_report"))
         self._btn_report.setToolTip(tr("btn_report_tip"))
         self._btn_clear.setText(tr("btn_clear"))
-        self._btn_lang.setToolTip(tr("btn_lang_tip"))
-        self._btn_theme.setToolTip(tr("btn_theme_tip"))
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))

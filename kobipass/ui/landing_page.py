@@ -35,19 +35,15 @@ from kobipass.ui.icons import (
     icon_file_new,
     icon_folder_open,
     icon_home,
-    icon_info,
     icon_key,
     icon_lock,
     icon_more,
     icon_shield,
-    icon_sun,
-    icon_theme,
     icon_trash,
 )
 
 _FEATURE_ACCENT = QColor("#8296ff")
 _HERO_RADIUS = 22
-from kobipass.ui.theme import theme_manager
 
 
 class HeroPanel(QFrame):
@@ -209,42 +205,10 @@ class LandingPage(QWidget):
         self._latest_path = ""
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(22, 12, 22, 22)
+        outer.setContentsMargins(22, 18, 22, 22)
         outer.setSpacing(14)
 
-        # Üstte yalnız yardımcı işlemler; ana hiyerarşiye rakip olmaz.
-        top = QHBoxLayout()
-        top.setSpacing(8)
-        top.addStretch()
-
-        self.btn_theme = QPushButton()
-        self.btn_theme.setObjectName("themeBtn")
-        self.btn_theme.setFixedWidth(44)
-        self.btn_theme.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._update_theme_icon()
-        theme_manager.theme_changed.connect(self._update_theme_icon)
-
-        self.btn_lang = QPushButton("TR/EN")
-        self.btn_lang.setObjectName("langBtn")
-        self.btn_lang.setFixedWidth(50)
-        self.btn_lang.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        self.btn_security = QPushButton()
-        self.btn_security.setObjectName("headerSecurityBtn")
-        self.btn_security.setIcon(icon_shield())
-        self.btn_security.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        self.btn_about = QPushButton()
-        self.btn_about.setObjectName("helpBtn")
-        self.btn_about.setIcon(icon_info())
-        self.btn_about.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        top.addWidget(self.btn_theme)
-        top.addWidget(self.btn_lang)
-        top.addWidget(self.btn_security)
-        top.addWidget(self.btn_about)
-        outer.addLayout(top)
-
+        # Tema/dil/güvenlik/hakkında düğmeleri artık üst başlık çubuğunda.
         content = QHBoxLayout()
         content.setSpacing(20)
         content.setContentsMargins(0, 0, 0, 0)
@@ -487,11 +451,6 @@ class LandingPage(QWidget):
         self._feature_cards.append(card)
         return card
 
-    def _update_theme_icon(self) -> None:
-        self.btn_theme.setIcon(
-            icon_sun() if theme_manager.is_dark() else icon_theme()
-        )
-
     def _open_latest_path(self) -> None:
         if self._latest_path:
             self.recent_file_chosen.emit(self._latest_path)
@@ -529,12 +488,6 @@ class LandingPage(QWidget):
 
     def retranslate(self) -> None:
         self._apply_hero_image()
-        self.btn_theme.setToolTip(tr("btn_theme_tip"))
-        self.btn_lang.setToolTip(tr("btn_lang_tip"))
-        self.btn_security.setText(tr("landing_security"))
-        self.btn_security.setToolTip(tr("security_badge_tip"))
-        self.btn_about.setText(tr("about_us_title"))
-        self.btn_about.setToolTip(tr("btn_about_tip"))
 
         self._eyebrow.setText(tr("landing_eyebrow"))
         self._hero_title.setText(tr("landing_hero_title"))

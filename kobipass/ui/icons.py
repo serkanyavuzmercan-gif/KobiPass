@@ -437,3 +437,20 @@ def icon_trash(color: QColor = NEUTRAL_COLOR, size: int = 16) -> QIcon:
         p.drawLine(_pt(14 * s, 10 * s), _pt(13.6 * s, 16.5 * s))
 
     return _scaled_icon(f"trash:{color.name()}:{size}", draw, size)
+
+
+def icon_globe(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Küre — dil değiştir (TR/EN)."""
+    def draw(p: QPainter) -> None:
+        from PyQt6.QtCore import QRectF
+
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(_pt(12 * s, 12 * s), 8.5 * s, 8.5 * s)
+        p.drawEllipse(QRectF(8.4 * s, 3.5 * s, 7.2 * s, 17 * s))  # boylam
+        p.drawLine(_pt(3.5 * s, 12 * s), _pt(20.5 * s, 12 * s))    # ekvator
+        p.drawLine(_pt(5 * s, 7.5 * s), _pt(19 * s, 7.5 * s))
+        p.drawLine(_pt(5 * s, 16.5 * s), _pt(19 * s, 16.5 * s))
+
+    return _scaled_icon(f"globe:{color.name()}:{size}", draw, size)

@@ -16,9 +16,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from kobipass.i18n import tr
+from kobipass.i18n import i18n, tr
 from kobipass.platform_win import set_window_geometry
 from kobipass.resources import logo_pixmap
+from kobipass.ui.icons import icon_globe, icon_info, icon_shield, icon_sun, icon_theme
+from kobipass.ui.theme import theme_manager
 
 # Tasarım referansı: 1280×760 @ 1920×1080 → sabit açılış oranı
 WINDOW_WIDTH_RATIO = 1280 / 1920
@@ -93,6 +95,37 @@ class CustomTitleBar(QWidget):
         drag_area.setObjectName("titleDragArea")
         layout.addWidget(drag_area, stretch=1)
 
+        # Sağ üst yardımcı düğmeler: tema · dil · güvenlik · hakkında.
+        _vc = Qt.AlignmentFlag.AlignVCenter
+        self.btn_theme = QPushButton()
+        self.btn_theme.setObjectName("themeBtn")
+        self.btn_theme.setFixedWidth(44)
+        self.btn_theme.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_theme.clicked.connect(theme_manager.toggle)
+        layout.addWidget(self.btn_theme, 0, _vc)
+
+        self.btn_lang = QPushButton("TR/EN")
+        self.btn_lang.setObjectName("langBtn")
+        self.btn_lang.setIcon(icon_globe(size=16))
+        self.btn_lang.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_lang.clicked.connect(i18n.toggle)
+        layout.addWidget(self.btn_lang, 0, _vc)
+
+        self.btn_security = QPushButton()
+        self.btn_security.setObjectName("headerSecurityBtn")
+        self.btn_security.setIcon(icon_shield())
+        self.btn_security.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout.addWidget(self.btn_security, 0, _vc)
+
+        self.btn_about = QPushButton()
+        self.btn_about.setObjectName("helpBtn")
+        self.btn_about.setIcon(icon_info())
+        self.btn_about.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout.addWidget(self.btn_about, 0, _vc)
+
+        self._update_theme_icon()
+        theme_manager.theme_changed.connect(self._update_theme_icon)
+
         # Yalnızca kapat düğmesi — simge durumuna küçült / ekranı kapla yok.
         self._btn_close = QPushButton("\u00d7")
         self._btn_close.setObjectName("titleBtnClose")
@@ -150,10 +183,21 @@ class CustomTitleBar(QWidget):
         self._maximized = False
         self._refresh_maximize_button()
 
+    def _update_theme_icon(self) -> None:
+        self.btn_theme.setIcon(
+            icon_sun() if theme_manager.is_dark() else icon_theme()
+        )
+
     def retranslate(self) -> None:
         self._brand.setText(tr("app_name"))
         self._slogan.setText(tr("slogan"))
         self._btn_close.setToolTip(tr("title_close"))
+        self.btn_theme.setToolTip(tr("btn_theme_tip"))
+        self.btn_lang.setToolTip(tr("btn_lang_tip"))
+        self.btn_security.setText(tr("landing_security"))
+        self.btn_security.setToolTip(tr("security_badge_tip"))
+        self.btn_about.setText(tr("about_us_title"))
+        self.btn_about.setToolTip(tr("btn_about_tip"))
 
     def _available_screen_geometry(self) -> QRect:
         screen = self._window.screen()

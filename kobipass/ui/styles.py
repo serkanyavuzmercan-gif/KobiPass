@@ -1119,8 +1119,11 @@ QLabel#landingFeatureDesc {
 }
 
 QFrame#landingActions {
-    background-color: #1e2229;
-    border: 1px solid #303744;
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0.4, y2: 1,
+        stop: 0 #172136, stop: 0.55 #111a2b, stop: 1 #0d1320
+    );
+    border: 1px solid #283350;
     border-radius: 22px;
 }
 
