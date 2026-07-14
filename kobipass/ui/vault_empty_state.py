@@ -50,10 +50,12 @@ class VaultWatermarkPane(QWidget):
         if self._source.isNull() or self.width() < 8 or self.height() < 8:
             self._scaled = QPixmap()
             return
-        # Cover: oranı koruyarak alanı tamamen kapla, ortala.
+        side = int(min(self.width(), self.height()) * _WATERMARK_SIZE_RATIO)
+        side = max(_WATERMARK_MIN, min(_WATERMARK_MAX, side))
         self._scaled = self._source.scaled(
-            self.size(),
-            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+            side,
+            side,
+            Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
 
