@@ -596,23 +596,23 @@ QToolButton#eyeBtn:checked {
     border-color: #4b68f4;
 }
 
-QToolButton#rowMenuBtn {
-    min-width: 38px;
-    max-width: 38px;
-    min-height: 38px;
-    max-height: 38px;
+QWidget#copyGroup QToolButton#fieldMenuBtn {
+    border: none;
+    background: transparent;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 28px;
+    max-height: 28px;
     padding: 0;
-    background-color: #2d3340;
-    border: 1px solid #3d4450;
-    border-radius: 6px;
+    margin: 0;
 }
 
-QToolButton#rowMenuBtn:hover {
-    background-color: #383f4d;
-    border-color: #4d5566;
+QWidget#copyGroup QToolButton#fieldMenuBtn:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
 }
 
-QToolButton#rowMenuBtn::menu-indicator {
+QWidget#copyGroup QToolButton#fieldMenuBtn::menu-indicator {
     image: none;
     width: 0;
 }
@@ -1449,23 +1449,23 @@ QToolButton#eyeBtn:checked {
     border-color: #4b68f4;
 }
 
-QToolButton#rowMenuBtn {
-    min-width: 38px;
-    max-width: 38px;
-    min-height: 38px;
-    max-height: 38px;
+QWidget#copyGroup QToolButton#fieldMenuBtn {
+    border: none;
+    background: transparent;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 28px;
+    max-height: 28px;
     padding: 0;
-    background-color: #edf0fa;
-    border: 1px solid #dde3f0;
-    border-radius: 6px;
+    margin: 0;
 }
 
-QToolButton#rowMenuBtn:hover {
-    background-color: #dde3f0;
-    border-color: #b9c4f6;
+QWidget#copyGroup QToolButton#fieldMenuBtn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
 }
 
-QToolButton#rowMenuBtn::menu-indicator {
+QWidget#copyGroup QToolButton#fieldMenuBtn::menu-indicator {
     image: none;
     width: 0;
 }
