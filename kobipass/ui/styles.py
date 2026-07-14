@@ -222,6 +222,74 @@ QWidget#vaultBody {
     background-color: #1a1d23;
 }
 
+QFrame#recordsPanel {
+    background-color: #1a1d23;
+    border: 1px solid #2c313b;
+    border-radius: 14px;
+}
+
+QLabel#recordsPanelTitle {
+    color: #b9c5df;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+QFrame#summaryPanel {
+    background-color: #1e2229;
+    border: 1px solid #2c313b;
+    border-radius: 14px;
+}
+
+QLabel#summaryTitle {
+    color: #b9c5df;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+QFrame#summaryStatRow {
+    background-color: #232833;
+    border: 1px solid #333c4c;
+    border-radius: 10px;
+}
+
+QLabel#summaryStatIcon {
+    background-color: rgba(75, 104, 244, 0.16);
+    border: 1px solid #3a4568;
+    border-radius: 8px;
+}
+
+QLabel#summaryStatLabel {
+    color: #c3cbdc;
+    font-size: 12px;
+}
+
+QLabel#summaryStatValue {
+    color: #f2f4fa;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QFrame#summarySecurityCard {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #202a45, stop: 1 #141a2c
+    );
+    border: 1px solid #33406a;
+    border-radius: 14px;
+}
+
+QLabel#summarySecurityIcon {
+    background-color: rgba(75, 104, 244, 0.22);
+    border-radius: 28px;
+}
+
+QLabel#summarySecurityText {
+    color: #b9c5df;
+    font-size: 11px;
+}
+
 QWidget#entryRow {
     background-color: #252830;
     border: 1px solid #343a46;
@@ -828,6 +896,17 @@ QStatusBar#vaultStatusBar QLabel#statusFile {
     border-radius: 10px;
     font-size: 10px;
     padding: 3px 9px;
+}
+
+QStatusBar#vaultStatusBar QPushButton#statusMenuBtn {
+    background-color: #20252e;
+    border: 1px solid #303845;
+    border-radius: 7px;
+}
+
+QStatusBar#vaultStatusBar QPushButton#statusMenuBtn:hover {
+    background-color: #2a303c;
+    border-color: #4b68f4;
 }
 
 QMessageBox {
@@ -1947,6 +2026,74 @@ QWidget#vaultBody {
     background-color: #f4f6fb;
 }
 
+QFrame#recordsPanel {
+    background-color: #f4f6fb;
+    border: 1px solid #dde3f0;
+    border-radius: 14px;
+}
+
+QLabel#recordsPanelTitle {
+    color: #3e4d70;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+QFrame#summaryPanel {
+    background-color: #ffffff;
+    border: 1px solid #dde3f0;
+    border-radius: 14px;
+}
+
+QLabel#summaryTitle {
+    color: #3e4d70;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+QFrame#summaryStatRow {
+    background-color: #f4f7ff;
+    border: 1px solid #d8e0f2;
+    border-radius: 10px;
+}
+
+QLabel#summaryStatIcon {
+    background-color: #eaefff;
+    border: 1px solid #d3ddf7;
+    border-radius: 8px;
+}
+
+QLabel#summaryStatLabel {
+    color: #4b5872;
+    font-size: 12px;
+}
+
+QLabel#summaryStatValue {
+    color: #1b2740;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QFrame#summarySecurityCard {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #eef2ff, stop: 1 #dfe6ff
+    );
+    border: 1px solid #c7d2fe;
+    border-radius: 14px;
+}
+
+QLabel#summarySecurityIcon {
+    background-color: #dfe6ff;
+    border-radius: 28px;
+}
+
+QLabel#summarySecurityText {
+    color: #3e4d70;
+    font-size: 11px;
+}
+
 QWidget#entryRow {
     background-color: #ffffff;
     border: 1px solid #dde3f0;
@@ -2547,6 +2694,17 @@ QStatusBar#vaultStatusBar QLabel#statusFile {
     border-radius: 10px;
     font-size: 10px;
     padding: 3px 9px;
+}
+
+QStatusBar#vaultStatusBar QPushButton#statusMenuBtn {
+    background-color: #ffffff;
+    border: 1px solid #dce2ec;
+    border-radius: 7px;
+}
+
+QStatusBar#vaultStatusBar QPushButton#statusMenuBtn:hover {
+    background-color: #f4f7ff;
+    border-color: #4b68f4;
 }
 
 QMessageBox {

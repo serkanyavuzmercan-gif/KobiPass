@@ -5,10 +5,19 @@ kobiPass ana pencere: rol tabanlı kasa yönetimi.
 from __future__ import annotations
 
 import copy
+from datetime import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import QEvent, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QKeySequence, QScreen, QShortcut
+from PyQt6.QtCore import QEvent, QThread, QTimer, QUrl, Qt, pyqtSignal
+from PyQt6.QtGui import (
+    QColor,
+    QDesktopServices,
+    QDragEnterEvent,
+    QDropEvent,
+    QKeySequence,
+    QScreen,
+    QShortcut,
+)
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -17,6 +26,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -62,6 +72,7 @@ from kobipass.ui.dialogs import (
 from kobipass.ui.entry_row import ROW_MIME, EntryRowWidget
 from kobipass.ui.landing_page import LandingPage
 from kobipass.ui.security_dialog import SecurityDialog
+from kobipass.ui.vault_summary_panel import VaultSummaryPanel
 from kobipass.backup import (
     clear_read_only,
     create_backup,
@@ -69,7 +80,14 @@ from kobipass.backup import (
     restore_backup,
     set_read_only,
 )
-from kobipass.ui.icons import icon_home, icon_sun, icon_theme
+from kobipass.ui.icons import (
+    icon_home,
+    icon_info,
+    icon_more,
+    icon_shield,
+    icon_sun,
+    icon_theme,
+)
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
@@ -166,6 +184,7 @@ class MainWindow(QMainWindow):
 
         self._current_path: Path | None = None
         self._dirty = False
+        self._last_saved_at: datetime | None = None
         self._row_widgets: list[EntryRowWidget] = []
         self._about_dialog: AboutDialog | None = None
         self._security_dialog: SecurityDialog | None = None
@@ -366,14 +385,55 @@ class MainWindow(QMainWindow):
 
         self._scroll.setWidget(self._entries_host)
         self._scroll.verticalScrollBar().valueChanged.connect(self._check_scroll_position)
-        root.addWidget(self._vault_body, stretch=1)
+
+        records_panel = QFrame()
+        records_panel.setObjectName("recordsPanel")
+        records_panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        records_layout = QVBoxLayout(records_panel)
+        records_layout.setContentsMargins(0, 0, 0, 0)
+        records_layout.setSpacing(0)
+
+        records_header = QHBoxLayout()
+        records_header.setContentsMargins(16, 12, 16, 10)
+        records_header.setSpacing(8)
+        records_header_icon = QLabel()
+        records_header_icon.setPixmap(
+            icon_shield(QColor("#8296ff"), size=15).pixmap(15, 15)
+        )
+        records_header.addWidget(records_header_icon, 0)
+        self._records_panel_title = QLabel()
+        self._records_panel_title.setObjectName("recordsPanelTitle")
+        records_header.addWidget(self._records_panel_title, 0)
+        records_header.addStretch(1)
+        records_layout.addLayout(records_header)
+        records_layout.addWidget(self._vault_body, 1)
+
+        self._summary_panel = VaultSummaryPanel()
+
+        body_row = QHBoxLayout()
+        body_row.setSpacing(14)
+        body_row.addWidget(records_panel, 1)
+        body_row.addWidget(self._summary_panel, 0)
+        root.addLayout(body_row, 1)
 
         status = QStatusBar()
         status.setObjectName("vaultStatusBar")
         self.setStatusBar(status)
+        status_left_wrap = QWidget()
+        status_left_layout = QHBoxLayout(status_left_wrap)
+        status_left_layout.setContentsMargins(0, 0, 0, 0)
+        status_left_layout.setSpacing(6)
+        self._status_info_icon = QLabel()
+        self._status_info_icon.setPixmap(
+            icon_info(QColor("#7a869f"), size=13).pixmap(13, 13)
+        )
+        self._status_info_icon.setToolTip(tr("status_info_tip"))
+        status_left_layout.addWidget(self._status_info_icon, 0)
         self._status_left = QLabel()
         self._status_left.setObjectName("statusCount")
-        status.addWidget(self._status_left, 1)
+        status_left_layout.addWidget(self._status_left, 0)
+        status_left_layout.addStretch(1)
+        status.addWidget(status_left_wrap, 1)
         self._status_role = ClickableLabel("")
         self._status_role.setObjectName("statusRole")
         self._status_role.clicked.connect(self._change_admin_password)
@@ -381,6 +441,13 @@ class MainWindow(QMainWindow):
         self._status_right = QLabel("")
         self._status_right.setObjectName("statusFile")
         status.addPermanentWidget(self._status_right)
+        self._status_menu_btn = QPushButton()
+        self._status_menu_btn.setObjectName("statusMenuBtn")
+        self._status_menu_btn.setIcon(icon_more(QColor("#8994ad"), size=16))
+        self._status_menu_btn.setFixedSize(26, 22)
+        self._status_menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._status_menu_btn.clicked.connect(self._show_status_menu)
+        status.addPermanentWidget(self._status_menu_btn)
         self._refresh_empty_state()
 
         self.landing_page.btn_open_file.clicked.connect(self._mevcut_dosyayi_ac)
@@ -545,6 +612,7 @@ class MainWindow(QMainWindow):
         self._pending_user_passwords = None
         self._pending_admin_password = None
         self._kilitli_mi = False
+        self._last_saved_at = None
         self._load_vault_data(KobiVault())
         self._show_vault_view()
 
@@ -871,6 +939,8 @@ class MainWindow(QMainWindow):
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))
         self._workspace_hint.setText(tr("vault_workspace_hint"))
+        self._records_panel_title.setText(tr("records_panel_title"))
+        self._summary_panel.retranslate()
         self._title_bar.retranslate()
         self._landing_page.retranslate()
         self._add_bar.retranslate()
@@ -951,6 +1021,31 @@ class MainWindow(QMainWindow):
         self._status_role.setProperty("clickable", is_admin)
         self._status_role.style().unpolish(self._status_role)
         self._status_role.style().polish(self._status_role)
+        self._update_summary_panel()
+
+    def _update_summary_panel(self) -> None:
+        total_fields = 0
+        hidden_count = 0
+        for row in self._row_widgets:
+            entry = row.to_entry()
+            total_fields += entry.max_info_index()
+            if entry.info1.strip():
+                hidden_count += 1
+        add_allowed = self._can_add_record(self._row_permissions())
+        if self._dirty or self._last_saved_at is None:
+            last_saved_text = tr("summary_not_saved")
+        else:
+            clock = self._last_saved_at.strftime("%H:%M")
+            if self._last_saved_at.date() == datetime.now().date():
+                last_saved_text = tr("date_today", time=clock)
+            else:
+                last_saved_text = tr("date_yesterday", time=clock)
+        self._summary_panel.set_stats(
+            total_fields=total_fields,
+            hidden_count=hidden_count,
+            add_allowed=add_allowed,
+            last_saved_text=last_saved_text,
+        )
 
     def _mark_dirty(self) -> None:
         self._dirty = True
@@ -1140,6 +1235,28 @@ class MainWindow(QMainWindow):
         if data.get("changed"):
             show_info(self, tr("users_applied_title"), tr("users_applied_text"))
 
+    def _show_status_menu(self) -> None:
+        menu = QMenu(self)
+        act_reveal = menu.addAction(tr("status_menu_reveal"))
+        act_copy = menu.addAction(tr("status_menu_copy_path"))
+        act_reveal.setEnabled(self._current_path is not None)
+        act_copy.setEnabled(self._current_path is not None)
+        chosen = menu.exec(
+            self._status_menu_btn.mapToGlobal(
+                self._status_menu_btn.rect().topRight()
+            )
+        )
+        if self._current_path is None or chosen is None:
+            return
+        if chosen == act_reveal:
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(str(self._current_path.parent))
+            )
+        elif chosen == act_copy:
+            clipboard = QApplication.clipboard()
+            if clipboard is not None:
+                clipboard.setText(str(self._current_path))
+
     def _change_admin_password(self) -> None:
         # 'Yönetici' yazısı yalnızca yönetici oturumunda tıklanabilir; başka
         # oturumda sessizce yok sayılır (etiket zaten tıklanabilir görünmez).
@@ -1313,6 +1430,7 @@ class MainWindow(QMainWindow):
                 return
             self._protect_vault_file(self._current_path)  # type: ignore[arg-type]
             self._snapshot_entries = copy.deepcopy(new_entries)
+            self._last_saved_at = datetime.now()
             self._clear_dirty()
             show_info(
                 self,
@@ -1378,6 +1496,7 @@ class MainWindow(QMainWindow):
 
         self._current_path = path
         add_recent_file(path)
+        self._last_saved_at = datetime.now()
         self._load_vault_data(unlock.vault)
         self._show_vault_view()
         show_info(self, tr("saved_title"), tr("saved_text", path=path_str))
@@ -1427,6 +1546,7 @@ class MainWindow(QMainWindow):
         self._protect_vault_file(path)
         add_recent_file(path)
         self._snapshot_entries = copy.deepcopy(entries)
+        self._last_saved_at = datetime.now()
         self._clear_dirty()
         show_info(self, tr("saved_title"), tr("saved_text", path=str(path)))
 
@@ -1471,6 +1591,10 @@ class MainWindow(QMainWindow):
         self._pending_admin_password = None
         self._kilitli_mi = False
         add_recent_file(path)
+        try:
+            self._last_saved_at = datetime.fromtimestamp(path.stat().st_mtime)
+        except OSError:
+            self._last_saved_at = None
         self._load_vault_data(unlock.vault)
         self._show_vault_view()
         self._landing_page.refresh_recent()

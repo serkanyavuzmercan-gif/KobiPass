@@ -454,3 +454,67 @@ def icon_globe(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
         p.drawLine(_pt(5 * s, 16.5 * s), _pt(19 * s, 16.5 * s))
 
     return _scaled_icon(f"globe:{color.name()}:{size}", draw, size)
+
+
+def icon_layers(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Üst üste katmanlar — toplam alan sayısı."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolygon(
+            _pt(12 * s, 3.5 * s), _pt(20.5 * s, 8 * s),
+            _pt(12 * s, 12.5 * s), _pt(3.5 * s, 8 * s),
+        )
+        p.drawPolyline(
+            _pt(3.5 * s, 12 * s), _pt(12 * s, 16.5 * s), _pt(20.5 * s, 12 * s)
+        )
+        p.drawPolyline(
+            _pt(3.5 * s, 16 * s), _pt(12 * s, 20.5 * s), _pt(20.5 * s, 16 * s)
+        )
+
+    return _scaled_icon(f"layers:{color.name()}:{size}", draw, size)
+
+
+def icon_plus_circle(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Daire içinde artı — alan/kayıt ekleme."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(_pt(12 * s, 12 * s), 8.5 * s, 8.5 * s)
+        p.drawLine(_pt(12 * s, 7.8 * s), _pt(12 * s, 16.2 * s))
+        p.drawLine(_pt(7.8 * s, 12 * s), _pt(16.2 * s, 12 * s))
+
+    return _scaled_icon(f"pluscircle:{color.name()}:{size}", draw, size)
+
+
+def icon_bar_chart(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Çubuk grafik — kayıt özeti."""
+    def draw(p: QPainter) -> None:
+        from PyQt6.QtCore import QRectF
+
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(4 * s, 13 * s, 4.5 * s, 7 * s), 1 * s, 1 * s)
+        p.drawRoundedRect(QRectF(9.75 * s, 8.5 * s, 4.5 * s, 11.5 * s), 1 * s, 1 * s)
+        p.drawRoundedRect(QRectF(15.5 * s, 4 * s, 4.5 * s, 16 * s), 1 * s, 1 * s)
+
+    return _scaled_icon(f"barchart:{color.name()}:{size}", draw, size)
+
+
+def icon_eye_slash(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Üzeri çizili göz — gizli değer sayısı (renklendirilebilir)."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(_pt(12 * s, 12 * s), 8 * s, 4.5 * s)
+        p.setBrush(color)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(_pt(12 * s, 12 * s), 2.1 * s, 2.1 * s)
+        p.setPen(_line_pen(color, 1.9 * s))
+        p.drawLine(_pt(5 * s, 19 * s), _pt(19 * s, 5 * s))
+
+    return _scaled_icon(f"eyeslash:{color.name()}:{size}", draw, size)
