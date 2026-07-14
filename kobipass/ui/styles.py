@@ -814,6 +814,13 @@ QStatusBar#vaultStatusBar QLabel#statusRole {
     padding: 3px 9px;
 }
 
+QStatusBar#vaultStatusBar QLabel#statusRole[clickable="true"] {
+    color: #c7d2fe;
+    background-color: #2b3550;
+    border-color: #4b68f4;
+    text-decoration: underline;
+}
+
 QStatusBar#vaultStatusBar QLabel#statusFile {
     color: #abb4c3;
     background-color: #20252e;
@@ -2405,6 +2412,13 @@ QStatusBar#vaultStatusBar QLabel#statusRole {
     border-radius: 10px;
     font-size: 10px;
     padding: 3px 9px;
+}
+
+QStatusBar#vaultStatusBar QLabel#statusRole[clickable="true"] {
+    color: #2f43a8;
+    background-color: #dfe6ff;
+    border-color: #4b68f4;
+    text-decoration: underline;
 }
 
 QStatusBar#vaultStatusBar QLabel#statusFile {

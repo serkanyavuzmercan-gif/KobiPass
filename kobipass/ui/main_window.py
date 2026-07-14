@@ -85,6 +85,17 @@ _FILTER_PAGE_SIZE = 100
 _FILTER_DEBOUNCE_MS = 300
 
 
+class ClickableLabel(QLabel):
+    """Sol tıklamada sinyal veren etiket (durum çubuğundaki 'Yönetici' yazısı)."""
+
+    clicked = pyqtSignal()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
 class WorkerThread(QThread):
     """Arama filtrelemesini arka planda çalıştırır."""
 
@@ -282,9 +293,6 @@ class MainWindow(QMainWindow):
         self._btn_users.clicked.connect(self._manage_users)
         toolbar.addWidget(self._btn_users, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._btn_settings = QPushButton()
-        self._btn_settings.setObjectName("vaultSettingsBtn")
-        self._btn_settings.clicked.connect(self._manage_vault_settings)
 
         self._btn_audit = QPushButton()
         self._btn_audit.clicked.connect(self._show_audit)
@@ -338,7 +346,6 @@ class MainWindow(QMainWindow):
         self._workspace_hint.setObjectName("vaultWorkspaceHint")
         badge_layout.addWidget(self._workspace_hint)
         badge_layout.addStretch()
-        badge_layout.addWidget(self._btn_settings)
         badge_layout.setContentsMargins(0, 0, 0, 0)
         command_layout.addLayout(badge_layout)
 
@@ -382,8 +389,9 @@ class MainWindow(QMainWindow):
         self._status_left = QLabel()
         self._status_left.setObjectName("statusCount")
         status.addWidget(self._status_left, 1)
-        self._status_role = QLabel("")
+        self._status_role = ClickableLabel("")
         self._status_role.setObjectName("statusRole")
+        self._status_role.clicked.connect(self._change_admin_password)
         status.addPermanentWidget(self._status_role)
         self._status_right = QLabel("")
         self._status_right.setObjectName("statusFile")
@@ -642,7 +650,6 @@ class MainWindow(QMainWindow):
         # basılınca açıklama verir (gizlemek yerine kısıtlama).
         for btn in (
             self._btn_users,
-            self._btn_settings,
             self._btn_audit,
             self._btn_report,
         ):
@@ -865,7 +872,6 @@ class MainWindow(QMainWindow):
         self._btn_home.setToolTip(tr("btn_home_tip"))
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
-        self._btn_settings.setText(tr("btn_vault_settings"))
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_report.setText(tr("btn_report"))
         self._btn_report.setToolTip(tr("btn_report_tip"))
@@ -941,6 +947,20 @@ class MainWindow(QMainWindow):
             tr("status_role", role=role_txt) if role_txt else ""
         )
         self._status_role.setVisible(bool(role_txt))
+        # Yalnızca yönetici oturumunda 'Yönetici' yazısı tıklanabilir olsun
+        # (buraya tıklayınca kasa parolası değiştirme ekranı açılır).
+        is_admin = isinstance(self._session, AdminSession)
+        self._status_role.setCursor(
+            Qt.CursorShape.PointingHandCursor
+            if is_admin
+            else Qt.CursorShape.ArrowCursor
+        )
+        self._status_role.setToolTip(
+            tr("admin_pwd_change_tip") if is_admin else ""
+        )
+        self._status_role.setProperty("clickable", is_admin)
+        self._status_role.style().unpolish(self._status_role)
+        self._status_role.style().polish(self._status_role)
 
     def _mark_dirty(self) -> None:
         self._dirty = True
@@ -1126,9 +1146,9 @@ class MainWindow(QMainWindow):
         if data.get("changed"):
             show_info(self, tr("users_applied_title"), tr("users_applied_text"))
 
-    def _manage_vault_settings(self) -> None:
-        if not self._require_admin("restricted_vault_settings"):
-            return
+    def _change_admin_password(self) -> None:
+        # 'Yönetici' yazısı yalnızca yönetici oturumunda tıklanabilir; başka
+        # oturumda sessizce yok sayılır (etiket zaten tıklanabilir görünmez).
         if not isinstance(self._session, AdminSession) or self._session.keys is None:
             return
         effective_users = (
