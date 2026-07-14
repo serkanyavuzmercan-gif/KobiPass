@@ -71,6 +71,7 @@ from kobipass.ui.icons import icon_home, icon_sun, icon_theme
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
+from kobipass.ui.vault_empty_state import VaultEmptyState, should_show_empty_state
 from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry, utc_now_iso
 
 _FILTER_PAGE_SIZE = 100
@@ -343,6 +344,10 @@ class MainWindow(QMainWindow):
         self._add_bar = AddRecordBar(self._add_row)
         self._entries_layout.addWidget(self._add_bar)
 
+        self._empty_state = VaultEmptyState()
+        self._empty_state.add_requested.connect(self._on_empty_state_add)
+        self._entries_layout.addWidget(self._empty_state, stretch=1)
+
         self._scroll.setWidget(self._entries_host)
         self._scroll.verticalScrollBar().valueChanged.connect(self._check_scroll_position)
         root.addWidget(self._scroll, stretch=1)
@@ -356,6 +361,7 @@ class MainWindow(QMainWindow):
         self._status_right = QLabel("")
         status.addPermanentWidget(self._status_right)
         self._add_row()
+        self._refresh_empty_state()
 
         self.landing_page.btn_open_file.clicked.connect(self._mevcut_dosyayi_ac)
         self.landing_page.btn_create_file.clicked.connect(
@@ -393,6 +399,16 @@ class MainWindow(QMainWindow):
         if self._session is not None and not self._kilitli_mi:
             self._search_bar.setFocus()
             self._search_bar.selectAll()
+
+    def _on_empty_state_add(self) -> None:
+        if self._add_bar.isVisible() and not self._kilitli_mi:
+            self._add_row()
+            if self._row_widgets:
+                self._row_widgets[-1].focus_edits()[0].setFocus()
+
+    def _refresh_empty_state(self) -> None:
+        show = should_show_empty_state(len(self._row_widgets)) and not self._kilitli_mi
+        self._empty_state.setVisible(show)
 
     def _shortcut_add_row(self) -> None:
         if self._add_bar.isVisible() and not self._kilitli_mi:
@@ -585,6 +601,7 @@ class MainWindow(QMainWindow):
             title = f"{title} — {self._role_label()}"
         self.setWindowTitle(title)
         self._update_status()
+        self._refresh_empty_state()
 
     def _filter_rows(self, text: str) -> None:
         if not self._vault:
@@ -773,6 +790,7 @@ class MainWindow(QMainWindow):
         self._title_bar.retranslate()
         self._landing_page.retranslate()
         self._add_bar.retranslate()
+        self._empty_state.retranslate()
         for row in self._row_widgets:
             row.retranslate()
         self._help_panel.retranslate()
@@ -916,6 +934,7 @@ class MainWindow(QMainWindow):
         if refresh_session:
             self._apply_session_ui()
         self._update_tab_order()
+        self._refresh_empty_state()
 
     def _remove_row(self, row: EntryRowWidget) -> None:
         perms = self._row_permissions()
@@ -941,6 +960,7 @@ class MainWindow(QMainWindow):
                     other.vault_index -= 1
         self._mark_dirty()
         self._update_tab_order()
+        self._refresh_empty_state()
 
     def _clear_all_rows(self) -> None:
         for row in list(self._row_widgets):
@@ -967,6 +987,7 @@ class MainWindow(QMainWindow):
             row.set_sensitive_shown(False)
         self._apply_session_ui()
         self._reset_idle_timer()
+        self._refresh_empty_state()
 
     def _open_security_dialog(self) -> None:
         if self._about_dialog is None:

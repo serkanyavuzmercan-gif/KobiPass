@@ -787,6 +787,25 @@ QListWidget#landingRecentList::item:selected {
     background-color: #2d3340;
 }
 
+/* --- Kasa boş durum: filigran + rehber --- */
+QWidget#vaultEmptyState {
+    background: transparent;
+    border: none;
+}
+
+QLabel#vaultEmptyTitle {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #e8eaed;
+}
+
+QLabel#vaultEmptyTip {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+    color: #9aa0a8;
+}
+
 /* --- Grup kutuları, onay kutuları, açılır menüler (koyu tema) --- */
 QGroupBox {
     color: #e8eaed;
@@ -1725,6 +1744,25 @@ QListWidget#landingRecentList::item {
 QListWidget#landingRecentList::item:hover,
 QListWidget#landingRecentList::item:selected {
     background-color: #eff6ff;
+}
+
+/* --- Kasa boş durum: filigran + rehber --- */
+QWidget#vaultEmptyState {
+    background: transparent;
+    border: none;
+}
+
+QLabel#vaultEmptyTitle {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+QLabel#vaultEmptyTip {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+    color: #6b7280;
 }
 
 /* --- Grup kutuları, onay kutuları, açılır menüler (aydınlık tema) --- */
