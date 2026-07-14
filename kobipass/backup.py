@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 
 BACKUP_KEEP = 10
-_TIME_FMT = "%Y%m%d-%H%M%S"
+_TIME_FMT = "%Y%m%d-%H%M%S-%f"
 
 
 def backup_dir() -> Path:
@@ -56,6 +56,8 @@ def create_backup(vault_path: Path) -> Path | None:
         counter += 1
 
     shutil.copy2(vault_path, target)
+    # copy2 kaynak mtime'ını korur; hızlı ardışık kayıtlarda sıralama eşitlenmesin.
+    target.touch()
     _prune(directory, _backup_stem(vault_path))
     return target
 
@@ -70,7 +72,7 @@ def find_backups(vault_path: Path | str | None = None) -> list[Path]:
         candidates = [p for p in directory.glob("*.enc") if p.name.startswith(prefix)]
     else:
         candidates = list(directory.glob("*.enc"))
-    return sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)
+    return sorted(candidates, key=lambda p: p.stat().st_mtime_ns, reverse=True)
 
 
 def restore_backup(backup_path: Path, target_path: Path) -> None:
@@ -103,7 +105,7 @@ def _prune(directory: Path, stem: str) -> None:
     prefix = f"{stem}-"
     entries = sorted(
         (p for p in directory.glob("*.enc") if p.name.startswith(prefix)),
-        key=lambda p: p.stat().st_mtime,
+        key=lambda p: p.stat().st_mtime_ns,
         reverse=True,
     )
     for old in entries[BACKUP_KEEP:]:
