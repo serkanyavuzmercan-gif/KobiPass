@@ -607,6 +607,10 @@ class EntryRowWidget(QWidget):
     def _confirm_and_remove(self) -> None:
         if not self._can_delete or self._view_only:
             return
+        # Boş kayıtta onay sorma; en az bir alan doluysa sor.
+        if not self.to_entry().has_content():
+            self.remove_requested.emit(self)
+            return
         box = QMessageBox(self)
         box.setWindowTitle(tr("confirm_delete_title"))
         box.setText(tr("confirm_delete_text"))
