@@ -44,6 +44,12 @@ def clear_recent_files() -> None:
     _settings().setValue("recent_files", [])
 
 
+def remove_recent_file(path: Path | str) -> None:
+    path_str = str(Path(path).resolve())
+    recent = [p for p in get_recent_files() if p != path_str]
+    _settings().setValue("recent_files", recent[:RECENT_MAX])
+
+
 def get_clipboard_clear_ms() -> int:
     value = _settings().value("clipboard_clear_ms", DEFAULT_CLIPBOARD_CLEAR_MS)
     try:

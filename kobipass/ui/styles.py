@@ -961,6 +961,74 @@ QListWidget#landingRecentList::item:selected {
     background-color: #2d3340;
 }
 
+/* --- Sağ panel: nav satırları, son kasa kartı süsleri, son açılanlar --- */
+QFrame#landingNavRow {
+    background-color: #232833;
+    border: 1px solid #333c4c;
+    border-radius: 12px;
+}
+
+QFrame#landingNavRow:hover {
+    border-color: #4b68f4;
+    background-color: #262c3a;
+}
+
+QLabel#landingNavLabel {
+    color: #e7ebf3;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+QLabel#landingLatestDoc {
+    background-color: rgba(75, 104, 244, 0.16);
+    border: 1px solid #3a4568;
+    border-radius: 11px;
+}
+
+QPushButton#landingClearRecent {
+    background: transparent;
+    border: none;
+    color: #9aa4bb;
+    font-size: 11px;
+    padding: 2px 4px;
+}
+
+QPushButton#landingClearRecent:hover {
+    color: #d8dEEA;
+}
+
+QLabel#recentRowIcon {
+    background-color: rgba(75, 104, 244, 0.14);
+    border: 1px solid #363f57;
+    border-radius: 9px;
+}
+
+QLabel#recentRowName {
+    color: #eaeef7;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+QLabel#recentRowPath {
+    color: #8590a6;
+    font-size: 10.5px;
+}
+
+QLabel#recentRowStamp {
+    color: #8590a6;
+    font-size: 10.5px;
+}
+
+QPushButton#recentRowMenu {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+}
+
+QPushButton#recentRowMenu:hover {
+    background-color: #2d3340;
+}
+
 /* --- Premium karşılama ekranı --- */
 QWidget#landingPage {
     background-color: #171a20;
@@ -2590,6 +2658,74 @@ QListWidget#landingRecentList::item {
 QListWidget#landingRecentList::item:hover,
 QListWidget#landingRecentList::item:selected {
     background-color: #eff6ff;
+}
+
+/* --- Sağ panel (aydınlık): nav satırları, süsler, son açılanlar --- */
+QFrame#landingNavRow {
+    background-color: #f4f7ff;
+    border: 1px solid #d8e0f2;
+    border-radius: 12px;
+}
+
+QFrame#landingNavRow:hover {
+    border-color: #4b68f4;
+    background-color: #eef2ff;
+}
+
+QLabel#landingNavLabel {
+    color: #1b2740;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+QLabel#landingLatestDoc {
+    background-color: #eaefff;
+    border: 1px solid #d3ddf7;
+    border-radius: 11px;
+}
+
+QPushButton#landingClearRecent {
+    background: transparent;
+    border: none;
+    color: #5f6d86;
+    font-size: 11px;
+    padding: 2px 4px;
+}
+
+QPushButton#landingClearRecent:hover {
+    color: #1b2740;
+}
+
+QLabel#recentRowIcon {
+    background-color: #eaefff;
+    border: 1px solid #d3ddf7;
+    border-radius: 9px;
+}
+
+QLabel#recentRowName {
+    color: #1b2740;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+QLabel#recentRowPath {
+    color: #6a768c;
+    font-size: 10.5px;
+}
+
+QLabel#recentRowStamp {
+    color: #6a768c;
+    font-size: 10.5px;
+}
+
+QPushButton#recentRowMenu {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+}
+
+QPushButton#recentRowMenu:hover {
+    background-color: #e9eefb;
 }
 
 /* --- Premium karşılama ekranı (aydınlık) --- */

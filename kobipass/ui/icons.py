@@ -347,3 +347,93 @@ def icon_copy() -> QIcon:
     if _ICON_COPY is None:
         _ICON_COPY = _build_icon_copy()
     return _ICON_COPY
+
+
+def icon_clock(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Saat — son kasa / son açılanlar başlıkları."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(_pt(12 * s, 12 * s), 8.5 * s, 8.5 * s)
+        p.drawLine(_pt(12 * s, 12 * s), _pt(12 * s, 7.5 * s))
+        p.drawLine(_pt(12 * s, 12 * s), _pt(15.5 * s, 13.5 * s))
+
+    return _scaled_icon(f"clock:{color.name()}:{size}", draw, size)
+
+
+def icon_file(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Belge — kasa dosyası."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolyline(
+            _pt(6 * s, 3.5 * s), _pt(14 * s, 3.5 * s), _pt(18.5 * s, 8 * s),
+            _pt(18.5 * s, 20.5 * s), _pt(6 * s, 20.5 * s), _pt(6 * s, 3.5 * s),
+        )
+        p.drawPolyline(
+            _pt(14 * s, 3.5 * s), _pt(14 * s, 8 * s), _pt(18.5 * s, 8 * s)
+        )
+        p.drawLine(_pt(9 * s, 12.5 * s), _pt(15 * s, 12.5 * s))
+        p.drawLine(_pt(9 * s, 16 * s), _pt(15 * s, 16 * s))
+
+    return _scaled_icon(f"file:{color.name()}:{size}", draw, size)
+
+
+def icon_lock(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Kilit — kasayı aç."""
+    def draw(p: QPainter) -> None:
+        from PyQt6.QtCore import QRectF
+
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        # gövde
+        body = QRectF(5.5 * s, 10.5 * s, 13 * s, 9.5 * s)
+        p.drawRoundedRect(body, 2 * s, 2 * s)
+        # kanca
+        p.drawArc(QRectF(8 * s, 4 * s, 8 * s, 10 * s), 0, 180 * 16)
+        p.drawLine(_pt(8 * s, 9 * s), _pt(8 * s, 10.5 * s))
+        p.drawLine(_pt(16 * s, 9 * s), _pt(16 * s, 10.5 * s))
+        # anahtar deliği
+        p.setBrush(color)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(_pt(12 * s, 14.5 * s), 1.3 * s, 1.3 * s)
+
+    return _scaled_icon(f"lock:{color.name()}:{size}", draw, size)
+
+
+def icon_arrow_right(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Sağ ok — ilerle."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.9 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawLine(_pt(5 * s, 12 * s), _pt(18 * s, 12 * s))
+        p.drawPolyline(
+            _pt(12.5 * s, 6.5 * s), _pt(18 * s, 12 * s), _pt(12.5 * s, 17.5 * s)
+        )
+
+    return _scaled_icon(f"arrowr:{color.name()}:{size}", draw, size)
+
+
+def icon_trash(color: QColor = NEUTRAL_COLOR, size: int = 16) -> QIcon:
+    """Çöp kutusu — tümünü temizle / kaldır."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawLine(_pt(4 * s, 6.5 * s), _pt(20 * s, 6.5 * s))
+        p.drawPolyline(
+            _pt(9.5 * s, 6.5 * s), _pt(9.5 * s, 4.5 * s),
+            _pt(14.5 * s, 4.5 * s), _pt(14.5 * s, 6.5 * s),
+        )
+        p.drawPolyline(
+            _pt(6 * s, 6.5 * s), _pt(7 * s, 20 * s),
+            _pt(17 * s, 20 * s), _pt(18 * s, 6.5 * s),
+        )
+        p.drawLine(_pt(10 * s, 10 * s), _pt(10.4 * s, 16.5 * s))
+        p.drawLine(_pt(14 * s, 10 * s), _pt(13.6 * s, 16.5 * s))
+
+    return _scaled_icon(f"trash:{color.name()}:{size}", draw, size)

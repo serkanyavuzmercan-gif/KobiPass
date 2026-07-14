@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from datetime import datetime
+
 from PyQt6.QtCore import QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPixmap
 from PyQt6.QtWidgets import (
@@ -12,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QPushButton,
     QSizePolicy,
     QVBoxLayout,
@@ -20,16 +23,26 @@ from PyQt6.QtWidgets import (
 
 from kobipass.i18n import i18n, tr
 from kobipass.resources import hero_left_pixmap, logo_pixmap
-from kobipass.settings import get_recent_files
+from kobipass.settings import (
+    clear_recent_files,
+    get_recent_files,
+    remove_recent_file,
+)
 from kobipass.ui.icons import (
+    icon_arrow_right,
+    icon_clock,
+    icon_file,
     icon_file_new,
     icon_folder_open,
     icon_home,
     icon_info,
     icon_key,
+    icon_lock,
+    icon_more,
     icon_shield,
     icon_sun,
     icon_theme,
+    icon_trash,
 )
 
 _FEATURE_ACCENT = QColor("#8296ff")
@@ -73,6 +86,118 @@ class HeroPanel(QFrame):
         x = rect.x() + (rect.width() - scaled.width()) // 2
         y = rect.y() + (rect.height() - scaled.height()) // 2
         painter.drawPixmap(x, y, scaled)
+
+
+_NAV_ACCENT = QColor("#8296ff")
+
+
+class NavRow(QFrame):
+    """İkon + metin + sağ ok içeren tıklanabilir satır (dosya seç / oluştur)."""
+
+    clicked = pyqtSignal()
+
+    def __init__(self, icon_pm: QPixmap, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("landingNavRow")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(16, 13, 16, 13)
+        lay.setSpacing(12)
+        icon = QLabel()
+        icon.setPixmap(icon_pm)
+        lay.addWidget(icon, 0)
+        self._label = QLabel()
+        self._label.setObjectName("landingNavLabel")
+        lay.addWidget(self._label, 0)
+        lay.addStretch(1)
+        arrow = QLabel()
+        arrow.setPixmap(icon_arrow_right(QColor("#7f8aa6"), size=18).pixmap(18, 18))
+        lay.addWidget(arrow, 0)
+
+    def set_text(self, text: str) -> None:
+        self._label.setText(text)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
+class RecentRow(QWidget):
+    """Son açılanlar satırı: belge ikonu + ad/yol + tarih + kebab menü."""
+
+    open_requested = pyqtSignal(str)
+    remove_requested = pyqtSignal(str)
+
+    def __init__(self, path: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._path = path
+        p = Path(path)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(12, 11, 8, 11)
+        lay.setSpacing(11)
+
+        icon_tile = QLabel()
+        icon_tile.setObjectName("recentRowIcon")
+        icon_tile.setFixedSize(36, 36)
+        icon_tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_tile.setPixmap(icon_file(QColor("#8296ff"), size=18).pixmap(18, 18))
+        lay.addWidget(icon_tile, 0)
+
+        text = QVBoxLayout()
+        text.setSpacing(3)
+        name = QLabel(p.name)
+        name.setObjectName("recentRowName")
+        path_lbl = QLabel(str(p.parent))
+        path_lbl.setObjectName("recentRowPath")
+        text.addWidget(name)
+        text.addWidget(path_lbl)
+        lay.addLayout(text, 1)
+
+        stamp = QLabel(self._format_time(p))
+        stamp.setObjectName("recentRowStamp")
+        lay.addWidget(stamp, 0)
+
+        menu_btn = QPushButton()
+        menu_btn.setObjectName("recentRowMenu")
+        menu_btn.setFixedSize(26, 26)
+        menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        menu_btn.setIcon(icon_more(QColor("#8994ad"), size=18))
+        menu_btn.clicked.connect(self._show_menu)
+        self._menu_btn = menu_btn
+        lay.addWidget(menu_btn, 0)
+
+    def _format_time(self, p: Path) -> str:
+        try:
+            ts = datetime.fromtimestamp(p.stat().st_mtime)
+        except OSError:
+            return ""
+        now = datetime.now()
+        clock = ts.strftime("%H:%M")
+        if ts.date() == now.date():
+            return tr("date_today", time=clock)
+        delta = (now.date() - ts.date()).days
+        if delta == 1:
+            return tr("date_yesterday", time=clock)
+        return ts.strftime("%d.%m.%Y")
+
+    def _show_menu(self) -> None:
+        menu = QMenu(self)
+        act_open = menu.addAction(tr("recent_open"))
+        act_remove = menu.addAction(tr("recent_remove"))
+        chosen = menu.exec(
+            self._menu_btn.mapToGlobal(self._menu_btn.rect().bottomLeft())
+        )
+        if chosen == act_open:
+            self.open_requested.emit(self._path)
+        elif chosen == act_remove:
+            self.remove_requested.emit(self._path)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.open_requested.emit(self._path)
+        super().mousePressEvent(event)
 
 
 class LandingPage(QWidget):
@@ -203,60 +328,97 @@ class LandingPage(QWidget):
         self._actions_subtitle.setWordWrap(True)
         actions_layout.addWidget(self._actions_subtitle)
 
+        # ── Son kasa kartı ───────────────────────────────────────────────
         self._latest_card = QFrame()
         self._latest_card.setObjectName("landingLatestCard")
         self._latest_card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         latest_layout = QVBoxLayout(self._latest_card)
         latest_layout.setContentsMargins(18, 16, 18, 16)
-        latest_layout.setSpacing(6)
+        latest_layout.setSpacing(10)
 
+        latest_top = QHBoxLayout()
+        latest_top.setSpacing(10)
+        latest_text = QVBoxLayout()
+        latest_text.setSpacing(4)
+
+        kicker_row = QHBoxLayout()
+        kicker_row.setSpacing(6)
+        kicker_clock = QLabel()
+        kicker_clock.setPixmap(icon_clock(QColor("#8296ff"), size=15).pixmap(15, 15))
+        kicker_row.addWidget(kicker_clock, 0)
         self._latest_kicker = QLabel()
         self._latest_kicker.setObjectName("landingLatestKicker")
-        latest_layout.addWidget(self._latest_kicker)
+        kicker_row.addWidget(self._latest_kicker, 0)
+        kicker_row.addStretch(1)
+        latest_text.addLayout(kicker_row)
 
         self._latest_name = QLabel()
         self._latest_name.setObjectName("landingLatestName")
         self._latest_name.setWordWrap(True)
-        latest_layout.addWidget(self._latest_name)
+        latest_text.addWidget(self._latest_name)
 
         self._latest_path_label = QLabel()
         self._latest_path_label.setObjectName("landingLatestPath")
         self._latest_path_label.setWordWrap(True)
-        latest_layout.addWidget(self._latest_path_label)
+        latest_text.addWidget(self._latest_path_label)
+        latest_top.addLayout(latest_text, 1)
+
+        self._latest_doc = QLabel()
+        self._latest_doc.setObjectName("landingLatestDoc")
+        self._latest_doc.setFixedSize(46, 46)
+        self._latest_doc.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._latest_doc.setPixmap(icon_file(QColor("#aeb9ff"), size=22).pixmap(22, 22))
+        latest_top.addWidget(self._latest_doc, 0, Qt.AlignmentFlag.AlignTop)
+        latest_layout.addLayout(latest_top)
 
         self._open_latest = QPushButton()
         self._open_latest.setObjectName("landingPrimaryBtn")
-        self._open_latest.setIcon(icon_folder_open(size=20))
+        self._open_latest.setIcon(icon_lock(QColor("#ffffff"), size=18))
         self._open_latest.setCursor(Qt.CursorShape.PointingHandCursor)
         self._open_latest.clicked.connect(self._open_latest_path)
         latest_layout.addWidget(self._open_latest)
         actions_layout.addWidget(self._latest_card)
 
-        self.btn_open_file = QPushButton()
-        self.btn_open_file.setObjectName("landingSecondaryBtn")
-        self.btn_open_file.setIcon(icon_folder_open(size=20))
-        self.btn_open_file.setCursor(Qt.CursorShape.PointingHandCursor)
+        # ── Dosya seç / oluştur (ok'lu satırlar) ─────────────────────────
+        self.btn_open_file = NavRow(
+            icon_folder_open(_NAV_ACCENT, size=20).pixmap(20, 20)
+        )
+        self.btn_open_file.setObjectName("landingNavRow")
         actions_layout.addWidget(self.btn_open_file)
 
-        self.btn_create_file = QPushButton()
-        self.btn_create_file.setObjectName("landingCreateBtn")
-        self.btn_create_file.setIcon(icon_file_new(size=22))
-        self.btn_create_file.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_create_file = NavRow(
+            icon_file_new(_NAV_ACCENT, size=20).pixmap(20, 20)
+        )
         actions_layout.addWidget(self.btn_create_file)
 
+        # ── Son açılanlar başlığı + Tümünü temizle ───────────────────────
+        self._recent_header = QWidget()
+        recent_header = QHBoxLayout(self._recent_header)
+        recent_header.setContentsMargins(0, 6, 0, 0)
+        recent_header.setSpacing(6)
+        recent_clock = QLabel()
+        recent_clock.setPixmap(icon_clock(QColor("#8994ad"), size=15).pixmap(15, 15))
+        recent_header.addWidget(recent_clock, 0)
         self._recent_title = QLabel()
         self._recent_title.setObjectName("landingRecentTitle")
-        actions_layout.addWidget(self._recent_title)
+        recent_header.addWidget(self._recent_title, 0)
+        recent_header.addStretch(1)
+        self._clear_recent = QPushButton()
+        self._clear_recent.setObjectName("landingClearRecent")
+        self._clear_recent.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._clear_recent.setIcon(icon_trash(QColor("#8994ad"), size=15))
+        self._clear_recent.clicked.connect(self._on_clear_recent)
+        recent_header.addWidget(self._clear_recent, 0)
+        actions_layout.addWidget(self._recent_header)
 
         self._recent_list = QListWidget()
         self._recent_list.setObjectName("landingRecentList")
-        self._recent_list.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._recent_list.setMaximumHeight(150)
+        self._recent_list.setSelectionMode(
+            QListWidget.SelectionMode.NoSelection
+        )
         self._recent_list.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
-        self._recent_list.itemActivated.connect(self._on_recent_activated)
-        self._recent_list.itemClicked.connect(self._on_recent_activated)
         actions_layout.addWidget(self._recent_list, 1)
 
         self._recent_empty = QLabel()
@@ -322,10 +484,13 @@ class LandingPage(QWidget):
         if self._latest_path:
             self.recent_file_chosen.emit(self._latest_path)
 
-    def _on_recent_activated(self, item: QListWidgetItem) -> None:
-        path = item.data(Qt.ItemDataRole.UserRole)
-        if path:
-            self.recent_file_chosen.emit(str(path))
+    def _on_clear_recent(self) -> None:
+        clear_recent_files()
+        self.refresh_recent()
+
+    def _on_remove_recent(self, path: str) -> None:
+        remove_recent_file(path)
+        self.refresh_recent()
 
     def refresh_recent(self) -> None:
         self._recent_list.clear()
@@ -333,7 +498,7 @@ class LandingPage(QWidget):
         self._latest_path = recent[0] if recent else ""
         self._latest_card.setVisible(bool(recent))
         self._recent_list.setVisible(bool(recent))
-        self._recent_title.setVisible(bool(recent))
+        self._recent_header.setVisible(bool(recent))
         self._recent_empty.setVisible(not recent)
 
         if recent:
@@ -342,10 +507,13 @@ class LandingPage(QWidget):
             self._latest_path_label.setText(str(latest.parent))
             self._latest_path_label.setToolTip(str(latest))
         for path in recent[:5]:
-            item = QListWidgetItem(Path(path).name)
-            item.setToolTip(path)
-            item.setData(Qt.ItemDataRole.UserRole, path)
+            row = RecentRow(path)
+            row.open_requested.connect(self.recent_file_chosen.emit)
+            row.remove_requested.connect(self._on_remove_recent)
+            item = QListWidgetItem()
+            item.setSizeHint(row.sizeHint())
             self._recent_list.addItem(item)
+            self._recent_list.setItemWidget(item, row)
 
     def retranslate(self) -> None:
         self._apply_hero_image()
@@ -367,8 +535,9 @@ class LandingPage(QWidget):
         self._actions_subtitle.setText(tr("landing_actions_subtitle"))
         self._latest_kicker.setText(tr("landing_latest_kicker"))
         self._open_latest.setText(tr("landing_open_latest"))
-        self.btn_open_file.setText(tr("landing_open_other"))
-        self.btn_create_file.setText(tr("landing_create_title"))
+        self.btn_open_file.set_text(tr("landing_open_other"))
+        self.btn_create_file.set_text(tr("landing_create_title"))
         self.btn_create_file.setToolTip(tr("landing_create_sub"))
         self._recent_title.setText(tr("landing_recent"))
+        self._clear_recent.setText(tr("landing_clear_recent"))
         self._recent_empty.setText(tr("landing_recent_empty"))

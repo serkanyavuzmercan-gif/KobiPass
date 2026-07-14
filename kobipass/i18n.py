@@ -320,6 +320,11 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_create_sub": "Sıfırdan yeni bir parola kasası oluşturun",
         "landing_recent": "Son açılanlar",
         "landing_recent_empty": "Henüz son dosya yok",
+        "landing_clear_recent": "Tümünü temizle",
+        "recent_open": "Aç",
+        "recent_remove": "Listeden kaldır",
+        "date_today": "Bugün {time}",
+        "date_yesterday": "Dün {time}",
         "landing_eyebrow": "KOBİLER İÇİN GÜVENLİ PAROLA KASASI",
         "landing_hero_title": "Parolalarınız.\nKontrolünüz altında.",
         "landing_hero_subtitle": (
@@ -707,6 +712,11 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_create_sub": "Start a brand-new password vault",
         "landing_recent": "Recent files",
         "landing_recent_empty": "No recent files yet",
+        "landing_clear_recent": "Clear all",
+        "recent_open": "Open",
+        "recent_remove": "Remove from list",
+        "date_today": "Today {time}",
+        "date_yesterday": "Yesterday {time}",
         "landing_eyebrow": "SECURE PASSWORD VAULT FOR SMALL BUSINESSES",
         "landing_hero_title": "Your passwords.\nUnder your control.",
         "landing_hero_subtitle": (
