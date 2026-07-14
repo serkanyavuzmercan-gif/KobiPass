@@ -611,6 +611,42 @@ QFileDialog {
 }
 
 /* --- QTabWidget (Sekmeler) Karanlık Tema --- */
+
+/* --- Değişiklik Geçmişi tablosu (koyu tema) --- */
+QTableWidget {
+    background-color: #1e2229;
+    alternate-background-color: #23272f;
+    color: #e8eaed;
+    gridline-color: #2d3340;
+    border: 1px solid #3d4450;
+    border-radius: 6px;
+}
+
+QTableWidget::item {
+    color: #e8eaed;
+    padding: 4px 6px;
+}
+
+QTableWidget::item:selected {
+    background-color: #2d3f66;
+    color: #ffffff;
+}
+
+QHeaderView::section {
+    background-color: #252830;
+    color: #cbd5e1;
+    border: none;
+    border-right: 1px solid #2d3340;
+    border-bottom: 1px solid #3d4450;
+    padding: 6px 8px;
+    font-weight: 600;
+}
+
+QTableCornerButton::section {
+    background-color: #252830;
+    border: none;
+}
+
 QTabWidget::pane {
     border: 1px solid #3d4450;
     background-color: #1e2229;
@@ -1316,6 +1352,42 @@ QFileDialog {
 }
 
 /* --- QTabWidget (Sekmeler) Aydınlık Tema --- */
+
+/* --- Değişiklik Geçmişi tablosu (aydınlık tema) --- */
+QTableWidget {
+    background-color: #ffffff;
+    alternate-background-color: #f4f6fb;
+    color: #1f2937;
+    gridline-color: #e5e9f2;
+    border: 1px solid #dde3f0;
+    border-radius: 6px;
+}
+
+QTableWidget::item {
+    color: #1f2937;
+    padding: 4px 6px;
+}
+
+QTableWidget::item:selected {
+    background-color: #dbe4fd;
+    color: #1f2937;
+}
+
+QHeaderView::section {
+    background-color: #eef1fa;
+    color: #374151;
+    border: none;
+    border-right: 1px solid #dde3f0;
+    border-bottom: 1px solid #dde3f0;
+    padding: 6px 8px;
+    font-weight: 600;
+}
+
+QTableCornerButton::section {
+    background-color: #eef1fa;
+    border: none;
+}
+
 QTabWidget::pane {
     border: 1px solid #dde3f0;
     background-color: #ffffff;
