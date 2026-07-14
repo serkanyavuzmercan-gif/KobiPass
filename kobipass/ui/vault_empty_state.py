@@ -20,8 +20,10 @@ from kobipass.i18n import tr
 from kobipass.resources import logo_pixmap
 
 _WATERMARK_OPACITY = 0.075
-# Deneme: filigran gövdeyi tamamen kaplar (cover).
-_WATERMARK_COVER = True
+# Önceki ~0.58 oranından biraz daha geniş; tam kaplama değil.
+_WATERMARK_SIZE_RATIO = 0.68
+_WATERMARK_MIN = 240
+_WATERMARK_MAX = 560
 
 
 def should_show_empty_state(row_count: int) -> bool:
