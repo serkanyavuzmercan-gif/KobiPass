@@ -99,6 +99,13 @@ def test_build_and_unlock_argon2(tmp_path: Path) -> None:
     assert unlocked.keys.version == VERSION_ARGON2
     assert unlocked.vault.entries[0].name == "Site"
 
+    user = read_vault_file(path, "user-one")
+    assert user.role == "user"
+    assert user.user_slot == 1
+
+    with pytest.raises(AccessDeniedError):
+        read_vault_file(path, "wrong")
+
 
 def test_admin_and_user_passwords_must_be_unique() -> None:
     vault = KobiVault(entries=[VaultEntry(name="Site", info1="pass")])
@@ -129,13 +136,6 @@ def test_admin_and_user_passwords_must_be_unique() -> None:
     keys = try_unlock_vault(raw, "admin-secret").keys
     assert password_matches_user_slot(keys, "user-one", 0)
     assert not password_matches_user_slot(keys, "user-one", 1)
-
-    user = read_vault_file(path, "user-one")
-    assert user.role == "user"
-    assert user.user_slot == 1
-
-    with pytest.raises(AccessDeniedError):
-        read_vault_file(path, "wrong")
 
 
 def test_legacy_pbkdf2_roundtrip(tmp_path: Path) -> None:
