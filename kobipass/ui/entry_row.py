@@ -1,6 +1,6 @@
 """
-Tek vault kaydı satırı — tüm alanlar (İsim, 1. Bilgi, ekler) yatay scroll içinde.
-İsim alanındaki ⋯ menüsünden kayıt silinir.
+Tek vault kaydı satırı — İsim sabit; 1. Bilgi ve ek alanlar yatay scroll içinde.
+İsim alanındaki ⋯ menüsünden (onayla) kayıt silinir.
 """
 
 from __future__ import annotations
@@ -478,7 +478,7 @@ class CompactField(QWidget):
 
 
 class EntryRowWidget(QWidget):
-    """Bir kasa kaydı — İsim + 1. Bilgi + ek alanlar tek yatay scroll içinde."""
+    """Bir kasa kaydı — İsim sabit; 1. Bilgi + ek alanlar yatay scroll içinde."""
 
     changed = pyqtSignal()
     remove_requested = pyqtSignal(object)
@@ -500,6 +500,15 @@ class EntryRowWidget(QWidget):
         row.setContentsMargins(*ROW_MARGINS)
         row.setSpacing(ROW_LAYOUT_SPACING)
         row.setAlignment(_ROW_ALIGN)
+
+        self._name = CompactField(
+            field_key="field_name",
+            fixed_width=NAME_FIELD_WIDTH,
+            sensitive=False,
+            with_delete_menu=True,
+        )
+        self._name.delete_requested.connect(self._confirm_and_remove)
+        row.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
 
         self._scroll = EntryFieldsScroll()
         self._scroll.setObjectName("entryFieldsScroll")
@@ -529,23 +538,12 @@ class EntryRowWidget(QWidget):
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
 
-        self._name = CompactField(
-            field_key="field_name",
-            fixed_width=NAME_FIELD_WIDTH,
-            sensitive=False,
-            with_delete_menu=True,
-            parent=self._extras_host,
-        )
         self._info1 = CompactField(
             info_index=1,
             fixed_width=INFO_FIELD_WIDTH,
             sensitive=True,
             parent=self._extras_host,
         )
-        self._name.delete_requested.connect(
-            lambda: self.remove_requested.emit(self)
-        )
-        self._extras_layout.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
         self._extras_layout.addWidget(self._info1, 0, Qt.AlignmentFlag.AlignTop)
 
         self._field_step_column = QWidget()
@@ -580,6 +578,26 @@ class EntryRowWidget(QWidget):
 
         self._wire_tab_order()
         self._update_field_step_buttons()
+
+    def _confirm_and_remove(self) -> None:
+        if not self._can_delete or self._view_only:
+            return
+        box = QMessageBox(self)
+        box.setWindowTitle(tr("confirm_delete_title"))
+        box.setText(tr("confirm_delete_text"))
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        box.setDefaultButton(QMessageBox.StandardButton.No)
+        yes_btn = box.button(QMessageBox.StandardButton.Yes)
+        no_btn = box.button(QMessageBox.StandardButton.No)
+        if yes_btn:
+            yes_btn.setText(tr("yes"))
+        if no_btn:
+            no_btn.setText(tr("no"))
+        if box.exec() == QMessageBox.StandardButton.Yes:
+            self.remove_requested.emit(self)
 
     def _field_step_index(self) -> int:
         return self._extras_layout.indexOf(self._field_step_column)
