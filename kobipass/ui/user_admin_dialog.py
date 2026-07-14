@@ -327,13 +327,13 @@ class UserAdminDialog(QDialog):
         delete_block, can_delete_box = _action_permission_block(
             "perm_can_delete", "perm_can_delete_desc", perms.can_delete_entry
         )
-        save_block, can_save_box = _action_permission_block(
-            "perm_can_save", "perm_can_save_desc", perms.can_save
-        )
         actions_row.addWidget(add_block, 1)
         actions_row.addWidget(delete_block, 1)
-        actions_row.addWidget(save_block, 1)
         permissions_layout.addLayout(actions_row)
+        save_note = QLabel(tr("perm_save_auto"))
+        save_note.setObjectName("permissionDescription")
+        save_note.setWordWrap(True)
+        permissions_layout.addWidget(save_note)
         outer.addWidget(permissions_panel)
 
         interactive = [
@@ -362,7 +362,6 @@ class UserAdminDialog(QDialog):
             "perm_info": perm_info,
             "can_add": can_add_box,
             "can_delete": can_delete_box,
-            "can_save": can_save_box,
             "card": card,
         }
         remove_btn.clicked.connect(lambda: self._remove_slot_card(entry))
@@ -385,13 +384,14 @@ class UserAdminDialog(QDialog):
         show_error(self, tr("warn_title"), message)
 
     def _collect_card_permissions(self, card: dict) -> UserPermissions:
+        # can_save türetilir (normalized): düzenleme/ekleme/silme yetkisi olan
+        # kaydedebilir, salt görüntüleyen kaydedemez.
         return UserPermissions(
             name=card["perm_name"].currentData(),
             info=card["perm_info"].currentData(),
             can_add_entry=card["can_add"].isChecked(),
             can_delete_entry=card["can_delete"].isChecked(),
-            can_save=card["can_save"].isChecked(),
-        )
+        ).normalized()
 
     def _conflicts_with_preserved_passwords(
         self,

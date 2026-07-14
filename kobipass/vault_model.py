@@ -130,10 +130,12 @@ class UserPermissions:
         )
 
     def normalized(self) -> UserPermissions:
-        """Değişiklik yapma yetkisi varsa kaydetmeyi de açar."""
+        """Kaydetme yetkisi bağımsız bir seçim değildir; doğrudan değişiklik
+        yapma yetkisinden türetilir. Düzenleme/ekleme/silme yetkisi olan
+        kullanıcı değişikliklerini kaydedebilir; yalnızca görüntüleyen
+        kullanıcının kaydedecek bir değişikliği olmadığı için kaydedemez."""
         result = self.copy()
-        if result.can_mutate():
-            result.can_save = True
+        result.can_save = result.can_mutate()
         return result
 
     def to_dict(self) -> dict[str, Any]:

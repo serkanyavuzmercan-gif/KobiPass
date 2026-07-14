@@ -95,6 +95,35 @@ def test_permissions_normalize_save_with_mutations() -> None:
     assert UserPermissions(name="read", info="read", can_save=False).normalized().can_save is False
 
 
+def test_save_permission_is_derived_from_mutation() -> None:
+    """Kaydetme yetkisi bağımsız olamaz: düzenleyebilen kaydeder, sadece
+    görüntüleyen kaydedemez. 'Düzenler ama kaydedemez' durumu oluşamaz."""
+    editing = [
+        UserPermissions(name="write"),
+        UserPermissions(info="write"),
+        UserPermissions(can_add_entry=True),
+        UserPermissions(can_delete_entry=True),
+        # can_save açıkça True verilse bile mantık türetilir
+        UserPermissions(info="write", can_save=True),
+    ]
+    for perms in editing:
+        norm = perms.normalized()
+        assert norm.can_mutate() is True
+        assert norm.can_save is True  # oksimoron yok: düzenleyen kaydeder
+
+    viewing = [
+        UserPermissions(name="read", info="read"),
+        UserPermissions(info="hidden_read"),
+        UserPermissions(name="none", info="none"),
+        # can_save açıkça True verilse bile: değişiklik yapamadığı için kaydedemez
+        UserPermissions(name="read", info="read", can_save=True),
+    ]
+    for perms in viewing:
+        norm = perms.normalized()
+        assert norm.can_mutate() is False
+        assert norm.can_save is False  # kaydedecek bir değişiklik yok
+
+
 def test_permissions_from_dict_normalizes_write_without_save() -> None:
     loaded = UserPermissions.from_dict(
         {"name": "read", "info": "write", "can_add_entry": False, "can_save": False}
