@@ -170,6 +170,7 @@ def test_primary_field_responsive_width_is_bounded() -> None:
     assert responsive_field_width(20, 70, 200, 390) == 200
     assert responsive_field_width(220, 70, 200, 390) == 318
     assert responsive_field_width(800, 70, 200, 390) == 390
+    assert responsive_field_width(800, 70, 200, None) == 898
     assert three_column_info_width(780) == 242
     assert three_column_info_width(300) == INFO_FIELD_WIDTH
     assert three_column_info_width(1200) == INFO_FIELD_MAX_WIDTH

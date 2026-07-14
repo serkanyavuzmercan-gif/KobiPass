@@ -109,10 +109,12 @@ def responsive_field_width(
     text_width: int,
     chrome_width: int,
     minimum: int,
-    maximum: int,
+    maximum: int | None,
 ) -> int:
-    """Metne göre hücre genişliği; satırı bozmamak için min/max aralığında."""
+    """Metne göre hücre genişliği; maximum=None ise metin kadar sınırsız büyür."""
     desired = chrome_width + max(82, text_width + 28)
+    if maximum is None:
+        return max(minimum, desired)
     return max(minimum, min(maximum, desired))
 
 
@@ -216,7 +218,7 @@ class CompactField(QWidget):
         self._strength_meter: QFrame | None = None
         self._base_width = fixed_width
         self._responsive_width = responsive_width
-        self._max_width = max_width or fixed_width
+        self._max_width = max_width
         self._primary_field = primary_field
         self.setProperty("primaryField", primary_field)
         self.setFixedWidth(fixed_width)
@@ -385,7 +387,6 @@ class CompactField(QWidget):
         if not self._responsive_width:
             return
         self._base_width = width
-        self._max_width = max(NAME_FIELD_MAX_WIDTH, width)
         self._update_responsive_width(self._edit.text())
 
     def retranslate(self) -> None:
@@ -665,7 +666,7 @@ class EntryRowWidget(QWidget):
             sensitive=False,
             with_delete_menu=True,
             responsive_width=True,
-            max_width=NAME_FIELD_MAX_WIDTH,
+            max_width=None,
             primary_field=True,
         )
         self._name.delete_requested.connect(self._confirm_and_remove)
