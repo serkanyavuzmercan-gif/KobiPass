@@ -77,16 +77,19 @@ def hero_art_pixmap(height: int = 360) -> QPixmap:
     return pm.scaledToHeight(height, Qt.TransformationMode.SmoothTransformation)
 
 
-def hero_left_pixmap(english: bool = False) -> QPixmap:
+def hero_left_pixmap(english: bool = False, light: bool = False) -> QPixmap:
     """Karşılama ekranının sol panelini komple kaplayan görsel (opsiyonel).
 
-    ``assets/hero_left.png`` (ve İngilizce için opsiyonel ``hero_left_en.png``)
-    varsa tam çözünürlükte döner; yoksa boş QPixmap. Landing bu görseli
+    Koyu tema ``assets/hero_left.png``, açık tema ``assets/hero_left2.png``
+    kullanır (İngilizce için opsiyonel ``*_en.png`` varyantları). İlgili dosya
+    yoksa koyu sürüme, o da yoksa boş QPixmap'e düşer. Landing bu görseli
     "cover" biçiminde ölçekleyip sol paneli kaplar.
     """
-    names = ["hero_left.png"]
-    if english:
-        names = ["hero_left_en.png", "hero_left.png"]
+    if light:
+        names = ["hero_left2_en.png", "hero_left2.png"] if english else ["hero_left2.png"]
+        names.append("hero_left.png")  # açık sürüm yoksa koyuya düş
+    else:
+        names = ["hero_left_en.png", "hero_left.png"] if english else ["hero_left.png"]
     for name in names:
         path = asset_path(name)
         if path.is_file():

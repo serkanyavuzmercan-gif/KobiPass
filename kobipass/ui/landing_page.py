@@ -42,6 +42,8 @@ from kobipass.ui.icons import (
     icon_trash,
 )
 
+from kobipass.ui.theme import theme_manager
+
 _FEATURE_ACCENT = QColor("#8296ff")
 _HERO_RADIUS = 22
 
@@ -408,12 +410,16 @@ class LandingPage(QWidget):
         outer.addLayout(content, 1)
 
         self._apply_hero_image()
+        theme_manager.theme_changed.connect(self._apply_hero_image)
         self.retranslate()
         self.refresh_recent()
 
     def _apply_hero_image(self) -> None:
-        """Mevcut dile göre hero arka plan görselini (kasa+fon) yükler."""
-        pm = hero_left_pixmap(english=not i18n.is_tr())
+        """Mevcut dil ve temaya göre hero arka plan görselini yükler
+        (koyu → hero_left.png, açık → hero_left2.png)."""
+        pm = hero_left_pixmap(
+            english=not i18n.is_tr(), light=not theme_manager.is_dark()
+        )
         self._hero.set_background(pm)
 
     def _make_feature_card(
