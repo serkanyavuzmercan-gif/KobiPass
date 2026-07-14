@@ -1,10 +1,11 @@
 ﻿"""
-Özel pencere başlığı: sürükleme + küçült / büyüt / kapat (Windows çerçevesi yok).
+Özel pencere başlığı: sürükleme + kapat (Windows çerçevesi yok).
+Pencere boyutu ekranın kullanılabilir alanına oranlıdır; köşeden büyütme yok.
 """
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QPoint, QRect, Qt
+from PyQt6.QtCore import QPoint, QRect, QSize, Qt
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import (
     QApplication,
@@ -16,11 +17,21 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.i18n import tr
-from kobipass.platform_win import clear_maximized_style, set_window_geometry
+from kobipass.platform_win import set_window_geometry
 from kobipass.resources import logo_pixmap
 
-DEFAULT_WINDOW_WIDTH = 1280
-DEFAULT_WINDOW_HEIGHT = 760
+# Tasarım referansı: 1280×760 @ 1920×1080 → sabit açılış oranı
+WINDOW_WIDTH_RATIO = 1280 / 1920
+WINDOW_HEIGHT_RATIO = 760 / 1080
+
+
+def window_size_for_available(avail: QRect) -> QSize:
+    """Kullanılabilir ekran alanına göre sabit oranlı pencere boyutu."""
+    width = max(1, int(round(avail.width() * WINDOW_WIDTH_RATIO)))
+    height = max(1, int(round(avail.height() * WINDOW_HEIGHT_RATIO)))
+    width = min(width, avail.width())
+    height = min(height, avail.height())
+    return QSize(width, height)
 
 
 class CustomTitleBar(QWidget):
@@ -82,7 +93,7 @@ class CustomTitleBar(QWidget):
         drag_area.setObjectName("titleDragArea")
         layout.addWidget(drag_area, stretch=1)
 
-        # Yaln\u0131zca kapat d\u00fc\u011fmesi \u2014 simge durumuna k\u00fc\u00e7\u00fclt / ekran\u0131 kapla yok.
+        # Yalnızca kapat düğmesi — simge durumuna küçült / ekranı kapla yok.
         self._btn_close = QPushButton("\u00d7")
         self._btn_close.setObjectName("titleBtnClose")
         self._btn_close.setFixedSize(46, 38)
@@ -107,12 +118,31 @@ class CustomTitleBar(QWidget):
             return
         self._restore_size = (geom.width(), geom.height())
 
+    def apply_screen_ratio_geometry(self, *, recenter: bool = True) -> QSize:
+        """Ekran oranına göre sabit boyut uygular; köşeden büyütmeyi kilitler."""
+        avail = self._available_screen_geometry()
+        size = window_size_for_available(avail)
+        self._window.setFixedSize(size)
+        if recenter:
+            target = self._centered_geometry(size.width(), size.height())
+            self._window.winId()
+            set_window_geometry(self._window, target, restoring=False)
+        self._restore_size = (size.width(), size.height())
+        self._maximized = False
+        self._refresh_maximize_button()
+        return size
+
     def center_on_screen(
         self,
-        width: int = DEFAULT_WINDOW_WIDTH,
-        height: int = DEFAULT_WINDOW_HEIGHT,
+        width: int | None = None,
+        height: int | None = None,
     ) -> None:
         """Pencereyi ekranın ortasına yerleştirir (tam ekran değil)."""
+        if width is None or height is None:
+            size = window_size_for_available(self._available_screen_geometry())
+            width = size.width() if width is None else width
+            height = size.height() if height is None else height
+        self._window.setFixedSize(width, height)
         target = self._centered_geometry(width, height)
         self._window.winId()
         set_window_geometry(self._window, target, restoring=False)
@@ -141,7 +171,7 @@ class CustomTitleBar(QWidget):
         return QRect(x, y, width, height)
 
     def _refresh_maximize_button(self) -> None:
-        # B\u00fcy\u00fct/geri al d\u00fc\u011fmesi kald\u0131r\u0131ld\u0131 \u2014 yaln\u0131zca kapat d\u00fc\u011fmesi var.
+        # Büyüt/geri al düğmesi kaldırıldı — yalnızca kapat düğmesi var.
         return
 
     def _on_maximize_clicked(self) -> None:
@@ -154,25 +184,8 @@ class CustomTitleBar(QWidget):
             self._toggle_busy = False
 
     def _toggle_maximize(self) -> None:
-        w = self._window
-        w.winId()
-
-        if self._maximized:
-            if self._restore_size:
-                w_norm, h_norm = self._restore_size
-            else:
-                w_norm, h_norm = DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT
-            target = self._centered_geometry(w_norm, h_norm)
-            set_window_geometry(w, target, restoring=True)
-            self._restore_size = (target.width(), target.height())
-            self._maximized = False
-        else:
-            target = self._available_screen_geometry()
-            set_window_geometry(w, target, restoring=False)
-            clear_maximized_style(w)
-            self._maximized = True
-
-        self._refresh_maximize_button()
+        # Ekranı kapla / geri al kaldırıldı — oranlı sabit boyut korunur.
+        self.apply_screen_ratio_geometry(recenter=True)
 
     def _is_draggable_target(self, pos) -> bool:
         child = self.childAt(pos)

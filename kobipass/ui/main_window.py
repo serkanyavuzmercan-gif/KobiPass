@@ -8,7 +8,7 @@ import copy
 from pathlib import Path
 
 from PyQt6.QtCore import QEvent, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QKeySequence, QShortcut
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QKeySequence, QScreen, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -141,8 +141,9 @@ class MainWindow(QMainWindow):
         self.setWindowFlags(
             Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint
         )
-        self.setMinimumSize(1200, 700)
-        self.resize(1280, 760)
+        # Boyut ekran oranına göre sabitlenir; köşeden büyütme kapalı.
+        self._screen_geom_wired: QScreen | None = None
+        self._geometry_ready = False
 
         self._current_path: Path | None = None
         self._dirty = False
@@ -181,6 +182,41 @@ class MainWindow(QMainWindow):
         if app is not None:
             app.installEventFilter(self)
         self._reset_idle_timer()
+        # İlk boyut: primary screen oranına göre (showEvent yeniden hizalar).
+        self._title_bar.apply_screen_ratio_geometry(recenter=True)
+
+    def _wire_screen_sizing(self) -> None:
+        """Ekran değişince oranlı boyutu koru; köşe resize kapalı kalsın."""
+        handle = self.windowHandle()
+        if handle is not None:
+            try:
+                handle.screenChanged.disconnect(self._on_window_screen_changed)
+            except TypeError:
+                pass
+            handle.screenChanged.connect(self._on_window_screen_changed)
+        self._bind_screen_geometry(self.screen())
+
+    def _bind_screen_geometry(self, screen: QScreen | None) -> None:
+        if self._screen_geom_wired is not None:
+            try:
+                self._screen_geom_wired.availableGeometryChanged.disconnect(
+                    self._on_available_geometry_changed
+                )
+            except TypeError:
+                pass
+            self._screen_geom_wired = None
+        if screen is None:
+            return
+        screen.availableGeometryChanged.connect(self._on_available_geometry_changed)
+        self._screen_geom_wired = screen
+
+    def _on_window_screen_changed(self, screen: QScreen | None) -> None:
+        self._bind_screen_geometry(screen)
+        self._title_bar.apply_screen_ratio_geometry(recenter=True)
+
+    def _on_available_geometry_changed(self) -> None:
+        # Ekran çözünürlüğü / görev çubuğu değişince aynı oranı uygula.
+        self._title_bar.apply_screen_ratio_geometry(recenter=True)
 
     def _build_ui(self) -> None:
         central = QWidget()
@@ -431,7 +467,14 @@ class MainWindow(QMainWindow):
         super().showEvent(event)
         self.winId()
         self.setWindowIcon(app_icon())
-        self._title_bar.capture_normal_geometry()
+        if not self._geometry_ready:
+            self._wire_screen_sizing()
+            self._title_bar.apply_screen_ratio_geometry(recenter=True)
+            self._geometry_ready = True
+        else:
+            # show sonrası oran kilidini yenile (restore sonrası vs.)
+            self._title_bar.apply_screen_ratio_geometry(recenter=False)
+            self._title_bar.capture_normal_geometry()
 
     def changeEvent(self, event: QEvent) -> None:
         if event.type() == QEvent.Type.WindowStateChange:
