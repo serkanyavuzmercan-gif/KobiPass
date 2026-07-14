@@ -52,7 +52,6 @@ from kobipass.ui.about_dialog import AboutDialog
 from kobipass.ui.add_record_bar import AddRecordBar
 from kobipass.ui.audit_log_dialog import AuditLogDialog
 from kobipass.ui.dialogs import (
-    HelpDialog,
     OpenPasswordDialog,
     SetupVaultDialog,
     UnlockDialog,
@@ -60,6 +59,7 @@ from kobipass.ui.dialogs import (
     show_info,
 )
 from kobipass.ui.entry_row import ROW_MIME, EntryRowWidget
+from kobipass.ui.help_panel import HelpPanel
 from kobipass.ui.landing_page import LandingPage
 from kobipass.backup import (
     clear_read_only,
@@ -148,7 +148,6 @@ class MainWindow(QMainWindow):
         self._current_path: Path | None = None
         self._dirty = False
         self._row_widgets: list[EntryRowWidget] = []
-        self._help_dialog: HelpDialog | None = None
         self._about_dialog: AboutDialog | None = None
         self._showing_copy_notice = False
         self._copy_notice_field = ""
@@ -193,6 +192,10 @@ class MainWindow(QMainWindow):
 
         self._title_bar = CustomTitleBar(self)
         outer.addWidget(self._title_bar)
+
+        # Hider'daki Info paneli: başlığın altından açılır, gövdeyi aşağı iter.
+        self._help_panel = HelpPanel()
+        outer.addWidget(self._help_panel)
 
         self._stacked_widget = QStackedWidget()
         outer.addWidget(self._stacked_widget, stretch=1)
@@ -663,8 +666,7 @@ class MainWindow(QMainWindow):
         self._add_bar.retranslate()
         for row in self._row_widgets:
             row.retranslate()
-        if self._help_dialog is not None:
-            self._help_dialog.retranslate()
+        self._help_panel.retranslate()
         if self._about_dialog is not None:
             self._about_dialog.retranslate()
         if self._showing_copy_notice:
@@ -845,11 +847,7 @@ class MainWindow(QMainWindow):
         self._about_dialog.activateWindow()
 
     def _show_help(self) -> None:
-        if self._help_dialog is None:
-            self._help_dialog = HelpDialog(self)
-        self._help_dialog.show()
-        self._help_dialog.raise_()
-        self._help_dialog.activateWindow()
+        self._help_panel.toggle()
 
     def _manage_users(self) -> None:
         if not isinstance(self._session, AdminSession) or self._vault is None:
