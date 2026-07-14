@@ -29,7 +29,12 @@ from kobipass.crypto import MAX_USER_SLOTS
 from kobipass.i18n import MIN_PASSWORD_LENGTH, i18n, tr
 from kobipass.resources import app_icon
 from kobipass.ui.strength import attach_strength_label
-from kobipass.ui.user_admin_dialog import _password_edit, _perm_combo
+from kobipass.ui.user_admin_dialog import (
+    _password_edit,
+    _perm_combo,
+    wire_card_permission_consistency,
+    wire_shared_permission_consistency,
+)
 from kobipass.vault_model import PERM_FIELDS, UserPermissions
 
 
@@ -165,6 +170,8 @@ class SetupVaultDialog(QDialog):
         if cancel_btn:
             cancel_btn.setText(tr("cancel"))
 
+        wire_shared_permission_consistency(self._perm_combos, self._slot_cards)
+
     def _warn(self, message: str) -> None:
         show_error(self, tr("warn_title"), message)
 
@@ -215,6 +222,9 @@ class SetupVaultDialog(QDialog):
         can_add_box = QCheckBox(tr("perm_can_add"))
         can_delete_box = QCheckBox(tr("perm_can_delete"))
         can_save_box = QCheckBox(tr("perm_can_save"))
+        defaults = UserPermissions().normalized()
+        can_save_box.setChecked(defaults.can_save)
+        can_save_box.setToolTip(tr("perm_can_save_hint"))
         for box in (can_add_box, can_delete_box, can_save_box):
             flags_row.addWidget(box)
         flags_row.addStretch()
@@ -248,6 +258,7 @@ class SetupVaultDialog(QDialog):
             "card": card,
         }
         remove_btn.clicked.connect(lambda: self._remove_slot_card(entry))
+        wire_card_permission_consistency(entry, self._perm_combos)
         self._slots_layout.addWidget(card)
         self._slot_cards.append(entry)
 
@@ -293,7 +304,7 @@ class SetupVaultDialog(QDialog):
                     can_add_entry=card["can_add"].isChecked(),
                     can_delete_entry=card["can_delete"].isChecked(),
                     can_save=card["can_save"].isChecked(),
-                )
+                ).normalized()
             )
 
         shared = UserPermissions(name=name_level, info=info_level)

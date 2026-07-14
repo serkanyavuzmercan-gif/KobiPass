@@ -73,6 +73,71 @@ def _perm_combo(current: FieldLevel) -> QComboBox:
     return combo
 
 
+def _perm_combo_mutates(name_combo: QComboBox, info_combo: QComboBox) -> bool:
+    return name_combo.currentData() == "write" or info_combo.currentData() == "write"
+
+
+def _card_action_mutates(card: dict) -> bool:
+    return card["can_add"].isChecked() or card["can_delete"].isChecked()
+
+
+def _card_effective_mutates(
+    card: dict, name_combo: QComboBox, info_combo: QComboBox
+) -> bool:
+    return _perm_combo_mutates(name_combo, info_combo) or _card_action_mutates(card)
+
+
+def _ensure_card_can_save(card: dict) -> None:
+    card["can_save"].blockSignals(True)
+    card["can_save"].setChecked(True)
+    card["can_save"].blockSignals(False)
+
+
+def wire_card_permission_consistency(
+    card: dict,
+    perm_combos: dict[str, QComboBox],
+) -> None:
+    """Kart düzeyinde değişiklik yetkileri ile kaydetmeyi senkron tutar."""
+
+    def on_mutation_change(*_args: object) -> None:
+        if _card_effective_mutates(
+            card, perm_combos["name"], perm_combos["info"]
+        ):
+            _ensure_card_can_save(card)
+
+    def on_save_change(checked: bool) -> None:
+        if checked:
+            return
+        card["can_add"].blockSignals(True)
+        card["can_delete"].blockSignals(True)
+        card["can_add"].setChecked(False)
+        card["can_delete"].setChecked(False)
+        card["can_add"].blockSignals(False)
+        card["can_delete"].blockSignals(False)
+        if _perm_combo_mutates(perm_combos["name"], perm_combos["info"]):
+            _ensure_card_can_save(card)
+
+    card["can_add"].toggled.connect(on_mutation_change)
+    card["can_delete"].toggled.connect(on_mutation_change)
+    card["can_save"].toggled.connect(on_save_change)
+
+
+def wire_shared_permission_consistency(
+    perm_combos: dict[str, QComboBox],
+    slot_cards: list[dict],
+) -> None:
+    """Ortak alan yazma izni verildiğinde tüm kartlarda kaydetmeyi açar."""
+
+    def on_shared_field_change(*_args: object) -> None:
+        if not _perm_combo_mutates(perm_combos["name"], perm_combos["info"]):
+            return
+        for card in slot_cards:
+            _ensure_card_can_save(card)
+
+    perm_combos["name"].currentIndexChanged.connect(on_shared_field_change)
+    perm_combos["info"].currentIndexChanged.connect(on_shared_field_change)
+
+
 class UserAdminDialog(QDialog):
     def __init__(
         self,
@@ -146,16 +211,6 @@ class UserAdminDialog(QDialog):
         shared = vault.user_permissions
         self._slot_cards: list[dict] = []
         self._original_count = len(self._enabled_flags)
-        for n in range(self._original_count):
-            if not self._enabled_flags[n]:
-                continue
-            label = (
-                vault.user_slot_labels[n]
-                if n < len(vault.user_slot_labels)
-                else ""
-            )
-            perms = vault.permissions_for_slot(n + 1)
-            self._add_slot_card(orig_index=n, enabled=True, label=label, permissions=perms)
 
         # ── SAĞ: yönetici + ortak İsim/Bilgiler (kırmızı alan) ───────────────
         right = QVBoxLayout()
@@ -218,6 +273,19 @@ class UserAdminDialog(QDialog):
         if cancel_btn:
             cancel_btn.setText(tr("cancel"))
 
+        for n in range(self._original_count):
+            if not self._enabled_flags[n]:
+                continue
+            label = (
+                vault.user_slot_labels[n]
+                if n < len(vault.user_slot_labels)
+                else ""
+            )
+            perms = vault.permissions_for_slot(n + 1).normalized()
+            self._add_slot_card(orig_index=n, enabled=True, label=label, permissions=perms)
+
+        wire_shared_permission_consistency(self._perm_combos, self._slot_cards)
+
     def _add_slot_card(
         self,
         *,
@@ -228,7 +296,7 @@ class UserAdminDialog(QDialog):
     ) -> None:
         """Kart: isim/parola + kişiye özel genel yetkiler (İsim/Bilgiler yok)."""
         n = len(self._slot_cards) + 1
-        perms = permissions.copy() if permissions else UserPermissions()
+        perms = (permissions.copy() if permissions else UserPermissions()).normalized()
 
         card = QFrame()
         card.setObjectName("userSlotCard")
@@ -275,6 +343,7 @@ class UserAdminDialog(QDialog):
         can_delete_box.setChecked(perms.can_delete_entry)
         can_save_box = QCheckBox(tr("perm_can_save"))
         can_save_box.setChecked(perms.can_save)
+        can_save_box.setToolTip(tr("perm_can_save_hint"))
         for box in (can_add_box, can_delete_box, can_save_box):
             flags_row.addWidget(box)
         flags_row.addStretch()
@@ -309,6 +378,7 @@ class UserAdminDialog(QDialog):
             "card": card,
         }
         remove_btn.clicked.connect(lambda: self._remove_slot_card(entry))
+        wire_card_permission_consistency(entry, self._perm_combos)
 
         self._slots_layout.addWidget(card)
         self._slot_cards.append(entry)
@@ -341,7 +411,7 @@ class UserAdminDialog(QDialog):
             can_add_entry=card["can_add"].isChecked(),
             can_delete_entry=card["can_delete"].isChecked(),
             can_save=card["can_save"].isChecked(),
-        )
+        ).normalized()
 
     def _on_accept(self) -> None:
         admin_current = self._admin_current.text()
@@ -438,7 +508,7 @@ class UserAdminDialog(QDialog):
                 can_add_entry=slot_permissions[index].can_add_entry,
                 can_delete_entry=slot_permissions[index].can_delete_entry,
                 can_save=slot_permissions[index].can_save,
-            )
+            ).normalized()
 
         new_enabled = [enabled for enabled, _ in user_passwords]
         old_slot_dicts = [

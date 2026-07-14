@@ -112,7 +112,29 @@ class UserPermissions:
     can_save: bool = True
 
     def copy(self) -> UserPermissions:
-        return UserPermissions.from_dict(self.to_dict())
+        return UserPermissions(
+            name=self.name,
+            info=self.info,
+            can_add_entry=self.can_add_entry,
+            can_delete_entry=self.can_delete_entry,
+            can_save=self.can_save,
+        )
+
+    def can_mutate(self) -> bool:
+        """Alan düzenleme veya kayıt ekleme/silme yetkisi var mı."""
+        return (
+            self.name == "write"
+            or self.info == "write"
+            or self.can_add_entry
+            or self.can_delete_entry
+        )
+
+    def normalized(self) -> UserPermissions:
+        """Değişiklik yapma yetkisi varsa kaydetmeyi de açar."""
+        result = self.copy()
+        if result.can_mutate():
+            result.can_save = True
+        return result
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -145,7 +167,7 @@ class UserPermissions:
             can_add_entry=bool(data.get("can_add_entry", False)),
             can_delete_entry=bool(data.get("can_delete_entry", False)),
             can_save=bool(data.get("can_save", True)),
-        )
+        ).normalized()
 
     def field_level(self, field_name: str) -> FieldLevel:
         if field_name == "name":
@@ -225,7 +247,7 @@ class KobiVault:
         return self.user_permissions
 
     def set_slot_permissions(self, permissions: list[UserPermissions]) -> None:
-        self.user_slot_permissions = [p.copy() for p in permissions]
+        self.user_slot_permissions = [p.normalized() for p in permissions]
         if self.user_slot_permissions:
             self.user_permissions = self.user_slot_permissions[0].copy()
 

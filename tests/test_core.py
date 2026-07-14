@@ -68,6 +68,8 @@ def test_per_slot_permissions_roundtrip() -> None:
     assert loaded.permissions_for_slot(1).can_add_entry is True
     assert loaded.permissions_for_slot(2).can_save is False
     assert loaded.permissions_for_slot(2).name == "none"
+    assert loaded.permissions_for_slot(1).info == "write"
+    assert loaded.permissions_for_slot(1).can_save is True
     # Legacy ortak şablon → slotlara kopyalanır
     legacy = KobiVault.from_dict(
         {
@@ -79,6 +81,22 @@ def test_per_slot_permissions_roundtrip() -> None:
         }
     )
     assert legacy.permissions_for_slot(2).name == "hidden_read"
+
+
+def test_permissions_normalize_save_with_mutations() -> None:
+    assert UserPermissions(info="write", can_save=False).normalized().can_save is True
+    assert UserPermissions(can_add_entry=True, can_save=False).normalized().can_save is True
+    assert UserPermissions(can_delete_entry=True, can_save=False).normalized().can_save is True
+    assert UserPermissions(name="write", can_save=False).normalized().can_save is True
+    assert UserPermissions(name="read", info="read", can_save=False).normalized().can_save is False
+
+
+def test_permissions_from_dict_normalizes_write_without_save() -> None:
+    loaded = UserPermissions.from_dict(
+        {"name": "read", "info": "write", "can_add_entry": False, "can_save": False}
+    )
+    assert loaded.info == "write"
+    assert loaded.can_save is True
 
 
 def test_build_and_unlock_argon2(tmp_path: Path) -> None:
