@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
     QFrame,
-    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -131,20 +130,23 @@ class SetupVaultDialog(QDialog):
         right.addWidget(admin_group)
 
         perm_group = QGroupBox(tr("perm_section"))
+        perm_group.setObjectName("sharedPermsBox")
         perm_group.setSizePolicy(
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum
         )
-        perm_layout = QGridLayout(perm_group)
-        perm_layout.setContentsMargins(10, 8, 10, 10)
-        perm_layout.setHorizontalSpacing(10)
-        perm_layout.setVerticalSpacing(8)
-        perm_layout.setColumnStretch(1, 1)
+        perm_form = QFormLayout(perm_group)
+        perm_form.setContentsMargins(10, 6, 10, 8)
+        perm_form.setHorizontalSpacing(10)
+        perm_form.setVerticalSpacing(4)
+        perm_form.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
+        )
         self._perm_combos: dict[str, QComboBox] = {}
-        for row, field_name in enumerate(PERM_FIELDS):
-            perm_layout.addWidget(QLabel(tr(f"field_{field_name}")), row, 0)
+        for field_name in PERM_FIELDS:
             combo = _perm_combo("read")
+            combo.setMinimumWidth(120)
             self._perm_combos[field_name] = combo
-            perm_layout.addWidget(combo, row, 1)
+            perm_form.addRow(tr(f"field_{field_name}"), combo)
         right.addWidget(perm_group)
         right.addStretch(1)
         columns.addLayout(right, 2)
@@ -200,6 +202,8 @@ class SetupVaultDialog(QDialog):
         p2 = _password_edit(tr("pwd_repeat_placeholder"))
         form.addRow(tr("field_name"), label_edit)
         form.addRow(tr("pwd_label"), p1)
+        strength = attach_strength_label(p1)
+        form.addRow("", strength)
         form.addRow(tr("pwd_repeat_label"), p2)
         outer.addLayout(form)
 
@@ -220,6 +224,7 @@ class SetupVaultDialog(QDialog):
             label_edit,
             p1,
             p2,
+            strength,
             can_add_box,
             can_delete_box,
             can_save_box,

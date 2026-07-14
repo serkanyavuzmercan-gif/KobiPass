@@ -860,19 +860,62 @@ QComboBox QAbstractItemView {
     outline: none;
 }
 
-/* --- Kullanıcı İzinleri penceresi: kompakt form alanları --- */
+/* --- Kullanıcı İzinleri / Kasa Kurulumu: landing ile aynı tipografi --- */
+QDialog#userAdminDialog {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+}
+
+QDialog#userAdminDialog QLabel {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+}
+
+QDialog#userAdminDialog QCheckBox,
+QDialog#userAdminDialog QComboBox,
+QDialog#userAdminDialog QLineEdit,
+QDialog#userAdminDialog QPushButton {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+}
+
 QDialog#userAdminDialog QLineEdit {
     padding: 5px 8px;
     min-height: 16px;
 }
 
 QDialog#userAdminDialog QGroupBox {
-    margin-top: 12px;
+    margin-top: 10px;
     padding-top: 4px;
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 QDialog#userAdminDialog QGroupBox::title {
-    font-size: 12px;
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    left: 8px;
+    padding: 0 4px;
+}
+
+QDialog#userAdminDialog QGroupBox#sharedPermsBox {
+    margin-top: 8px;
+    padding-top: 2px;
+}
+
+QDialog#userAdminDialog QGroupBox#sharedPermsBox QComboBox {
+    min-height: 26px;
+    padding: 3px 8px;
+}
+
+QDialog#userAdminDialog QLabel#strengthLabel {
+    font-size: 11px;
+    font-weight: 600;
+    min-height: 14px;
+    padding: 0;
+    margin: 0;
 }
 
 QFrame#userSlotCard {
@@ -883,6 +926,7 @@ QFrame#userSlotCard {
 
 QLabel#cardFlagsTitle {
     color: #9aa0a8;
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
     font-size: 12px;
     font-weight: 600;
     padding-top: 4px;
@@ -1756,19 +1800,62 @@ QComboBox QAbstractItemView {
     outline: none;
 }
 
-/* --- Kullanıcı İzinleri penceresi: kompakt form alanları --- */
+/* --- Kullanıcı İzinleri / Kasa Kurulumu: landing ile aynı tipografi --- */
+QDialog#userAdminDialog {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+}
+
+QDialog#userAdminDialog QLabel {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+}
+
+QDialog#userAdminDialog QCheckBox,
+QDialog#userAdminDialog QComboBox,
+QDialog#userAdminDialog QLineEdit,
+QDialog#userAdminDialog QPushButton {
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+}
+
 QDialog#userAdminDialog QLineEdit {
     padding: 5px 8px;
     min-height: 16px;
 }
 
 QDialog#userAdminDialog QGroupBox {
-    margin-top: 12px;
+    margin-top: 10px;
     padding-top: 4px;
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 QDialog#userAdminDialog QGroupBox::title {
-    font-size: 12px;
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    left: 8px;
+    padding: 0 4px;
+}
+
+QDialog#userAdminDialog QGroupBox#sharedPermsBox {
+    margin-top: 8px;
+    padding-top: 2px;
+}
+
+QDialog#userAdminDialog QGroupBox#sharedPermsBox QComboBox {
+    min-height: 26px;
+    padding: 3px 8px;
+}
+
+QDialog#userAdminDialog QLabel#strengthLabel {
+    font-size: 11px;
+    font-weight: 600;
+    min-height: 14px;
+    padding: 0;
+    margin: 0;
 }
 
 QFrame#userSlotCard {
@@ -1779,6 +1866,7 @@ QFrame#userSlotCard {
 
 QLabel#cardFlagsTitle {
     color: #6b7280;
+    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
     font-size: 12px;
     font-weight: 600;
     padding-top: 4px;

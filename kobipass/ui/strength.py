@@ -1,6 +1,6 @@
 """
 Parola güç göstergesi — bir QLineEdit'e renkli etiket bağlar.
-Ana parola alanlarında (kurulum + yönetici değişimi) kullanılır.
+Kurulum ve kullanıcı kartlarındaki parola alanlarında kullanılır.
 """
 
 from __future__ import annotations
