@@ -20,10 +20,8 @@ from kobipass.i18n import tr
 from kobipass.resources import logo_pixmap
 
 _WATERMARK_OPACITY = 0.075
-# Önceki ~0.58 oranından biraz daha geniş; tam kaplama değil.
-_WATERMARK_SIZE_RATIO = 0.68
-_WATERMARK_MIN = 240
-_WATERMARK_MAX = 560
+# Yükseklik gövdeye dayansın; oran korunur, yatayda ortalanır.
+_WATERMARK_HEIGHT_RATIO = 1.0
 
 
 def should_show_empty_state(row_count: int) -> bool:
@@ -50,12 +48,10 @@ class VaultWatermarkPane(QWidget):
         if self._source.isNull() or self.width() < 8 or self.height() < 8:
             self._scaled = QPixmap()
             return
-        side = int(min(self.width(), self.height()) * _WATERMARK_SIZE_RATIO)
-        side = max(_WATERMARK_MIN, min(_WATERMARK_MAX, side))
-        self._scaled = self._source.scaled(
-            side,
-            side,
-            Qt.AspectRatioMode.KeepAspectRatio,
+        # Üst-alt kenar pencereye değecek şekilde yüksekliği doldur.
+        target_h = max(1, int(self.height() * _WATERMARK_HEIGHT_RATIO))
+        self._scaled = self._source.scaledToHeight(
+            target_h,
             Qt.TransformationMode.SmoothTransformation,
         )
 
