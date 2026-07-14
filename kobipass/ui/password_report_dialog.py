@@ -1,6 +1,6 @@
 """
-Parola sağlık raporu — kasadaki zayıf ve tekrar eden parolaları listeler.
-Yalnızca yönetici erişir; parola değerleri gösterilmez, yalnızca değerlendirme.
+Parola sağlık raporu — kasadaki tüm parolaları (güçlü / orta / zayıf / tekrar)
+aynı tabloda listeler. Yalnızca yönetici erişir; parola değerleri gösterilmez.
 """
 
 from __future__ import annotations
@@ -28,10 +28,11 @@ _BUCKET_LABEL = {
     "strong": "strength_strong",
 }
 _BUCKET_COLOR = {"weak": "#c42b1c", "medium": "#e07020", "strong": "#3ddc84"}
+_BUCKET_RANK = {"weak": 0, "medium": 1, "strong": 2}
 
 
 def analyze_vault(vault: KobiVault) -> list[dict]:
-    """info1 parolalarını değerlendirir; zayıf veya tekrar edenleri döndürür."""
+    """info1 parolalarının tamamını değerlendirir (güçlü olanlar dahil)."""
     counts: dict[str, int] = {}
     for entry in vault.entries:
         if entry.info1:
@@ -44,18 +45,36 @@ def analyze_vault(vault: KobiVault) -> list[dict]:
             continue
         bucket = strength_bucket(pw)
         reused = counts.get(pw, 0) > 1
-        if bucket == "weak" or reused:
-            findings.append(
-                {
-                    "name": entry.name or tr("audit_unknown_entry"),
-                    "bucket": bucket,
-                    "reused": reused,
-                    "age": humanize_age(entry.pw_updated_at),
-                }
-            )
-    # Önce zayıf, sonra tekrar edenler.
-    findings.sort(key=lambda f: (f["bucket"] != "weak", not f["reused"]))
+        findings.append(
+            {
+                "name": entry.name or tr("audit_unknown_entry"),
+                "bucket": bucket,
+                "reused": reused,
+                "age": humanize_age(entry.pw_updated_at),
+            }
+        )
+    # Sorunlular üstte: zayıf → tekrar → orta → güçlü; isim ikincil.
+    findings.sort(
+        key=lambda f: (
+            _BUCKET_RANK.get(f["bucket"], 9),
+            not f["reused"],
+            f["name"].lower(),
+        )
+    )
     return findings
+
+
+def _status_text(finding: dict) -> str:
+    parts: list[str] = []
+    if finding["bucket"] == "weak":
+        parts.append(tr("report_status_weak"))
+    elif finding["bucket"] == "medium":
+        parts.append(tr("report_status_medium"))
+    else:
+        parts.append(tr("report_status_strong"))
+    if finding["reused"]:
+        parts.append(tr("report_status_reused"))
+    return " · ".join(parts)
 
 
 class PasswordReportDialog(QDialog):
@@ -71,16 +90,38 @@ class PasswordReportDialog(QDialog):
 
         findings = analyze_vault(vault)
         weak = sum(1 for f in findings if f["bucket"] == "weak")
+        medium = sum(1 for f in findings if f["bucket"] == "medium")
+        strong = sum(1 for f in findings if f["bucket"] == "strong")
         reused = sum(1 for f in findings if f["reused"])
+        total = len(findings)
 
         summary = QLabel()
         summary.setObjectName("reportSummary")
         summary.setWordWrap(True)
         if not findings:
-            summary.setText(tr("report_all_good"))
+            summary.setText(tr("report_empty"))
+            summary.setStyleSheet("color: #9aa0a8; font-weight: 600;")
+        elif weak == 0 and reused == 0:
+            summary.setText(
+                tr(
+                    "report_all_good_detail",
+                    strong=strong,
+                    medium=medium,
+                    total=total,
+                )
+            )
             summary.setStyleSheet("color: #3ddc84; font-weight: 600;")
         else:
-            summary.setText(tr("report_summary", weak=weak, reused=reused))
+            summary.setText(
+                tr(
+                    "report_summary",
+                    weak=weak,
+                    medium=medium,
+                    strong=strong,
+                    reused=reused,
+                    total=total,
+                )
+            )
         layout.addWidget(summary)
 
         if findings:
@@ -104,16 +145,19 @@ class PasswordReportDialog(QDialog):
             table.setRowCount(len(findings))
 
             for row, f in enumerate(findings):
-                status_parts = []
-                if f["bucket"] == "weak":
-                    status_parts.append(tr("report_status_weak"))
-                if f["reused"]:
-                    status_parts.append(tr("report_status_reused"))
+                status_item = QTableWidgetItem(_status_text(f))
+                if f["bucket"] == "weak" or f["reused"]:
+                    status_item.setForeground(QColor("#c42b1c"))
+                elif f["bucket"] == "medium":
+                    status_item.setForeground(QColor("#e07020"))
+                else:
+                    status_item.setForeground(QColor("#3ddc84"))
+
                 strength_item = QTableWidgetItem(tr(_BUCKET_LABEL[f["bucket"]]))
                 strength_item.setForeground(QColor(_BUCKET_COLOR[f["bucket"]]))
 
                 table.setItem(row, 0, QTableWidgetItem(f["name"]))
-                table.setItem(row, 1, QTableWidgetItem(" · ".join(status_parts)))
+                table.setItem(row, 1, status_item)
                 table.setItem(row, 2, strength_item)
                 table.setItem(row, 3, QTableWidgetItem(f["age"]))
             layout.addWidget(table)

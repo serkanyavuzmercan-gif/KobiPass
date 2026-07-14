@@ -274,7 +274,7 @@ def test_password_age_roundtrip() -> None:
     assert VaultEntry.from_dict({"name": "B", "info1": "y"}).pw_updated_at == ""
 
 
-def test_password_report_flags_weak_and_reused() -> None:
+def test_password_report_lists_all_including_strong() -> None:
     from kobipass.ui.password_report_dialog import analyze_vault
     from kobipass.vault_model import KobiVault, VaultEntry
 
@@ -283,13 +283,19 @@ def test_password_report_flags_weak_and_reused() -> None:
         VaultEntry(name="Weak", info1="123456"),
         VaultEntry(name="Dup1", info1="same-pw-x"),
         VaultEntry(name="Dup2", info1="same-pw-x"),
+        VaultEntry(name="Empty", info1=""),
     ])
     findings = analyze_vault(vault)
-    names = {f["name"] for f in findings}
-    assert "Strong" not in names
-    assert "Weak" in names
+    by_name = {f["name"]: f for f in findings}
+    assert "Empty" not in by_name
+    assert "Strong" in by_name
+    assert by_name["Strong"]["bucket"] == "strong"
+    assert by_name["Strong"]["reused"] is False
+    assert by_name["Weak"]["bucket"] == "weak"
     assert all(f["reused"] for f in findings if f["name"].startswith("Dup"))
-
+    # Zayıflar / sorunlular üstte; güçlü sonda.
+    assert findings[0]["bucket"] == "weak" or findings[0]["reused"]
+    assert findings[-1]["name"] == "Strong"
 
 def test_atomic_write_roundtrip(tmp_path: Path) -> None:
     """Atomik yazım sonrası dosya okunur ve geçici .tmp kalmaz."""

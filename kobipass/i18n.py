@@ -21,7 +21,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "btn_users": "Kullanıcı İzinleri",
         "btn_audit": "Değişiklik Geçmişi",
         "btn_report": "Parola Raporu",
-        "btn_report_tip": "Zayıf ve tekrar eden parolaları görüntüle",
+        "btn_report_tip": "Tüm parolaların sağlık raporunu görüntüle",
         "btn_help": "Yardım",
         "btn_help_tip": "Kullanım ve şifreleme bilgisi",
         "btn_lang_tip": "Dili değiştir (Türkçe / English)",
@@ -143,12 +143,22 @@ _STRINGS: dict[str, dict[str, str]] = {
         "users_info": "Alt kullanıcı kartlarında parola ve genel yetkiler kişiye özeldir. İsim / Bilgiler izinleri sağda tüm kullanıcılar için ortaktır.",
         "audit_title": "Değişiklik Geçmişi",
         "report_title": "Parola Sağlık Raporu",
+        "report_empty": "Raporda gösterilecek parola yok.",
         "report_all_good": "✓ Tüm parolalar güçlü ve benzersiz.",
-        "report_summary": "{weak} zayıf, {reused} tekrar eden parola bulundu.",
+        "report_all_good_detail": (
+            "✓ {total} parola güvenli görünüyor "
+            "({strong} güçlü, {medium} orta · tekrar yok)."
+        ),
+        "report_summary": (
+            "Toplam {total}: {strong} güçlü, {medium} orta, "
+            "{weak} zayıf, {reused} tekrar eden."
+        ),
         "report_col_status": "Durum",
         "report_col_strength": "Güç",
         "report_col_age": "Yaş",
         "report_status_weak": "Zayıf",
+        "report_status_medium": "Orta",
+        "report_status_strong": "İyi",
         "report_status_reused": "Tekrar ediyor",
         "audit_empty": "Henüz kullanıcı değişikliği kaydı yok.",
         "audit_col_at": "Tarih",
@@ -258,7 +268,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "btn_users": "User Permissions",
         "btn_audit": "Change History",
         "btn_report": "Password Report",
-        "btn_report_tip": "Show weak and reused passwords",
+        "btn_report_tip": "Show full password health report",
         "btn_help": "Help",
         "btn_help_tip": "Usage and encryption information",
         "btn_lang_tip": "Switch language (Türkçe / English)",
@@ -380,12 +390,22 @@ _STRINGS: dict[str, dict[str, str]] = {
         "users_info": "Each sub-user card has its own password and general rights. Name / Info field permissions on the right are shared by all sub-users.",
         "audit_title": "Change History",
         "report_title": "Password Health Report",
+        "report_empty": "No passwords to report.",
         "report_all_good": "✓ All passwords are strong and unique.",
-        "report_summary": "Found {weak} weak and {reused} reused passwords.",
+        "report_all_good_detail": (
+            "✓ {total} password(s) look healthy "
+            "({strong} strong, {medium} medium · no reuse)."
+        ),
+        "report_summary": (
+            "Total {total}: {strong} strong, {medium} medium, "
+            "{weak} weak, {reused} reused."
+        ),
         "report_col_status": "Status",
         "report_col_strength": "Strength",
         "report_col_age": "Age",
         "report_status_weak": "Weak",
+        "report_status_medium": "Medium",
+        "report_status_strong": "Good",
         "report_status_reused": "Reused",
         "audit_empty": "No user change records yet.",
         "audit_col_at": "Date",
