@@ -696,6 +696,21 @@ QListWidget#landingRecentList::item:hover,
 QListWidget#landingRecentList::item:selected {
     background-color: #2d3340;
 }
+
+/* --- Kullanıcı İzinleri penceresi: kompakt form alanları --- */
+QDialog#userAdminDialog QLineEdit {
+    padding: 5px 8px;
+    min-height: 16px;
+}
+
+QDialog#userAdminDialog QGroupBox {
+    margin-top: 12px;
+    padding-top: 4px;
+}
+
+QGroupBox#userSlotCard {
+    border-radius: 8px;
+}
 """
 
 LIGHT_STYLESHEET = """
@@ -1385,5 +1400,20 @@ QListWidget#landingRecentList::item {
 QListWidget#landingRecentList::item:hover,
 QListWidget#landingRecentList::item:selected {
     background-color: #eff6ff;
+}
+
+/* --- Kullanıcı İzinleri penceresi: kompakt form alanları --- */
+QDialog#userAdminDialog QLineEdit {
+    padding: 5px 8px;
+    min-height: 16px;
+}
+
+QDialog#userAdminDialog QGroupBox {
+    margin-top: 12px;
+    padding-top: 4px;
+}
+
+QGroupBox#userSlotCard {
+    border-radius: 8px;
 }
 """
