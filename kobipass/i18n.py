@@ -101,11 +101,14 @@ _STRINGS: dict[str, dict[str, str]] = {
         "opened_text": "{count} kayıt yüklendi.",
         "setup_pwd_title": "Kasa Kurulumu",
         "setup_pwd_info": (
-            "Yönetici parolası zorunludur (min. {min_len} karakter).\n"
-            "En fazla 3 kullanıcı parolası tanımlayabilirsiniz; boş bırakılan slot devre dışı kalır."
+            "Yönetici parolası sağda zorunludur (min. {min_len} karakter).\n"
+            "Soldan alt kullanıcı ekleyin; her kartta isim, parola ve genel yetkiler kişiye özeldir. "
+            "İsim / Bilgiler izinleri sağda tüm kullanıcılar için ortaktır."
         ),
+        "admin_setup_section": "Yönetici",
         "admin_pwd_label": "Yönetici parolası:",
         "admin_pwd_repeat": "Yönetici tekrar:",
+        "max_users_reached": "En fazla {max} alt kullanıcı eklenebilir.",
         "user_pwd_label": "Alt Kullanıcı {n} parolası:",
         "user_default_label": "Alt Kullanıcı {n}",
         "users_section": "Alt Kullanıcılar",
@@ -335,11 +338,14 @@ _STRINGS: dict[str, dict[str, str]] = {
         "opened_text": "{count} record(s) loaded.",
         "setup_pwd_title": "Vault Setup",
         "setup_pwd_info": (
-            "Admin password is required (min. {min_len} characters).\n"
-            "You may define up to 3 user passwords; empty slots stay disabled."
+            "Admin password is required on the right (min. {min_len} characters).\n"
+            "Add sub-users on the left; each card has its own name, password, and general rights. "
+            "Name / Info field permissions on the right are shared by all sub-users."
         ),
+        "admin_setup_section": "Administrator",
         "admin_pwd_label": "Admin password:",
         "admin_pwd_repeat": "Admin repeat:",
+        "max_users_reached": "You can add at most {max} sub-users.",
         "user_pwd_label": "Sub-user {n} password:",
         "user_default_label": "Sub-user {n}",
         "users_section": "Sub-users",

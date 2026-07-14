@@ -7,10 +7,12 @@ from __future__ import annotations
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QFrame,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -18,19 +20,18 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
+from kobipass.crypto import MAX_USER_SLOTS
 from kobipass.i18n import MIN_PASSWORD_LENGTH, i18n, tr
 from kobipass.resources import app_icon
 from kobipass.ui.strength import attach_strength_label
-from kobipass.vault_model import (
-    FieldLevel,
-    PERM_FIELDS,
-    UserPermissions,
-    USER_SLOT_COUNT,
-)
+from kobipass.ui.user_admin_dialog import _password_edit, _perm_combo
+from kobipass.vault_model import PERM_FIELDS, UserPermissions
 
 
 def _validate_password_pair(
@@ -49,94 +50,112 @@ def _validate_password_pair(
 
 
 class SetupVaultDialog(QDialog):
-    """İlk kayıt: yönetici + kullanıcı parolaları ve izin şablonu."""
+    """İlk kayıt: sol alt kullanıcı kartları, sağ üst yönetici parola/tekrar."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(tr("setup_pwd_title"))
         self.setWindowIcon(app_icon())
         self.setModal(True)
-        self.setMinimumWidth(520)
+        self.setObjectName("userAdminDialog")
+        self.setMinimumSize(900, 560)
+        self.resize(920, 600)
         self._result: dict | None = None
+        self._slot_cards: list[dict] = []
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(14, 12, 14, 12)
+        outer.setSpacing(10)
 
         info = QLabel(tr("setup_pwd_info", min_len=MIN_PASSWORD_LENGTH))
         info.setWordWrap(True)
-        layout.addWidget(info)
+        outer.addWidget(info)
 
-        form = QFormLayout()
-        self._pwd_edits: list[QLineEdit] = []
+        columns = QHBoxLayout()
+        columns.setSpacing(14)
 
-        self._admin1 = QLineEdit()
-        self._admin1.setEchoMode(QLineEdit.EchoMode.Password)
-        self._admin1.setPlaceholderText(tr("pwd_placeholder"))
-        self._admin2 = QLineEdit()
-        self._admin2.setEchoMode(QLineEdit.EchoMode.Password)
-        self._admin2.setPlaceholderText(tr("pwd_repeat_placeholder"))
-        self._pwd_edits.extend((self._admin1, self._admin2))
-        form.addRow(tr("admin_pwd_label"), self._admin1)
-        form.addRow("", attach_strength_label(self._admin1))
-        form.addRow(tr("admin_pwd_repeat"), self._admin2)
+        # ── SOL: Alt kullanıcı kartları (izinler diyaloğu ile aynı) ──────────
+        left = QVBoxLayout()
+        left.setSpacing(8)
 
-        self._user_fields: list[tuple[QLineEdit, QLineEdit]] = []
-        for n in range(1, USER_SLOT_COUNT + 1):
-            p1 = QLineEdit()
-            p1.setEchoMode(QLineEdit.EchoMode.Password)
-            p1.setPlaceholderText(tr("pwd_placeholder"))
-            p2 = QLineEdit()
-            p2.setEchoMode(QLineEdit.EchoMode.Password)
-            p2.setPlaceholderText(tr("pwd_repeat_placeholder"))
-            self._pwd_edits.extend((p1, p2))
-            form.addRow(tr("user_pwd_label", n=n), p1)
-            form.addRow(tr("user_pwd_repeat", n=n), p2)
-            self._user_fields.append((p1, p2))
+        users_group = QGroupBox(tr("users_section"))
+        users_group_layout = QVBoxLayout(users_group)
+        users_group_layout.setContentsMargins(10, 8, 10, 10)
+        users_group_layout.setSpacing(8)
 
-        self._toggle = QPushButton(tr("show"))
-        self._toggle.setCheckable(True)
-        self._toggle.toggled.connect(self._on_toggle_visibility)
-        form.addRow("", self._toggle)
+        self._slots_host = QWidget()
+        self._slots_host.setObjectName("slotsHost")
+        self._slots_layout = QVBoxLayout(self._slots_host)
+        self._slots_layout.setContentsMargins(0, 0, 0, 0)
+        self._slots_layout.setSpacing(10)
+        self._slots_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        layout.addLayout(form)
+        slots_scroll = QScrollArea()
+        slots_scroll.setWidgetResizable(True)
+        slots_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        slots_scroll.setWidget(self._slots_host)
+        slots_scroll.setMinimumHeight(280)
+        slots_scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget > QWidget { background: transparent; }"
+        )
+        slots_scroll.viewport().setStyleSheet("background: transparent;")
+        users_group_layout.addWidget(slots_scroll, 1)
+
+        self._add_user_btn = QPushButton(tr("add_user_btn"))
+        self._add_user_btn.setObjectName("addRecordBtn")
+        self._add_user_btn.clicked.connect(self._add_slot_card)
+        users_group_layout.addWidget(
+            self._add_user_btn, 0, Qt.AlignmentFlag.AlignLeft
+        )
+        left.addWidget(users_group, 1)
+        columns.addLayout(left, 3)
+
+        # ── SAĞ: yönetici parola/tekrar (üstte ilk) + ortak İsim/Bilgiler ───
+        right = QVBoxLayout()
+        right.setSpacing(10)
+        right.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        admin_group = QGroupBox(tr("admin_setup_section"))
+        admin_group.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum
+        )
+        admin_form = QFormLayout(admin_group)
+        admin_form.setContentsMargins(10, 8, 10, 10)
+        admin_form.setVerticalSpacing(6)
+        self._admin1 = _password_edit(tr("pwd_placeholder"))
+        self._admin2 = _password_edit(tr("pwd_repeat_placeholder"))
+        admin_form.addRow(tr("admin_pwd_label"), self._admin1)
+        admin_form.addRow("", attach_strength_label(self._admin1))
+        admin_form.addRow(tr("admin_pwd_repeat"), self._admin2)
+        right.addWidget(admin_group)
 
         perm_group = QGroupBox(tr("perm_section"))
+        perm_group.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum
+        )
         perm_layout = QGridLayout(perm_group)
-        perm_layout.addWidget(QLabel(""), 0, 0)
-        levels = [
-            ("perm_none", "none"),
-            ("perm_read", "read"),
-            ("perm_hidden_read", "hidden_read"),
-            ("perm_write", "write"),
-        ]
+        perm_layout.setContentsMargins(10, 8, 10, 10)
+        perm_layout.setHorizontalSpacing(10)
+        perm_layout.setVerticalSpacing(8)
+        perm_layout.setColumnStretch(1, 1)
         self._perm_combos: dict[str, QComboBox] = {}
-        defaults: dict[str, FieldLevel] = {
-            "name": "read",
-            "info": "read",
-        }
-        for row, field_name in enumerate(PERM_FIELDS, start=1):
+        for row, field_name in enumerate(PERM_FIELDS):
             perm_layout.addWidget(QLabel(tr(f"field_{field_name}")), row, 0)
-            combo = QComboBox()
-            for label_key, value in levels:
-                combo.addItem(tr(label_key), value)
-            idx = combo.findData(defaults.get(field_name, "none"))
-            if idx >= 0:
-                combo.setCurrentIndex(idx)
+            combo = _perm_combo("read")
             self._perm_combos[field_name] = combo
             perm_layout.addWidget(combo, row, 1)
-        layout.addWidget(perm_group)
-
-        self._error = QLabel("")
-        self._error.setStyleSheet("color: #f08080;")
-        self._error.setWordWrap(True)
-        layout.addWidget(self._error)
+        right.addWidget(perm_group)
+        right.addStretch(1)
+        columns.addLayout(right, 2)
+        outer.addLayout(columns, 1)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        outer.addWidget(buttons)
         ok_btn = buttons.button(QDialogButtonBox.StandardButton.Ok)
         cancel_btn = buttons.button(QDialogButtonBox.StandardButton.Cancel)
         if ok_btn:
@@ -144,50 +163,142 @@ class SetupVaultDialog(QDialog):
         if cancel_btn:
             cancel_btn.setText(tr("cancel"))
 
-    def _on_toggle_visibility(self, checked: bool) -> None:
-        mode = (
-            QLineEdit.EchoMode.Normal
-            if checked
-            else QLineEdit.EchoMode.Password
-        )
-        for edit in self._pwd_edits:
-            edit.setEchoMode(mode)
-        self._toggle.setText(tr("hide") if checked else tr("show"))
+    def _warn(self, message: str) -> None:
+        show_error(self, tr("warn_title"), message)
+
+    def _add_slot_card(self) -> None:
+        if len(self._slot_cards) >= MAX_USER_SLOTS:
+            self._warn(tr("max_users_reached", max=MAX_USER_SLOTS))
+            return
+
+        n = len(self._slot_cards) + 1
+        card = QFrame()
+        card.setObjectName("userSlotCard")
+        card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        outer = QVBoxLayout(card)
+        outer.setContentsMargins(12, 10, 12, 12)
+        outer.setSpacing(6)
+
+        header = QHBoxLayout()
+        enabled_box = QCheckBox(tr("user_pwd_label", n=n))
+        enabled_box.setChecked(True)
+        header.addWidget(enabled_box)
+        header.addStretch()
+        remove_btn = QPushButton("×")
+        remove_btn.setObjectName("slotRemoveBtn")
+        remove_btn.setFixedSize(26, 26)
+        remove_btn.setToolTip(tr("remove_user_tip"))
+        header.addWidget(remove_btn)
+        outer.addLayout(header)
+
+        form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setVerticalSpacing(6)
+        label_edit = QLineEdit()
+        label_edit.setText(tr("user_default_label", n=n))
+        p1 = _password_edit(tr("pwd_placeholder"))
+        p2 = _password_edit(tr("pwd_repeat_placeholder"))
+        form.addRow(tr("field_name"), label_edit)
+        form.addRow(tr("pwd_label"), p1)
+        form.addRow(tr("pwd_repeat_label"), p2)
+        outer.addLayout(form)
+
+        flags_title = QLabel(tr("perm_flags_section"))
+        flags_title.setObjectName("cardFlagsTitle")
+        outer.addWidget(flags_title)
+        flags_row = QHBoxLayout()
+        flags_row.setSpacing(14)
+        can_add_box = QCheckBox(tr("perm_can_add"))
+        can_delete_box = QCheckBox(tr("perm_can_delete"))
+        can_save_box = QCheckBox(tr("perm_can_save"))
+        for box in (can_add_box, can_delete_box, can_save_box):
+            flags_row.addWidget(box)
+        flags_row.addStretch()
+        outer.addLayout(flags_row)
+
+        interactive = [
+            label_edit,
+            p1,
+            p2,
+            can_add_box,
+            can_delete_box,
+            can_save_box,
+        ]
+
+        def apply(checked: bool) -> None:
+            for w in interactive:
+                w.setEnabled(checked)
+
+        enabled_box.toggled.connect(apply)
+        apply(enabled_box.isChecked())
+
+        entry = {
+            "enabled": enabled_box,
+            "label": label_edit,
+            "p1": p1,
+            "p2": p2,
+            "can_add": can_add_box,
+            "can_delete": can_delete_box,
+            "can_save": can_save_box,
+            "card": card,
+        }
+        remove_btn.clicked.connect(lambda: self._remove_slot_card(entry))
+        self._slots_layout.addWidget(card)
+        self._slot_cards.append(entry)
+
+    def _remove_slot_card(self, entry: dict) -> None:
+        if entry not in self._slot_cards:
+            return
+        self._slot_cards.remove(entry)
+        entry["card"].setParent(None)
+        entry["card"].deleteLater()
+        for pos, card in enumerate(self._slot_cards, start=1):
+            card["enabled"].setText(tr("user_pwd_label", n=pos))
 
     def _on_accept(self) -> None:
         err = _validate_password_pair(
             self._admin1.text(), self._admin2.text(), required=True
         )
         if err:
-            self._error.setText(err)
+            self._warn(err)
             return
 
+        name_level = self._perm_combos["name"].currentData()
+        info_level = self._perm_combos["info"].currentData()
         user_passwords: list[tuple[bool, str]] = []
-        for p1, p2 in self._user_fields:
-            pwd1 = p1.text()
-            pwd2 = p2.text()
-            if not pwd1 and not pwd2:
-                user_passwords.append((False, ""))
+        slot_labels: list[str] = []
+        slot_permissions: list[UserPermissions] = []
+
+        for pos, card in enumerate(self._slot_cards, start=1):
+            if not card["enabled"].isChecked():
                 continue
+            pwd1 = card["p1"].text()
+            pwd2 = card["p2"].text()
             slot_err = _validate_password_pair(pwd1, pwd2, required=True)
             if slot_err:
-                self._error.setText(slot_err)
+                self._warn(slot_err)
                 return
+            label = card["label"].text().strip() or tr("user_default_label", n=pos)
             user_passwords.append((True, pwd1))
+            slot_labels.append(label)
+            slot_permissions.append(
+                UserPermissions(
+                    name=name_level,
+                    info=info_level,
+                    can_add_entry=card["can_add"].isChecked(),
+                    can_delete_entry=card["can_delete"].isChecked(),
+                    can_save=card["can_save"].isChecked(),
+                )
+            )
 
-        perms = UserPermissions(
-            name=self._perm_combos["name"].currentData(),
-            info=self._perm_combos["info"].currentData(),
-        )
-        slot_permissions = [
-            perms.copy() if enabled else UserPermissions()
-            for enabled, _ in user_passwords
-        ]
+        shared = UserPermissions(name=name_level, info=info_level)
+        first_enabled = slot_permissions[0] if slot_permissions else shared
         self._result = {
             "admin_password": self._admin1.text(),
             "user_passwords": user_passwords,
-            "permissions": perms,
+            "permissions": first_enabled,
             "slot_permissions": slot_permissions,
+            "user_slot_labels": slot_labels,
         }
         self.accept()
 
