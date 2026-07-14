@@ -1,0 +1,59 @@
+name: Release Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag (e.g. v1.1.0)"
+        required: true
+        default: "v1.1.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\pip install -r requirements.txt
+          .\.venv\Scripts\python scripts\make_assets.py
+
+      - name: Build kobiPass.exe
+        shell: pwsh
+        run: |
+          $IconAscii = Join-Path $env:TEMP "KobiPass_icon_v2.ico"
+          Copy-Item -Path "assets\icon.ico" -Destination $IconAscii -Force
+          .\.venv\Scripts\pyinstaller.exe `
+            --onefile `
+            --windowed `
+            --noupx `
+            --name kobiPass `
+            --icon $IconAscii `
+            --version-file assets\version_info.txt `
+            --add-data "assets\logo.png;assets" `
+            --add-data "assets\icon.ico;assets" `
+            --clean `
+            main.py
+          $sizeMb = [math]::Round((Get-Item "dist\kobiPass.exe").Length / 1MB, 2)
+          if ($sizeMb -lt 10) { throw "Exe too small ($sizeMb MB)" }
+          Write-Host "Built kobiPass.exe ($sizeMb MB)"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: KobiPass ${{ inputs.version }}
+          files: dist/kobiPass.exe
+          generate_release_notes: true
+          draft: false
+          prerelease: false
