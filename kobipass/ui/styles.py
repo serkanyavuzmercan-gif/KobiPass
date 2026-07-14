@@ -1526,6 +1526,79 @@ QPushButton#slotRemoveBtn:hover {
     color: #ffffff;
     border-radius: 4px;
 }
+
+QWidget#permissionBlock,
+QWidget#permissionActionBlock {
+    background-color: #20252d;
+    border: 1px solid #343c49;
+    border-radius: 9px;
+}
+
+QLabel#permissionTitle {
+    color: #e5e9f2;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+QLabel#permissionDescription {
+    color: #858f9f;
+    font-size: 10px;
+}
+
+QWidget#passwordChangePanel {
+    background-color: #1b2027;
+    border: 1px solid #343c49;
+    border-radius: 9px;
+}
+
+QPushButton#secondaryActionBtn {
+    background-color: transparent;
+    color: #9eaff4;
+    border: 1px solid #465887;
+    border-radius: 7px;
+    padding: 5px 11px;
+}
+
+QPushButton#secondaryActionBtn:hover {
+    background-color: #283149;
+    border-color: #6076b4;
+}
+
+QLabel#settingsHeading {
+    color: #f0f3fa;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+QLabel#settingsDescription {
+    color: #929cac;
+    font-size: 11px;
+}
+
+QLabel#settingsError {
+    color: #f08080;
+    font-size: 11px;
+}
+
+QPushButton#vaultSettingsBtn {
+    background-color: transparent;
+    color: #9cabe7;
+    border: 1px solid #435278;
+    border-radius: 8px;
+    padding: 4px 11px;
+    font-size: 11px;
+}
+
+QPushButton#vaultSettingsBtn:hover {
+    background-color: #283149;
+    border-color: #6075ad;
+}
+
+QPushButton#vaultSettingsBtn[restricted="true"] {
+    color: #788296;
+    border-color: #3b4455;
+    background-color: transparent;
+}
 """
 
 LIGHT_STYLESHEET = """
@@ -3042,5 +3115,78 @@ QPushButton#slotRemoveBtn:hover {
     background-color: #dc2626;
     color: #ffffff;
     border-radius: 4px;
+}
+
+QWidget#permissionBlock,
+QWidget#permissionActionBlock {
+    background-color: #f8f9fc;
+    border: 1px solid #dce2ec;
+    border-radius: 9px;
+}
+
+QLabel#permissionTitle {
+    color: #263247;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+QLabel#permissionDescription {
+    color: #788397;
+    font-size: 10px;
+}
+
+QWidget#passwordChangePanel {
+    background-color: #f7f8fb;
+    border: 1px solid #dce2ec;
+    border-radius: 9px;
+}
+
+QPushButton#secondaryActionBtn {
+    background-color: #f5f7ff;
+    color: #4058c9;
+    border: 1px solid #c4cff5;
+    border-radius: 7px;
+    padding: 5px 11px;
+}
+
+QPushButton#secondaryActionBtn:hover {
+    background-color: #e9edff;
+    border-color: #879aeb;
+}
+
+QLabel#settingsHeading {
+    color: #172033;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+QLabel#settingsDescription {
+    color: #697488;
+    font-size: 11px;
+}
+
+QLabel#settingsError {
+    color: #c42b1c;
+    font-size: 11px;
+}
+
+QPushButton#vaultSettingsBtn {
+    background-color: #f5f7ff;
+    color: #4058c9;
+    border: 1px solid #c4cff5;
+    border-radius: 8px;
+    padding: 4px 11px;
+    font-size: 11px;
+}
+
+QPushButton#vaultSettingsBtn:hover {
+    background-color: #e9edff;
+    border-color: #879aeb;
+}
+
+QPushButton#vaultSettingsBtn[restricted="true"] {
+    color: #9aa3b2;
+    border-color: #d8deea;
+    background-color: #f7f8fb;
 }
 """

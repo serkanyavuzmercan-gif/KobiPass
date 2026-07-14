@@ -8,7 +8,6 @@ from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -29,8 +28,12 @@ from kobipass.crypto import MAX_USER_SLOTS, passwords_are_unique
 from kobipass.i18n import MIN_PASSWORD_LENGTH, i18n, tr
 from kobipass.resources import app_icon
 from kobipass.ui.strength import attach_strength_label
-from kobipass.ui.user_admin_dialog import _password_edit, _perm_combo
-from kobipass.vault_model import PERM_FIELDS, UserPermissions
+from kobipass.ui.user_admin_dialog import (
+    _action_permission_block,
+    _field_permission_block,
+    _password_edit,
+)
+from kobipass.vault_model import UserPermissions
 
 
 def _validate_password_pair(
@@ -129,25 +132,6 @@ class SetupVaultDialog(QDialog):
         admin_form.addRow(tr("admin_pwd_repeat"), self._admin2)
         right.addWidget(admin_group)
 
-        perm_group = QGroupBox(tr("perm_section"))
-        perm_group.setObjectName("sharedPermsBox")
-        perm_group.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum
-        )
-        perm_form = QFormLayout(perm_group)
-        perm_form.setContentsMargins(10, 6, 10, 8)
-        perm_form.setHorizontalSpacing(10)
-        perm_form.setVerticalSpacing(4)
-        perm_form.setFieldGrowthPolicy(
-            QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
-        )
-        self._perm_combos: dict[str, QComboBox] = {}
-        for field_name in PERM_FIELDS:
-            combo = _perm_combo("read")
-            combo.setMinimumWidth(120)
-            self._perm_combos[field_name] = combo
-            perm_form.addRow(tr(f"field_{field_name}"), combo)
-        right.addWidget(perm_group)
         right.addStretch(1)
         columns.addLayout(right, 2)
         outer.addLayout(columns, 1)
@@ -182,7 +166,7 @@ class SetupVaultDialog(QDialog):
         outer.setSpacing(6)
 
         header = QHBoxLayout()
-        enabled_box = QCheckBox(tr("user_pwd_label", n=n))
+        enabled_box = QCheckBox(tr("user_card_title", n=n))
         enabled_box.setChecked(True)
         header.addWidget(enabled_box)
         header.addStretch()
@@ -200,34 +184,63 @@ class SetupVaultDialog(QDialog):
         label_edit.setText(tr("user_default_label", n=n))
         p1 = _password_edit(tr("pwd_placeholder"))
         p2 = _password_edit(tr("pwd_repeat_placeholder"))
-        form.addRow(tr("field_name"), label_edit)
-        form.addRow(tr("pwd_label"), p1)
+        form.addRow(tr("user_name_label"), label_edit)
+        form.addRow(tr("new_user_password_label"), p1)
         strength = attach_strength_label(p1)
         form.addRow("", strength)
         form.addRow(tr("pwd_repeat_label"), p2)
         outer.addLayout(form)
 
-        flags_title = QLabel(tr("perm_flags_section"))
-        flags_title.setObjectName("cardFlagsTitle")
-        outer.addWidget(flags_title)
-        flags_row = QHBoxLayout()
-        flags_row.setSpacing(14)
-        can_add_box = QCheckBox(tr("perm_can_add"))
-        can_delete_box = QCheckBox(tr("perm_can_delete"))
-        can_save_box = QCheckBox(tr("perm_can_save"))
-        for box in (can_add_box, can_delete_box, can_save_box):
-            flags_row.addWidget(box)
-        flags_row.addStretch()
-        outer.addLayout(flags_row)
+        defaults = UserPermissions()
+        permissions_panel = QWidget()
+        permissions_panel.setObjectName("cardPermissionsPanel")
+        permissions_layout = QVBoxLayout(permissions_panel)
+        permissions_layout.setContentsMargins(0, 4, 0, 0)
+        permissions_layout.setSpacing(8)
+
+        fields_title = QLabel(tr("perm_fields_section"))
+        fields_title.setObjectName("cardFlagsTitle")
+        permissions_layout.addWidget(fields_title)
+        fields_row = QHBoxLayout()
+        fields_row.setSpacing(8)
+        name_block, perm_name = _field_permission_block(
+            "perm_name_label", "perm_name_desc", defaults.name
+        )
+        info_block, perm_info = _field_permission_block(
+            "perm_info_label", "perm_info_desc", defaults.info
+        )
+        fields_row.addWidget(name_block, 1)
+        fields_row.addWidget(info_block, 1)
+        permissions_layout.addLayout(fields_row)
+
+        actions_title = QLabel(tr("perm_actions_section"))
+        actions_title.setObjectName("cardFlagsTitle")
+        permissions_layout.addWidget(actions_title)
+        actions_row = QHBoxLayout()
+        actions_row.setSpacing(8)
+        add_block, can_add_box = _action_permission_block(
+            "perm_can_add", "perm_can_add_desc", defaults.can_add_entry
+        )
+        delete_block, can_delete_box = _action_permission_block(
+            "perm_can_delete",
+            "perm_can_delete_desc",
+            defaults.can_delete_entry,
+        )
+        save_block, can_save_box = _action_permission_block(
+            "perm_can_save", "perm_can_save_desc", defaults.can_save
+        )
+        actions_row.addWidget(add_block, 1)
+        actions_row.addWidget(delete_block, 1)
+        actions_row.addWidget(save_block, 1)
+        permissions_layout.addLayout(actions_row)
+        outer.addWidget(permissions_panel)
 
         interactive = [
             label_edit,
             p1,
             p2,
             strength,
-            can_add_box,
-            can_delete_box,
-            can_save_box,
+            permissions_panel,
         ]
 
         def apply(checked: bool) -> None:
@@ -242,6 +255,8 @@ class SetupVaultDialog(QDialog):
             "label": label_edit,
             "p1": p1,
             "p2": p2,
+            "perm_name": perm_name,
+            "perm_info": perm_info,
             "can_add": can_add_box,
             "can_delete": can_delete_box,
             "can_save": can_save_box,
@@ -258,7 +273,7 @@ class SetupVaultDialog(QDialog):
         entry["card"].setParent(None)
         entry["card"].deleteLater()
         for pos, card in enumerate(self._slot_cards, start=1):
-            card["enabled"].setText(tr("user_pwd_label", n=pos))
+            card["enabled"].setText(tr("user_card_title", n=pos))
 
     def _on_accept(self) -> None:
         err = _validate_password_pair(
@@ -268,8 +283,6 @@ class SetupVaultDialog(QDialog):
             self._warn(err)
             return
 
-        name_level = self._perm_combos["name"].currentData()
-        info_level = self._perm_combos["info"].currentData()
         user_passwords: list[tuple[bool, str]] = []
         slot_labels: list[str] = []
         slot_permissions: list[UserPermissions] = []
@@ -288,8 +301,8 @@ class SetupVaultDialog(QDialog):
             slot_labels.append(label)
             slot_permissions.append(
                 UserPermissions(
-                    name=name_level,
-                    info=info_level,
+                    name=card["perm_name"].currentData(),
+                    info=card["perm_info"].currentData(),
                     can_add_entry=card["can_add"].isChecked(),
                     can_delete_entry=card["can_delete"].isChecked(),
                     can_save=card["can_save"].isChecked(),
@@ -300,8 +313,9 @@ class SetupVaultDialog(QDialog):
             self._warn(tr("pwd_not_available"))
             return
 
-        shared = UserPermissions(name=name_level, info=info_level)
-        first_enabled = slot_permissions[0] if slot_permissions else shared
+        first_enabled = (
+            slot_permissions[0] if slot_permissions else UserPermissions()
+        )
         self._result = {
             "admin_password": self._admin1.text(),
             "user_passwords": user_passwords,

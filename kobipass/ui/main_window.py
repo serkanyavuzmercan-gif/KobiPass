@@ -73,6 +73,7 @@ from kobipass.ui.icons import icon_home, icon_sun, icon_theme
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
+from kobipass.ui.vault_settings_dialog import VaultSettingsDialog
 from kobipass.ui.vault_empty_state import (
     VaultBody,
     VaultEmptyState,
@@ -281,6 +282,10 @@ class MainWindow(QMainWindow):
         self._btn_users.clicked.connect(self._manage_users)
         toolbar.addWidget(self._btn_users, 0, Qt.AlignmentFlag.AlignVCenter)
 
+        self._btn_settings = QPushButton()
+        self._btn_settings.setObjectName("vaultSettingsBtn")
+        self._btn_settings.clicked.connect(self._manage_vault_settings)
+
         self._btn_audit = QPushButton()
         self._btn_audit.clicked.connect(self._show_audit)
         toolbar.addWidget(self._btn_audit, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -333,6 +338,7 @@ class MainWindow(QMainWindow):
         self._workspace_hint.setObjectName("vaultWorkspaceHint")
         badge_layout.addWidget(self._workspace_hint)
         badge_layout.addStretch()
+        badge_layout.addWidget(self._btn_settings)
         badge_layout.setContentsMargins(0, 0, 0, 0)
         command_layout.addLayout(badge_layout)
 
@@ -634,7 +640,12 @@ class MainWindow(QMainWindow):
 
         # Yönetici düğmeleri her zaman görünür; yetki yoksa pasif görünüp
         # basılınca açıklama verir (gizlemek yerine kısıtlama).
-        for btn in (self._btn_users, self._btn_audit, self._btn_report):
+        for btn in (
+            self._btn_users,
+            self._btn_settings,
+            self._btn_audit,
+            self._btn_report,
+        ):
             btn.setVisible(True)
             btn.setProperty("restricted", not is_admin)
             if not is_admin:
@@ -854,6 +865,7 @@ class MainWindow(QMainWindow):
         self._btn_home.setToolTip(tr("btn_home_tip"))
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
+        self._btn_settings.setText(tr("btn_vault_settings"))
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_report.setText(tr("btn_report"))
         self._btn_report.setToolTip(tr("btn_report_tip"))
@@ -1101,14 +1113,6 @@ class MainWindow(QMainWindow):
         if not data:
             return
 
-        if data.get("admin_new"):
-            current = data.get("admin_current") or ""
-            if current != self._session.admin_password:
-                show_error(self, tr("warn_title"), tr("admin_pwd_wrong"))
-                return
-            self._pending_admin_password = data["admin_new"]
-            self._session.admin_password = data["admin_new"]
-
         self._vault.user_permissions = data["permissions"]
         if data.get("slot_permissions") is not None:
             self._vault.set_slot_permissions(data["slot_permissions"])
@@ -1121,6 +1125,36 @@ class MainWindow(QMainWindow):
         self._apply_session_ui()
         if data.get("changed"):
             show_info(self, tr("users_applied_title"), tr("users_applied_text"))
+
+    def _manage_vault_settings(self) -> None:
+        if not self._require_admin("restricted_vault_settings"):
+            return
+        if not isinstance(self._session, AdminSession) or self._session.keys is None:
+            return
+        effective_users = (
+            self._pending_user_passwords
+            if self._pending_user_passwords is not None
+            else self._session.user_passwords
+        )
+        dlg = VaultSettingsDialog(
+            self._session.admin_password,
+            self._session.keys,
+            effective_users,
+            self,
+        )
+        if dlg.exec() != dlg.DialogCode.Accepted:
+            return
+        data = dlg.result_data()
+        if not data:
+            return
+        self._pending_admin_password = data["admin_new"]
+        self._session.admin_password = data["admin_new"]
+        self._mark_dirty()
+        show_info(
+            self,
+            tr("settings_applied_title"),
+            tr("settings_applied_text"),
+        )
 
     def _show_audit(self) -> None:
         if not self._require_admin("restricted_audit"):

@@ -71,6 +71,8 @@ def test_per_slot_permissions_roundtrip() -> None:
     assert loaded.permissions_for_slot(1).can_add_entry is True
     assert loaded.permissions_for_slot(2).can_save is False
     assert loaded.permissions_for_slot(2).name == "none"
+    assert loaded.permissions_for_slot(1).info == "write"
+    assert loaded.permissions_for_slot(2).info == "read"
     # Legacy ortak şablon → slotlara kopyalanır
     legacy = KobiVault.from_dict(
         {
