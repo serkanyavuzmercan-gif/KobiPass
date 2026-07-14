@@ -177,8 +177,31 @@ def icon_help(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
     return _scaled_icon(f"help:{color.name()}:{size}", draw, size)
 
 
+def icon_sun(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
+    """Güneş — aydınlık moda geç."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(color)
+        p.drawEllipse(_pt(12 * s, 12 * s), 4.3 * s, 4.3 * s)
+        pen = _line_pen(color, 2.0 * s)
+        p.setPen(pen)
+        import math
+
+        for k in range(8):
+            ang = math.pi * k / 4.0
+            x, y = 12 * s, 12 * s
+            r1, r2 = 8.2 * s, 10.8 * s
+            p.drawLine(
+                _pt(x + r1 * math.cos(ang), y + r1 * math.sin(ang)),
+                _pt(x + r2 * math.cos(ang), y + r2 * math.sin(ang)),
+            )
+
+    return _scaled_icon(f"sun:{color.name()}:{size}", draw, size)
+
+
 def icon_theme(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
-    """Hilal (ay) — tema değiştirici."""
+    """Hilal (ay) — karanlık moda geç."""
     def draw(p: QPainter) -> None:
         s = size / 24.0
         p.setPen(Qt.PenStyle.NoPen)

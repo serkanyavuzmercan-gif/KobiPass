@@ -67,7 +67,7 @@ from kobipass.backup import (
     restore_backup,
     set_read_only,
 )
-from kobipass.ui.icons import icon_home, icon_theme
+from kobipass.ui.icons import icon_home, icon_sun, icon_theme
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
@@ -254,10 +254,11 @@ class MainWindow(QMainWindow):
 
         self._btn_theme = QPushButton()
         self._btn_theme.setObjectName("themeBtn")
-        self._btn_theme.setIcon(icon_theme())
         self._btn_theme.setFixedWidth(56)
         self._btn_theme.clicked.connect(theme_manager.toggle)
         toolbar.addWidget(self._btn_theme, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._update_theme_icon()
+        theme_manager.theme_changed.connect(self._update_theme_icon)
 
         self._btn_lang = QPushButton("TR/EN")
         self._btn_lang.setObjectName("langBtn")
@@ -330,6 +331,12 @@ class MainWindow(QMainWindow):
         self._show_landing_page()
         # Açılışta silinmiş kasa tespiti — pencere göründükten sonra sor.
         QTimer.singleShot(0, self._check_missing_vaults)
+
+    def _update_theme_icon(self) -> None:
+        """Buton, basınca geçilecek modu gösterir: koyu→güneş, aydınlık→ay."""
+        self._btn_theme.setIcon(
+            icon_sun() if theme_manager.is_dark() else icon_theme()
+        )
 
     def _setup_shortcuts(self) -> None:
         """Klavye kısayolları: kaydet, ara, kayıt ekle, kilitle."""

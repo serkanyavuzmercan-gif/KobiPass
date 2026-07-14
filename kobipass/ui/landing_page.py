@@ -28,8 +28,10 @@ from kobipass.ui.icons import (
     icon_folder_open,
     icon_help,
     icon_shield,
+    icon_sun,
     icon_theme,
 )
+from kobipass.ui.theme import theme_manager
 
 
 class _ActionPanel(QFrame):
@@ -72,8 +74,9 @@ class LandingPage(QWidget):
         self.btn_theme = QPushButton()
         self.btn_theme.setObjectName("themeBtn")
         self.btn_theme.setFixedWidth(56)
-        self.btn_theme.setIcon(icon_theme())
         self.btn_theme.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._update_theme_icon()
+        theme_manager.theme_changed.connect(self._update_theme_icon)
 
         self.btn_security = QPushButton()
         self.btn_security.setObjectName("headerSecurityBtn")
@@ -192,6 +195,12 @@ class LandingPage(QWidget):
         if offset:  # iki panel senkron nefes almasın
             anim.setCurrentTime(1600)
         self._glow_anims.append(anim)
+
+    def _update_theme_icon(self) -> None:
+        """Basınca geçilecek modu göster: koyu→güneş, aydınlık→ay."""
+        self.btn_theme.setIcon(
+            icon_sun() if theme_manager.is_dark() else icon_theme()
+        )
 
     def _on_recent_activated(self, item: QListWidgetItem) -> None:
         path = item.data(Qt.ItemDataRole.UserRole)
