@@ -432,6 +432,54 @@ class UnlockDialog(QDialog):
         return self._password
 
 
+class RestrictionDialog(QDialog):
+    """Satırları oynatmadan yetki kısıtını açıklayan küçük premium pencere."""
+
+    def __init__(self, message: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("premiumRestrictionDialog")
+        self.setWindowTitle(tr("restricted_notice_title"))
+        self.setWindowIcon(app_icon())
+        self.setModal(True)
+        self.setFixedWidth(480)
+        self.setWindowFlags(
+            self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
+        )
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(22, 20, 22, 18)
+        outer.setSpacing(16)
+
+        content = QHBoxLayout()
+        content.setSpacing(13)
+        icon = QLabel("!")
+        icon.setObjectName("restrictionDialogIcon")
+        icon.setFixedSize(38, 38)
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        content.addWidget(icon, 0, Qt.AlignmentFlag.AlignTop)
+
+        text = QVBoxLayout()
+        text.setSpacing(5)
+        title = QLabel(tr("restricted_notice_title"))
+        title.setObjectName("restrictionDialogTitle")
+        text.addWidget(title)
+        detail = QLabel(message)
+        detail.setObjectName("restrictionDialogText")
+        detail.setWordWrap(True)
+        text.addWidget(detail)
+        content.addLayout(text, 1)
+        outer.addLayout(content)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch()
+        close = QPushButton(tr("ok"))
+        close.setObjectName("restrictionDialogButton")
+        close.setMinimumWidth(100)
+        close.clicked.connect(self.accept)
+        buttons.addWidget(close)
+        outer.addLayout(buttons)
+
+
 def _message_box(
     parent: QWidget | None,
     icon: QMessageBox.Icon,
@@ -456,4 +504,8 @@ def show_error(parent: QWidget | None, title: str, message: str) -> None:
 
 def show_info(parent: QWidget | None, title: str, message: str) -> None:
     _message_box(parent, QMessageBox.Icon.Information, title, message)
+
+
+def show_restriction(parent: QWidget | None, message: str) -> None:
+    RestrictionDialog(message, parent).exec()
 

@@ -511,43 +511,45 @@ QLabel#vaultWorkspaceHint {
     font-weight: 500;
 }
 
-QFrame#restrictionNotice {
-    background-color: #252a37;
-    border: 1px solid #56658a;
-    border-radius: 10px;
+QDialog#premiumRestrictionDialog {
+    background-color: #1a1e25;
+    color: #e8ecf5;
 }
 
-QLabel#restrictionNoticeIcon {
+QLabel#restrictionDialogIcon {
     color: #ffffff;
     background-color: #4b68f4;
     border: 1px solid #7188ff;
-    border-radius: 12px;
-    font-size: 13px;
+    border-radius: 19px;
+    font-size: 17px;
     font-weight: 700;
 }
 
-QLabel#restrictionNoticeTitle {
-    color: #e9edff;
-    font-size: 11px;
+QLabel#restrictionDialogTitle {
+    color: #f0f3fb;
+    font-size: 17px;
     font-weight: 700;
 }
 
-QLabel#restrictionNoticeText {
-    color: #a7b0c1;
-    font-size: 10px;
+QLabel#restrictionDialogText {
+    color: #a5afbf;
+    font-size: 12px;
 }
 
-QPushButton#restrictionNoticeClose {
-    background: transparent;
-    border: none;
-    color: #8994a7;
-    font-size: 15px;
-    padding: 0;
-}
-
-QPushButton#restrictionNoticeClose:hover {
-    background-color: #343c4b;
+QPushButton#restrictionDialogButton {
+    min-height: 36px;
+    background-color: #4b68f4;
     color: #ffffff;
+    border: 1px solid #617af7;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+QPushButton#restrictionDialogButton:hover {
+    background-color: #5c76f7;
+    border-color: #8294fa;
 }
 
 QPushButton#primaryBtn[restricted="true"],
@@ -2028,43 +2030,45 @@ QLabel#vaultWorkspaceHint {
     font-weight: 500;
 }
 
-QFrame#restrictionNotice {
-    background-color: #f3f5ff;
-    border: 1px solid #b9c5ee;
-    border-radius: 10px;
+QDialog#premiumRestrictionDialog {
+    background-color: #f7f8fc;
+    color: #1f2937;
 }
 
-QLabel#restrictionNoticeIcon {
+QLabel#restrictionDialogIcon {
     color: #ffffff;
     background-color: #4b68f4;
     border: 1px solid #405de4;
-    border-radius: 12px;
-    font-size: 13px;
+    border-radius: 19px;
+    font-size: 17px;
     font-weight: 700;
 }
 
-QLabel#restrictionNoticeTitle {
-    color: #26375f;
-    font-size: 11px;
+QLabel#restrictionDialogTitle {
+    color: #1f2d49;
+    font-size: 17px;
     font-weight: 700;
 }
 
-QLabel#restrictionNoticeText {
-    color: #66728a;
-    font-size: 10px;
+QLabel#restrictionDialogText {
+    color: #667287;
+    font-size: 12px;
 }
 
-QPushButton#restrictionNoticeClose {
-    background: transparent;
-    border: none;
-    color: #7c879a;
-    font-size: 15px;
-    padding: 0;
+QPushButton#restrictionDialogButton {
+    min-height: 36px;
+    background-color: #4b68f4;
+    color: #ffffff;
+    border: 1px solid #405de4;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 600;
 }
 
-QPushButton#restrictionNoticeClose:hover {
-    background-color: #e4e8f5;
-    color: #26375f;
+QPushButton#restrictionDialogButton:hover {
+    background-color: #405de4;
+    border-color: #304dcc;
 }
 
 QPushButton#primaryBtn[restricted="true"],

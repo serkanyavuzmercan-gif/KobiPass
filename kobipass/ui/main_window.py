@@ -57,6 +57,7 @@ from kobipass.ui.dialogs import (
     UnlockDialog,
     show_error,
     show_info,
+    show_restriction as show_restriction_dialog,
 )
 from kobipass.ui.entry_row import ROW_MIME, EntryRowWidget
 from kobipass.ui.help_panel import HelpPanel
@@ -174,9 +175,6 @@ class MainWindow(QMainWindow):
         self._copy_notice_timer = QTimer(self)
         self._copy_notice_timer.setSingleShot(True)
         self._copy_notice_timer.timeout.connect(self._end_copy_notice)
-        self._restriction_timer = QTimer(self)
-        self._restriction_timer.setSingleShot(True)
-        self._restriction_timer.timeout.connect(self._hide_restriction)
         self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
         self._search_timer.timeout.connect(self._run_filter)
@@ -338,35 +336,6 @@ class MainWindow(QMainWindow):
         badge_layout.setContentsMargins(0, 0, 0, 0)
         command_layout.addLayout(badge_layout)
 
-        self._restriction_notice = QFrame()
-        self._restriction_notice.setObjectName("restrictionNotice")
-        self._restriction_notice.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        notice_layout = QHBoxLayout(self._restriction_notice)
-        notice_layout.setContentsMargins(11, 8, 8, 8)
-        notice_layout.setSpacing(9)
-        notice_icon = QLabel("!")
-        notice_icon.setObjectName("restrictionNoticeIcon")
-        notice_icon.setFixedSize(24, 24)
-        notice_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        notice_layout.addWidget(notice_icon)
-        notice_text = QVBoxLayout()
-        notice_text.setSpacing(1)
-        self._restriction_title = QLabel()
-        self._restriction_title.setObjectName("restrictionNoticeTitle")
-        self._restriction_message = QLabel()
-        self._restriction_message.setObjectName("restrictionNoticeText")
-        self._restriction_message.setWordWrap(True)
-        notice_text.addWidget(self._restriction_title)
-        notice_text.addWidget(self._restriction_message)
-        notice_layout.addLayout(notice_text, 1)
-        notice_close = QPushButton("×")
-        notice_close.setObjectName("restrictionNoticeClose")
-        notice_close.setFixedSize(26, 26)
-        notice_close.clicked.connect(self._hide_restriction)
-        notice_layout.addWidget(notice_close)
-        self._restriction_notice.setVisible(False)
-        self._restriction_key = ""
-        command_layout.addWidget(self._restriction_notice)
         root.addWidget(self._command_surface)
 
         self._vault_body = VaultBody()
@@ -460,15 +429,7 @@ class MainWindow(QMainWindow):
         return perms.can_add_entry and has_writable_field
 
     def _show_restriction(self, message_key: str) -> None:
-        self._restriction_key = message_key
-        self._restriction_title.setText(tr("restricted_notice_title"))
-        self._restriction_message.setText(tr(message_key))
-        self._restriction_notice.setVisible(True)
-        self._restriction_timer.start(6500)
-
-    def _hide_restriction(self) -> None:
-        self._restriction_timer.stop()
-        self._restriction_notice.setVisible(False)
+        show_restriction_dialog(self, tr(message_key))
 
     def _request_add_row(self) -> None:
         if self._kilitli_mi:
@@ -903,9 +864,6 @@ class MainWindow(QMainWindow):
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))
         self._workspace_hint.setText(tr("vault_workspace_hint"))
-        self._restriction_title.setText(tr("restricted_notice_title"))
-        if self._restriction_key:
-            self._restriction_message.setText(tr(self._restriction_key))
         self._title_bar.retranslate()
         self._landing_page.retranslate()
         self._add_bar.retranslate()
