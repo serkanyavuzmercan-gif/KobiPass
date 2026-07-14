@@ -439,6 +439,10 @@ def _message_box(
     box.setWindowTitle(title)
     box.setText(message)
     box.setWindowIcon(app_icon())
+    box.setStandardButtons(QMessageBox.StandardButton.Ok)
+    ok_btn = box.button(QMessageBox.StandardButton.Ok)
+    if ok_btn:
+        ok_btn.setText(tr("ok"))
     box.exec()
 
 
