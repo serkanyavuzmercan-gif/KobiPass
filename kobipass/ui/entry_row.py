@@ -92,26 +92,10 @@ def _default_info_label(info_index: int) -> str:
 
 
 def _password_strength_color(text: str) -> str:
-    if not text:
-        return "transparent"
-    score = 0
-    if len(text) >= 6:
-        score += 1
-    if len(text) >= 10:
-        score += 1
-    if len(text) >= 14:
-        score += 1
-    if any(ch.islower() for ch in text) and any(ch.isupper() for ch in text):
-        score += 1
-    if any(ch.isdigit() for ch in text):
-        score += 1
-    if any(not ch.isalnum() for ch in text):
-        score += 1
-    if score <= 2:
-        return "#c42b1c"
-    if score <= 4:
-        return "#e07020"
-    return "#3ddc84"
+    from kobipass.password_tools import strength_color
+
+    color = strength_color(text)
+    return "transparent" if color == "transparent" else color
 
 
 class EntryFieldsScroll(QScrollArea):
@@ -220,6 +204,16 @@ class CompactField(QWidget):
             layout.addWidget(self._eye_btn, 0, _ROW_ALIGN)
 
         if sensitive:
+            # Alan içi "üret" düğmesi — güvenli parola oluşturur ve gösterir.
+            from kobipass.ui.icons import icon_refresh
+
+            self._gen_action = self._edit.addAction(
+                icon_refresh(), QLineEdit.ActionPosition.TrailingPosition
+            )
+            self._gen_action.setToolTip(tr("gen_password_tip"))
+            self._gen_action.triggered.connect(self._on_generate)
+
+        if sensitive:
             outer.addWidget(row_host)
             self._strength_meter = QFrame(self)
             self._strength_meter.setFixedHeight(3)
@@ -269,6 +263,19 @@ class CompactField(QWidget):
         color = _password_strength_color(text)
         if self._strength_meter is not None:
             self._strength_meter.setStyleSheet(f"background-color: {color};")
+
+    def _on_generate(self) -> None:
+        """Güvenli parola üretir, alana yazar ve görünür yapar."""
+        if self._edit.isReadOnly() or not self._edit.isEnabled():
+            return
+        from kobipass.password_tools import generate_password
+
+        self._edit.setText(generate_password())
+        self._hidden = False
+        self._sync_echo()
+        self._refresh_eye()
+        if self._eye_btn is not None:
+            self._eye_btn.setChecked(True)
 
     def set_view_only(self, view_only: bool) -> None:
         self._view_only = view_only
@@ -407,6 +414,7 @@ class EntryRowWidget(QWidget):
         self.setObjectName("entryRow")
         self._can_delete = True
         self._view_only = False
+        self._pw_updated_at = ""
         self._permissions = UserPermissions()
         self._extra_fields: list[CompactField] = []
         self._field_labels: dict[str, str] = {}
@@ -682,16 +690,27 @@ class EntryRowWidget(QWidget):
             name=self._name.text().strip(),
             info1=self._info1.text(),
             more_infos=[field.text() for field in self._extra_fields],
+            pw_updated_at=self._pw_updated_at,
         )
 
     def load_entry(self, entry: VaultEntry) -> None:
         self._name.setText(entry.name)
         self._info1.setText(entry.info1)
+        self._pw_updated_at = entry.pw_updated_at
         self._clear_extra_fields()
         for value in entry.more_infos:
             self._add_extra_field(initial_text=value, block_signals=True)
         self._sync_scroll_width()
         self.set_sensitive_shown(False)
+        self._apply_pw_age_tooltip()
+
+    def _apply_pw_age_tooltip(self) -> None:
+        """info1 alanına parola yaşını tooltip olarak yazar."""
+        from kobipass.password_tools import humanize_age
+
+        tip = tr("pw_age_tip", age=humanize_age(self._pw_updated_at))
+        self._info1.setToolTip(tip)
+        self._info1._edit.setToolTip(tip)
 
     def block_change_signals(self, block: bool) -> None:
         self._name._edit.blockSignals(block)

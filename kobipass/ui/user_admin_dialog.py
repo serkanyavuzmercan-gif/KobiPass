@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
 from kobipass.i18n import MIN_PASSWORD_LENGTH, tr
 from kobipass.resources import app_icon
 from kobipass.ui.icons import icon_eye, icon_eye_off
+from kobipass.ui.strength import attach_strength_label
 from kobipass.vault_model import FIELD_NAMES, KobiVault, USER_SLOT_COUNT
 
 
@@ -97,6 +98,7 @@ class UserAdminDialog(QDialog):
         self._admin_new_repeat = _password_edit()
         admin_form.addRow(tr("admin_pwd_current"), self._admin_current)
         admin_form.addRow(tr("admin_pwd_new"), self._admin_new)
+        admin_form.addRow("", attach_strength_label(self._admin_new))
         admin_form.addRow(tr("admin_pwd_new_repeat"), self._admin_new_repeat)
         left.addWidget(admin_group)
 

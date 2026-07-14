@@ -35,6 +35,8 @@ class VaultEntry:
     name: str
     info1: str = ""
     more_infos: list[str] = field(default_factory=list)
+    # info1 (parola) en son ne zaman değişti — ISO 8601 UTC; boş = bilinmiyor.
+    pw_updated_at: str = ""
 
     @property
     def info2(self) -> str:
@@ -52,6 +54,8 @@ class VaultEntry:
         data: dict[str, str] = {"name": self.name, "info1": self.info1}
         for index, value in enumerate(self.more_infos, start=2):
             data[f"info{index}"] = value
+        if self.pw_updated_at:
+            data["pw_updated_at"] = self.pw_updated_at
         return data
 
     @classmethod
@@ -65,6 +69,7 @@ class VaultEntry:
             name=str(data.get("name", "")),
             info1=str(data.get("info1", "")),
             more_infos=more,
+            pw_updated_at=str(data.get("pw_updated_at", "")),
         )
 
     def field_value(self, field_name: str) -> str:

@@ -220,3 +220,64 @@ def test_backup_create_rotate_restore(tmp_path: Path, monkeypatch) -> None:
     assert not _writable(vault_file)
     backup.clear_read_only(vault_file)
     assert _writable(vault_file)
+
+
+def test_password_generator_and_strength() -> None:
+    """Üreteç güçlü/uzun; güç değerlendirme tutarlı."""
+    from kobipass.password_tools import (
+        generate_password,
+        is_weak,
+        strength_bucket,
+    )
+
+    pw = generate_password(20)
+    assert len(pw) == 20
+    assert strength_bucket(pw) == "strong"
+    assert is_weak("123456")
+    assert not is_weak(pw)
+    # Sadece rakam seçilince bile en az o kadar uzunluk ve rakam havuzu.
+    digits_only = generate_password(12, use_upper=False, use_lower=False, use_symbols=False)
+    assert len(digits_only) == 12
+
+
+def test_password_age_roundtrip() -> None:
+    """pw_updated_at kaydedilir/okunur; humanize gün hesaplar."""
+    from kobipass.password_tools import age_days
+    from kobipass.vault_model import VaultEntry
+
+    e = VaultEntry(name="A", info1="x", pw_updated_at="2026-01-01T00:00:00Z")
+    restored = VaultEntry.from_dict(e.to_dict())
+    assert restored.pw_updated_at == "2026-01-01T00:00:00Z"
+    assert age_days("2026-01-01T00:00:00Z") is not None
+    assert age_days("") is None
+    # Damgasız kayıt geriye dönük uyumlu (eski dosyalar).
+    assert VaultEntry.from_dict({"name": "B", "info1": "y"}).pw_updated_at == ""
+
+
+def test_password_report_flags_weak_and_reused() -> None:
+    from kobipass.ui.password_report_dialog import analyze_vault
+    from kobipass.vault_model import KobiVault, VaultEntry
+
+    vault = KobiVault(entries=[
+        VaultEntry(name="Strong", info1="Xy9#kLmn20!q"),
+        VaultEntry(name="Weak", info1="123456"),
+        VaultEntry(name="Dup1", info1="same-pw-x"),
+        VaultEntry(name="Dup2", info1="same-pw-x"),
+    ])
+    findings = analyze_vault(vault)
+    names = {f["name"] for f in findings}
+    assert "Strong" not in names
+    assert "Weak" in names
+    assert all(f["reused"] for f in findings if f["name"].startswith("Dup"))
+
+
+def test_atomic_write_roundtrip(tmp_path: Path) -> None:
+    """Atomik yazım sonrası dosya okunur ve geçici .tmp kalmaz."""
+    from kobipass.vault_model import KobiVault, VaultEntry
+
+    vault = KobiVault(entries=[VaultEntry(name="A", info1="secret")])
+    path = tmp_path / "atomic.enc"
+    write_vault_file(path, vault, "admin-pass", [(False, ""), (False, ""), (False, "")])
+    assert path.exists()
+    assert not list(tmp_path.glob("*.tmp"))
+    assert read_vault_file(path, "admin-pass").vault.entries[0].info1 == "secret"

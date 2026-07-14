@@ -8,7 +8,7 @@ import copy
 from pathlib import Path
 
 from PyQt6.QtCore import QEvent, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -71,7 +71,7 @@ from kobipass.ui.icons import icon_home, icon_theme
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
-from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry
+from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry, utc_now_iso
 
 _FILTER_PAGE_SIZE = 100
 _FILTER_DEBOUNCE_MS = 300
@@ -236,6 +236,10 @@ class MainWindow(QMainWindow):
         self._btn_audit.clicked.connect(self._show_audit)
         toolbar.addWidget(self._btn_audit, 0, Qt.AlignmentFlag.AlignVCenter)
 
+        self._btn_report = QPushButton()
+        self._btn_report.clicked.connect(self._show_password_report)
+        toolbar.addWidget(self._btn_report, 0, Qt.AlignmentFlag.AlignVCenter)
+
         self._btn_clear = QPushButton()
         self._btn_clear.setObjectName("clearBtn")
         self._btn_clear.clicked.connect(self._clear_vault)
@@ -321,9 +325,36 @@ class MainWindow(QMainWindow):
         self._landing_page.btn_theme.clicked.connect(theme_manager.toggle)
         self._landing_page.recent_file_chosen.connect(self._open_recent_path)
 
+        self._setup_shortcuts()
+
         self._show_landing_page()
         # Açılışta silinmiş kasa tespiti — pencere göründükten sonra sor.
         QTimer.singleShot(0, self._check_missing_vaults)
+
+    def _setup_shortcuts(self) -> None:
+        """Klavye kısayolları: kaydet, ara, kayıt ekle, kilitle."""
+        QShortcut(QKeySequence.StandardKey.Save, self, activated=self._shortcut_save)
+        QShortcut(QKeySequence.StandardKey.Find, self, activated=self._shortcut_find)
+        QShortcut(QKeySequence("Ctrl+N"), self, activated=self._shortcut_add_row)
+        QShortcut(QKeySequence("Ctrl+L"), self, activated=self._shortcut_lock)
+
+    def _shortcut_save(self) -> None:
+        if self._session is not None and self._btn_save.isEnabled():
+            self._save_vault()
+
+    def _shortcut_find(self) -> None:
+        if self._session is not None and not self._kilitli_mi:
+            self._search_bar.setFocus()
+            self._search_bar.selectAll()
+
+    def _shortcut_add_row(self) -> None:
+        if self._add_bar.isVisible() and not self._kilitli_mi:
+            self._add_row()
+
+    def _shortcut_lock(self) -> None:
+        if self._session is not None and not self._kilitli_mi:
+            self._guvenlik_kilidini_aktif_et()
+            self._kilit_ekranini_goster()
 
     def eventFilter(self, obj, event):  # noqa: N802
         if event.type() in (
@@ -464,6 +495,7 @@ class MainWindow(QMainWindow):
 
         self._btn_users.setVisible(is_admin)
         self._btn_audit.setVisible(is_admin)
+        self._btn_report.setVisible(is_admin)
 
         perms = self._row_permissions()
 
@@ -662,6 +694,8 @@ class MainWindow(QMainWindow):
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
+        self._btn_report.setText(tr("btn_report"))
+        self._btn_report.setToolTip(tr("btn_report_tip"))
         self._btn_clear.setText(tr("btn_clear"))
         self._btn_lang.setToolTip(tr("btn_lang_tip"))
         self._btn_theme.setToolTip(tr("btn_theme_tip"))
@@ -756,7 +790,9 @@ class MainWindow(QMainWindow):
                 entry = row.to_entry()
                 if entry.has_content():
                     entries.append(entry)
-            return [entry for entry in entries if entry.has_content()]
+            result = [entry for entry in entries if entry.has_content()]
+            self._stamp_password_ages(result)
+            return result
 
         entries: list[VaultEntry] = []
         for row in self._row_widgets:
@@ -764,7 +800,26 @@ class MainWindow(QMainWindow):
             if not entry.has_content():
                 continue
             entries.append(entry)
+        self._stamp_password_ages(entries)
         return entries
+
+    def _stamp_password_ages(self, entries: list[VaultEntry]) -> None:
+        """info1 (parola) yüklü haline göre değiştiyse pw_updated_at'ı günceller.
+
+        Yeniden sıralamaya karşı dayanıklı olsun diye eşleştirme isimle yapılır.
+        Yeni kayıtta veya parola değişiminde 'şimdi' damgalanır; değişmediyse
+        mevcut damga korunur.
+        """
+        baseline: dict[str, str] = {}
+        for prev in self._snapshot_entries:
+            baseline.setdefault(prev.name, prev.info1)
+        now = utc_now_iso()
+        for entry in entries:
+            if not entry.info1:
+                continue
+            old = baseline.get(entry.name)
+            if old is None or old != entry.info1:
+                entry.pw_updated_at = now
 
     def _sync_vault_entries(self) -> None:
         if self._vault is not None:
@@ -891,6 +946,15 @@ class MainWindow(QMainWindow):
             return
         dlg = AuditLogDialog(self._vault, self)
         dlg.exec()
+
+    def _show_password_report(self) -> None:
+        if not isinstance(self._session, AdminSession) or self._vault is None:
+            show_error(self, tr("warn_title"), tr("warn_locked"))
+            return
+        self._sync_vault_entries()
+        from kobipass.ui.password_report_dialog import PasswordReportDialog
+
+        PasswordReportDialog(self._vault, self).exec()
 
     def _clear_vault(self) -> None:
         """Kasa ekranından çıkmadan tüm alanları temizler."""

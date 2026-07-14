@@ -191,6 +191,41 @@ def icon_theme(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
     return _scaled_icon(f"theme:{color.name()}:{size}", draw, size)
 
 
+def icon_refresh(color: QColor = ACCENT_COLOR, size: int = 18) -> QIcon:
+    """Dairesel ok — parola üret/yenile."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 2.0 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        # neredeyse tam çember (üstte açık)
+        p.drawArc(int(5 * s), int(5 * s), int(14 * s), int(14 * s), 60 * 16, 280 * 16)
+        # ok ucu (sağ üstte)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(color)
+        p.drawPolygon(
+            _pt(18.5 * s, 4 * s), _pt(18.5 * s, 10 * s), _pt(13.5 * s, 7 * s)
+        )
+
+    return _scaled_icon(f"refresh:{color.name()}:{size}", draw, size)
+
+
+def icon_report(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
+    """Uyarı üçgeni — zayıf/tekrar parola raporu."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolygon(_pt(12 * s, 4 * s), _pt(21 * s, 20 * s), _pt(3 * s, 20 * s))
+        pen = _line_pen(color, 2.0 * s)
+        p.setPen(pen)
+        p.drawLine(_pt(12 * s, 10 * s), _pt(12 * s, 15 * s))
+        p.setBrush(color)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(_pt(11.1 * s, 16.8 * s), 1.0 * s, 1.0 * s)
+
+    return _scaled_icon(f"report:{color.name()}:{size}", draw, size)
+
+
 def icon_home(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
     """Ev — karşılama ekranına dön."""
     def draw(p: QPainter) -> None:

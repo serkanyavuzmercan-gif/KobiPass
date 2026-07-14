@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import os
 import struct
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -47,6 +48,32 @@ WRAP_CIPHERTEXT_SIZE = DEK_SIZE + 16  # AES-GCM tag
 WRAP_BLOCK_SIZE = SALT_SIZE + NONCE_SIZE + WRAP_CIPHERTEXT_SIZE
 HEADER_SIZE = 5 + WRAP_BLOCK_SIZE + USER_SLOT_COUNT * (1 + WRAP_BLOCK_SIZE)
 FILE_CHECKSUM_SIZE = 32
+
+
+def _atomic_write(path: Path, data: bytes) -> None:
+    """Kasayı atomik yazar: aynı dizinde geçici dosya + fsync + os.replace.
+
+    Kayıt sırasında çökme/elektrik kesintisi olsa bile hedef dosya ya eski
+    ya da yeni tam haliyle kalır; yarım yazılmış bozuk .enc oluşmaz.
+    """
+    path = Path(path)
+    directory = path.parent
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(directory), prefix=f".{path.name}.", suffix=".tmp"
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 class VaultCryptoError(Exception):
@@ -243,7 +270,7 @@ def write_vault_file_with_keys(
     keys: VaultFileKeys,
 ) -> None:
     """Mevcut sarmalayıcıları koruyarak yalnızca vault gövdesini yeniden şifreler."""
-    path.write_bytes(_serialize_keys(keys, vault))
+    _atomic_write(path, _serialize_keys(keys, vault))
 
 
 def update_user_wraps(
@@ -309,7 +336,7 @@ def write_vault_file_updated(
         dek=keys.dek,
         version=keys.version,
     )
-    path.write_bytes(_serialize_keys(new_keys, vault))
+    _atomic_write(path, _serialize_keys(new_keys, vault))
     return new_keys
 
 
@@ -365,8 +392,9 @@ def write_vault_file(
     *,
     version: int = VERSION,
 ) -> None:
-    path.write_bytes(
-        build_vault_file(vault, admin_password, user_passwords, version=version)
+    _atomic_write(
+        path,
+        build_vault_file(vault, admin_password, user_passwords, version=version),
     )
 
 

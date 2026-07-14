@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 
 from kobipass.i18n import MIN_PASSWORD_LENGTH, i18n, tr
 from kobipass.resources import app_icon
+from kobipass.ui.strength import attach_strength_label
 from kobipass.vault_model import FIELD_NAMES, FieldLevel, UserPermissions, USER_SLOT_COUNT
 
 
@@ -71,6 +72,7 @@ class SetupVaultDialog(QDialog):
         self._admin2.setPlaceholderText(tr("pwd_repeat_placeholder"))
         self._pwd_edits.extend((self._admin1, self._admin2))
         form.addRow(tr("admin_pwd_label"), self._admin1)
+        form.addRow("", attach_strength_label(self._admin1))
         form.addRow(tr("admin_pwd_repeat"), self._admin2)
 
         self._user_fields: list[tuple[QLineEdit, QLineEdit]] = []
