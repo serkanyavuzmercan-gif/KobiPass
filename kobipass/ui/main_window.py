@@ -12,6 +12,7 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QKeySequence, QScreen, QSho
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -250,6 +251,13 @@ class MainWindow(QMainWindow):
         root.setSpacing(8)
         self._stacked_widget.addWidget(self._vault_view)
 
+        self._command_surface = QFrame()
+        self._command_surface.setObjectName("vaultCommandSurface")
+        self._command_surface.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        command_layout = QVBoxLayout(self._command_surface)
+        command_layout.setContentsMargins(8, 8, 8, 7)
+        command_layout.setSpacing(7)
+
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
         toolbar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -310,7 +318,7 @@ class MainWindow(QMainWindow):
         self._btn_lang.clicked.connect(i18n.toggle)
         toolbar.addWidget(self._btn_lang, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        root.addLayout(toolbar)
+        command_layout.addLayout(toolbar)
 
         self.security_badge = QPushButton()
         self.security_badge.setObjectName("securityBadge")
@@ -318,10 +326,15 @@ class MainWindow(QMainWindow):
         self.security_badge.clicked.connect(self._open_security_dialog)
 
         badge_layout = QHBoxLayout()
+        badge_layout.setSpacing(8)
         badge_layout.addWidget(self.security_badge)
+        self._workspace_hint = QLabel()
+        self._workspace_hint.setObjectName("vaultWorkspaceHint")
+        badge_layout.addWidget(self._workspace_hint)
         badge_layout.addStretch()
-        badge_layout.setContentsMargins(0, 5, 0, 10)
-        root.addLayout(badge_layout)
+        badge_layout.setContentsMargins(0, 0, 0, 0)
+        command_layout.addLayout(badge_layout)
+        root.addWidget(self._command_surface)
 
         self._vault_body = VaultBody()
         self._scroll = self._vault_body.scroll
@@ -814,6 +827,7 @@ class MainWindow(QMainWindow):
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))
+        self._workspace_hint.setText(tr("vault_workspace_hint"))
         self._title_bar.retranslate()
         self._landing_page.retranslate()
         self._add_bar.retranslate()

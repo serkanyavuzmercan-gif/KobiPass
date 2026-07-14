@@ -455,6 +455,32 @@ QPushButton#securityBadge:hover {
     color: #ffffff;
 }
 
+QFrame#vaultCommandSurface {
+    background-color: #1e2229;
+    border: 1px solid #303744;
+    border-radius: 13px;
+}
+
+QFrame#vaultCommandSurface QPushButton {
+    min-height: 32px;
+}
+
+QFrame#vaultCommandSurface QLineEdit#toolbarSearch {
+    background-color: #191d23;
+    border-color: #343c49;
+    border-radius: 8px;
+}
+
+QFrame#vaultCommandSurface QLineEdit#toolbarSearch:focus {
+    border-color: #4b68f4;
+}
+
+QLabel#vaultWorkspaceHint {
+    color: #737e90;
+    font-size: 10px;
+    font-weight: 500;
+}
+
 QPushButton#headerSecurityBtn {
     background-color: #1e293b;
     color: #8aabf0;
@@ -1128,17 +1154,93 @@ QWidget#vaultEmptyState {
     border: none;
 }
 
+QFrame#vaultEmptyHero {
+    background-color: rgba(29, 34, 43, 232);
+    border: 1px solid #35405a;
+    border-radius: 18px;
+}
+
+QFrame#vaultEmptySteps {
+    background-color: rgba(27, 31, 39, 225);
+    border: 1px solid #303744;
+    border-radius: 18px;
+}
+
+QLabel#vaultEmptyEyebrow {
+    color: #7188ff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
 QLabel#vaultEmptyTitle {
     font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
-    font-size: 20px;
+    font-size: 27px;
     font-weight: 700;
-    color: #e8eaed;
+    color: #f1f4fb;
+}
+
+QLabel#vaultEmptySubtitle {
+    color: #9ba6b7;
+    font-size: 13px;
+}
+
+QPushButton#vaultEmptyPrimaryBtn {
+    min-height: 42px;
+    background-color: #4b68f4;
+    color: #ffffff;
+    border: 1px solid #617af7;
+    border-radius: 9px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+}
+
+QPushButton#vaultEmptyPrimaryBtn:hover {
+    background-color: #5c76f7;
+    border-color: #8194fa;
+}
+
+QLabel#vaultEmptyShortcut {
+    color: #6f7a8c;
+    font-size: 10px;
+}
+
+QLabel#vaultEmptyStepsTitle {
+    color: #e9edf6;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+QLabel#vaultEmptyStepsSubtitle {
+    color: #7f899a;
+    font-size: 11px;
+}
+
+QLabel#vaultEmptyStepBadge {
+    color: #ffffff;
+    background-color: #4b68f4;
+    border: 1px solid #7188ff;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
 }
 
 QLabel#vaultEmptyTip {
     font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
-    font-size: 13px;
-    color: #9aa0a8;
+    font-size: 12px;
+    color: #a0a9b8;
+}
+
+QLabel#vaultEmptySecurity {
+    color: #79d69a;
+    background-color: #1b2c24;
+    border: 1px solid #315541;
+    border-radius: 12px;
+    padding: 6px 8px;
+    font-size: 10px;
+    font-weight: 600;
 }
 
 /* --- Grup kutuları, onay kutuları, açılır menüler (koyu tema) --- */
@@ -1747,6 +1849,32 @@ QPushButton#securityBadge {
 QPushButton#securityBadge:hover {
     background-color: #dcfce7;
     color: #14532d;
+}
+
+QFrame#vaultCommandSurface {
+    background-color: #ffffff;
+    border: 1px solid #dce2ec;
+    border-radius: 13px;
+}
+
+QFrame#vaultCommandSurface QPushButton {
+    min-height: 32px;
+}
+
+QFrame#vaultCommandSurface QLineEdit#toolbarSearch {
+    background-color: #f7f8fb;
+    border-color: #d7deea;
+    border-radius: 8px;
+}
+
+QFrame#vaultCommandSurface QLineEdit#toolbarSearch:focus {
+    border-color: #4b68f4;
+}
+
+QLabel#vaultWorkspaceHint {
+    color: #8791a2;
+    font-size: 10px;
+    font-weight: 500;
 }
 
 QPushButton#headerSecurityBtn {
@@ -2419,17 +2547,93 @@ QWidget#vaultEmptyState {
     border: none;
 }
 
+QFrame#vaultEmptyHero {
+    background-color: rgba(255, 255, 255, 235);
+    border: 1px solid #d5ddec;
+    border-radius: 18px;
+}
+
+QFrame#vaultEmptySteps {
+    background-color: rgba(248, 249, 252, 232);
+    border: 1px solid #dce2ec;
+    border-radius: 18px;
+}
+
+QLabel#vaultEmptyEyebrow {
+    color: #4660dd;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
 QLabel#vaultEmptyTitle {
     font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
-    font-size: 20px;
+    font-size: 27px;
     font-weight: 700;
-    color: #1f2937;
+    color: #172033;
+}
+
+QLabel#vaultEmptySubtitle {
+    color: #687488;
+    font-size: 13px;
+}
+
+QPushButton#vaultEmptyPrimaryBtn {
+    min-height: 42px;
+    background-color: #4b68f4;
+    color: #ffffff;
+    border: 1px solid #405de4;
+    border-radius: 9px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+}
+
+QPushButton#vaultEmptyPrimaryBtn:hover {
+    background-color: #405de4;
+    border-color: #304dcc;
+}
+
+QLabel#vaultEmptyShortcut {
+    color: #929baa;
+    font-size: 10px;
+}
+
+QLabel#vaultEmptyStepsTitle {
+    color: #1f2a3e;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+QLabel#vaultEmptyStepsSubtitle {
+    color: #788397;
+    font-size: 11px;
+}
+
+QLabel#vaultEmptyStepBadge {
+    color: #ffffff;
+    background-color: #4b68f4;
+    border: 1px solid #405de4;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
 }
 
 QLabel#vaultEmptyTip {
     font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
-    font-size: 13px;
-    color: #6b7280;
+    font-size: 12px;
+    color: #5f6b7e;
+}
+
+QLabel#vaultEmptySecurity {
+    color: #247544;
+    background-color: #eefaf2;
+    border: 1px solid #b9dfc6;
+    border-radius: 12px;
+    padding: 6px 8px;
+    font-size: 10px;
+    font-weight: 600;
 }
 
 /* --- Grup kutuları, onay kutuları, açılır menüler (aydınlık tema) --- */
