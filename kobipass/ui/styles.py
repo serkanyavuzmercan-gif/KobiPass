@@ -733,6 +733,79 @@ QListWidget#landingRecentList::item:selected {
     background-color: #2d3340;
 }
 
+/* --- Grup kutuları, onay kutuları, açılır menüler (koyu tema) --- */
+QGroupBox {
+    color: #e8eaed;
+    border: 1px solid #3d4450;
+    border-radius: 8px;
+    margin-top: 12px;
+    padding-top: 8px;
+    font-weight: 600;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 10px;
+    padding: 0 5px;
+    color: #cbd5e1;
+}
+
+QCheckBox {
+    color: #e8eaed;
+    spacing: 7px;
+    font-weight: 400;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #4d5566;
+    border-radius: 4px;
+    background-color: #1e2229;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #4b68f4;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #4b68f4;
+    border-color: #4b68f4;
+}
+
+QComboBox {
+    background-color: #1e2229;
+    color: #e8eaed;
+    border: 1px solid #3d4450;
+    border-radius: 6px;
+    padding: 5px 8px;
+    min-height: 18px;
+}
+
+QComboBox:hover {
+    border-color: #4d5566;
+}
+
+QComboBox:focus {
+    border-color: #4b68f4;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 22px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #1e2229;
+    color: #e8eaed;
+    border: 1px solid #3d4450;
+    border-radius: 6px;
+    selection-background-color: #2d3f66;
+    selection-color: #ffffff;
+    outline: none;
+}
+
 /* --- Kullanıcı İzinleri penceresi: kompakt form alanları --- */
 QDialog#userAdminDialog QLineEdit {
     padding: 5px 8px;
@@ -1472,6 +1545,79 @@ QListWidget#landingRecentList::item {
 QListWidget#landingRecentList::item:hover,
 QListWidget#landingRecentList::item:selected {
     background-color: #eff6ff;
+}
+
+/* --- Grup kutuları, onay kutuları, açılır menüler (aydınlık tema) --- */
+QGroupBox {
+    color: #1f2937;
+    border: 1px solid #dde3f0;
+    border-radius: 8px;
+    margin-top: 12px;
+    padding-top: 8px;
+    font-weight: 600;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 10px;
+    padding: 0 5px;
+    color: #374151;
+}
+
+QCheckBox {
+    color: #1f2937;
+    spacing: 7px;
+    font-weight: 400;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #cdd4ee;
+    border-radius: 4px;
+    background-color: #ffffff;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #4b68f4;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #4b68f4;
+    border-color: #4b68f4;
+}
+
+QComboBox {
+    background-color: #ffffff;
+    color: #1f2937;
+    border: 1px solid #dde3f0;
+    border-radius: 6px;
+    padding: 5px 8px;
+    min-height: 18px;
+}
+
+QComboBox:hover {
+    border-color: #b9c4f6;
+}
+
+QComboBox:focus {
+    border-color: #4b68f4;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 22px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    color: #1f2937;
+    border: 1px solid #dde3f0;
+    border-radius: 6px;
+    selection-background-color: #dbe4fd;
+    selection-color: #1f2937;
+    outline: none;
 }
 
 /* --- Kullanıcı İzinleri penceresi: kompakt form alanları --- */
