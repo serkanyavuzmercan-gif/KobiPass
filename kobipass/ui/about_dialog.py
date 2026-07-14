@@ -21,7 +21,11 @@ from kobipass import __version__
 from kobipass.i18n import tr
 from kobipass.resources import app_icon, logo_pixmap
 
-HIDROTEKNIK_URL = "https://www.hidroteknik.com.tr/"
+HIDROTEKNIK_URL = (
+    "https://www.hidroteknik.com.tr/"
+    "%C3%9Cr%C3%BCnlerimiz/"
+    "kobipass-rol-%C4%B0zolasyonlu-%C5%9Eifre-kasas%C4%B1"
+)
 
 
 class AboutDialog(QDialog):
@@ -85,10 +89,13 @@ class AboutDialog(QDialog):
         self._made_by = QLabel()
         self._made_by.setObjectName("premiumInfoHeroTitle")
         self._made_by.setWordWrap(True)
+        self._lead = QLabel()
+        self._lead.setObjectName("premiumInfoChip")
         self._tagline = QLabel()
         self._tagline.setObjectName("premiumInfoHeroText")
         self._tagline.setWordWrap(True)
         maker_layout.addWidget(self._made_by)
+        maker_layout.addWidget(self._lead)
         maker_layout.addWidget(self._tagline)
 
         self._website_btn = QPushButton()
@@ -136,6 +143,7 @@ class AboutDialog(QDialog):
         self._version.setText(tr("about_us_ver", version=__version__))
         self._what.setText(tr("about_us_what"))
         self._made_by.setText(tr("about_us_made_by"))
+        self._lead.setText(tr("about_us_lead"))
         self._tagline.setText(tr("about_us_tagline"))
         self._website_btn.setText(tr("about_us_website"))
         self._footer.setText(tr("about_us_footer"))

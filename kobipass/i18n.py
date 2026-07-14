@@ -248,10 +248,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "help_card4_text": "Verileriniz cihazınızdan çıkmaz; sunucu ya da internet yoktur.",
         "help_card5_title": "Otomatik yedek",
         "help_card5_text": "Her kayıtta şifreli yedek alınır; dosya salt-okunur korunur.",
-        "help_credits_by": "Hidroteknik Yazılım ekibi tarafından geliştirildi",
+        "help_credits_by": "Hidroteknik ekibi tarafından geliştirildi",
         "help_credits_desc": "KOBİ'ler için güvenli, rol tabanlı, tamamen çevrimdışı parola kasası.",
         "help_credits_ver": "Sürüm {version}  ·  Ücretsiz",
-        "help_credits_footer": "© 2026 Hidroteknik Yazılım  ·  Güvenliğiniz önceliğimizdir",
+        "help_credits_footer": "© 2026 Hidroteknik  ·  Güvenliğiniz önceliğimizdir",
         "help_close": "Kapat",
         "help_window_eyebrow": "KOBIPASS REHBERİ",
         "help_window_title": "Hızlı ve güvenli başlangıç",
@@ -265,19 +265,20 @@ _STRINGS: dict[str, dict[str, str]] = {
         "btn_about_tip": "Hakkında",
         "about_us_title": "Hakkında",
         "about_us_eyebrow": "HAKKINDA",
-        "about_us_ver": "Sürüm {version}  ·  Ücretsiz",
+        "about_us_ver": "Sürüm {version}",
         "about_us_what": (
             "Verilerinizi yalnızca kendi cihazınızda, güçlü şifrelemeyle saklayan "
             "çevrimdışı bir parola kasası. Sunucu, internet bağlantısı veya dışa "
             "aktarma yoktur — her şey bilgisayarınızda kalır."
         ),
-        "about_us_made_by": "Alper Alyaz  ·  Hidroteknik",
+        "about_us_made_by": "Hidroteknik",
+        "about_us_lead": "Proje sorumlusu: Serkan Mercan",
         "about_us_tagline": (
             "Bu program, Türkiye'de bir mühendislik şirketi olan Hidroteknik "
-            "tarafından kâr amacı gütmeksizin geliştirilmiştir."
+            "tarafından geliştirilmiştir."
         ),
         "about_us_website": "Web sayfası",
-        "about_us_footer": "© 2026  Hidroteknik  ·  Ücretsiz kullanın ve paylaşın",
+        "about_us_footer": "© 2026  Hidroteknik",
         "about_tab_security": "Güvenlik Protokolü",
         "about_tab_credits": "Açık Kaynak & Lisanslar",
         "security_window_eyebrow": "KOBIPASS GÜVENLİK MİMARİSİ",
@@ -304,7 +305,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "security_card6_title": "Şifreli değişiklik izi",
         "security_card6_text": "Kasa işlemleri zaman damgalı ve şifreli olarak kayıt altına alınır.",
         "security_credits": (
-            "KobiPass v{version}  ·  Hidroteknik Yazılım  ·  © 2026"
+            "KobiPass v{version}  ·  Hidroteknik  ·  © 2026"
         ),
         "security_badge": "AES-256 ile Korunuyor",
         "security_badge_tip": "Güvenlik Protokolünü ve Lisansları Gör",
@@ -626,10 +627,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "help_card4_text": "Your data never leaves this device; no server, no internet.",
         "help_card5_title": "Automatic backup",
         "help_card5_text": "Every save keeps an encrypted backup; the file is kept read-only.",
-        "help_credits_by": "Developed by the Hidroteknik Yazılım team",
+        "help_credits_by": "Developed by the Hidroteknik team",
         "help_credits_desc": "Secure, role-based, fully offline password vault for SMBs.",
         "help_credits_ver": "Version {version}  ·  Free",
-        "help_credits_footer": "© 2026 Hidroteknik Yazılım  ·  Your security is our priority",
+        "help_credits_footer": "© 2026 Hidroteknik  ·  Your security is our priority",
         "help_close": "Close",
         "help_window_eyebrow": "KOBIPASS GUIDE",
         "help_window_title": "A fast, secure start",
@@ -643,19 +644,20 @@ _STRINGS: dict[str, dict[str, str]] = {
         "btn_about_tip": "About",
         "about_us_title": "About",
         "about_us_eyebrow": "ABOUT",
-        "about_us_ver": "Version {version}  ·  Free to use",
+        "about_us_ver": "Version {version}",
         "about_us_what": (
             "An offline password vault that keeps your data on your own device "
             "with strong encryption. No servers, no internet, no export — "
             "everything stays on your computer."
         ),
-        "about_us_made_by": "Alper Alyaz  ·  Hidroteknik",
+        "about_us_made_by": "Hidroteknik",
+        "about_us_lead": "Project lead: Serkan Mercan",
         "about_us_tagline": (
             "This app was made by Hidroteknik, an engineering company based in "
-            "Türkiye, as a non-profit project."
+            "Türkiye."
         ),
         "about_us_website": "Website",
-        "about_us_footer": "© 2026  Hidroteknik  ·  Free to use and share",
+        "about_us_footer": "© 2026  Hidroteknik",
         "about_tab_security": "Security Protocol",
         "about_tab_credits": "Open Source & Licenses",
         "security_window_eyebrow": "KOBIPASS SECURITY ARCHITECTURE",
@@ -682,7 +684,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "security_card6_title": "Encrypted audit trail",
         "security_card6_text": "Vault operations are recorded with encrypted timestamps.",
         "security_credits": (
-            "KobiPass v{version}  ·  Hidroteknik Yazılım  ·  © 2026"
+            "KobiPass v{version}  ·  Hidroteknik  ·  © 2026"
         ),
         "security_badge": "Protected with AES-256",
         "security_badge_tip": "View security protocol and licenses",
