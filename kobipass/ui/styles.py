@@ -284,6 +284,36 @@ QWidget#copyGroup[copied="true"] {
     background-color: #252d3d;
 }
 
+QWidget#copyGroup[primaryField="true"] {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 #242d43,
+        stop: 1 #202634
+    );
+    border: 2px solid #53699f;
+    border-radius: 9px;
+}
+
+QWidget#copyGroup[primaryField="true"] QLineEdit {
+    color: #edf1ff;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+QWidget#copyGroup[primaryField="true"] QLineEdit[readOnlyPerm="true"] {
+    color: #b7c1d6;
+    font-weight: 700;
+}
+
+QWidget#copyGroup[primaryField="true"] QToolButton#copyBtn {
+    background-color: #303b59;
+    border-right: 1px solid #53699f;
+}
+
+QWidget#copyGroup[primaryField="true"] QToolButton#copyBtn:hover {
+    background-color: #3a486d;
+}
+
 QWidget#copyGroup QLineEdit {
     border: none;
     border-radius: 0;
@@ -1774,6 +1804,36 @@ QWidget#copyGroup {
 QWidget#copyGroup[copied="true"] {
     border-color: #4b68f4;
     background-color: #eff6ff;
+}
+
+QWidget#copyGroup[primaryField="true"] {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 #eef2ff,
+        stop: 1 #f8f9ff
+    );
+    border: 2px solid #8293d4;
+    border-radius: 9px;
+}
+
+QWidget#copyGroup[primaryField="true"] QLineEdit {
+    color: #1f2d4d;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+QWidget#copyGroup[primaryField="true"] QLineEdit[readOnlyPerm="true"] {
+    color: #445372;
+    font-weight: 700;
+}
+
+QWidget#copyGroup[primaryField="true"] QToolButton#copyBtn {
+    background-color: #dfe6fb;
+    border-right: 1px solid #9dabe0;
+}
+
+QWidget#copyGroup[primaryField="true"] QToolButton#copyBtn:hover {
+    background-color: #d2dcf8;
 }
 
 QWidget#copyGroup QLineEdit {

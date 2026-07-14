@@ -156,6 +156,14 @@ def test_add_record_requires_permission_and_a_writable_field() -> None:
     )
 
 
+def test_primary_field_responsive_width_is_bounded() -> None:
+    from kobipass.ui.entry_row import responsive_field_width
+
+    assert responsive_field_width(20, 70, 200, 390) == 200
+    assert responsive_field_width(220, 70, 200, 390) == 318
+    assert responsive_field_width(800, 70, 200, 390) == 390
+
+
 def test_legacy_pbkdf2_roundtrip(tmp_path: Path) -> None:
     vault = KobiVault(entries=[VaultEntry(name="Legacy", info1="x")])
     blob = build_vault_file(

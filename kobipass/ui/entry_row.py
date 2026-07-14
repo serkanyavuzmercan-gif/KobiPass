@@ -36,6 +36,7 @@ ROW_MARGINS = (0, 4, 12, 4)
 ROW_LAYOUT_SPACING = 8
 
 NAME_FIELD_WIDTH = 200
+NAME_FIELD_MAX_WIDTH = 390
 INFO_FIELD_WIDTH = 180
 FIELD_STEP_BTN_WIDTH = 30
 FIELD_STEP_BTN_HEIGHT = 20
@@ -95,6 +96,17 @@ def _default_info_label(info_index: int) -> str:
     return tr("field_info_n", n=info_index)
 
 
+def responsive_field_width(
+    text_width: int,
+    chrome_width: int,
+    minimum: int,
+    maximum: int,
+) -> int:
+    """Metne göre hücre genişliği; satırı bozmamak için min/max aralığında."""
+    desired = chrome_width + max(82, text_width + 28)
+    return max(minimum, min(maximum, desired))
+
+
 def _password_strength_color(text: str) -> str:
     from kobipass.password_tools import strength_color
 
@@ -143,6 +155,9 @@ class CompactField(QWidget):
         fixed_width: int = INFO_FIELD_WIDTH,
         sensitive: bool = False,
         with_delete_menu: bool = False,
+        responsive_width: bool = False,
+        max_width: int | None = None,
+        primary_field: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -165,6 +180,11 @@ class CompactField(QWidget):
         self._delete_action = None
         self._field_remove_action = None
         self._strength_meter: QFrame | None = None
+        self._base_width = fixed_width
+        self._responsive_width = responsive_width
+        self._max_width = max_width or fixed_width
+        self._primary_field = primary_field
+        self.setProperty("primaryField", primary_field)
         self.setFixedWidth(fixed_width)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -206,6 +226,7 @@ class CompactField(QWidget):
             - COPY_GROUP_INSET[2]
             - 4 * gap_count
         )
+        self._chrome_width = fixed_width - max(72, edit_width)
         self._edit = QLineEdit()
         self._edit.setFixedWidth(max(72, edit_width))
         self._edit.setFixedHeight(inner_h)
@@ -257,6 +278,8 @@ class CompactField(QWidget):
             self._strength_meter.setStyleSheet("background-color: transparent;")
             outer.addWidget(self._strength_meter, 0, Qt.AlignmentFlag.AlignBottom)
             self._edit.textChanged.connect(self._update_strength)
+        if responsive_width:
+            self._edit.textChanged.connect(self._update_responsive_width)
 
         self.setFocusProxy(self._edit)
         self._sync_echo()
@@ -279,6 +302,20 @@ class CompactField(QWidget):
         self._custom_label = label.strip()
         self.retranslate()
 
+    def _update_responsive_width(self, text: str = "") -> None:
+        if not self._responsive_width:
+            return
+        sample = text or self._edit.placeholderText() or self._label_text()
+        text_width = self._edit.fontMetrics().horizontalAdvance(sample)
+        target = responsive_field_width(
+            text_width,
+            self._chrome_width,
+            self._base_width,
+            self._max_width,
+        )
+        self._edit.setFixedWidth(target - self._chrome_width)
+        self.setFixedWidth(target)
+
     def retranslate(self) -> None:
         label = self._label_text()
         self._copy_tooltip_base = tr("copy_tooltip", field=label)
@@ -294,6 +331,7 @@ class CompactField(QWidget):
             self._field_remove_action.setText(tr("btn_delete"))
         if self._delete_action is not None:
             self._delete_action.setText(tr("btn_delete"))
+        self._update_responsive_width(self._edit.text())
 
     def _refresh_eye(self) -> None:
         if self._eye_btn is None:
@@ -525,6 +563,9 @@ class EntryRowWidget(QWidget):
             fixed_width=NAME_FIELD_WIDTH,
             sensitive=False,
             with_delete_menu=True,
+            responsive_width=True,
+            max_width=NAME_FIELD_MAX_WIDTH,
+            primary_field=True,
         )
         self._name.delete_requested.connect(self._confirm_and_remove)
         row.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
