@@ -896,6 +896,7 @@ class MainWindow(QMainWindow):
         self._status_role.setText(
             tr("status_role", role=role_txt) if role_txt else ""
         )
+        self._status_role.setVisible(bool(role_txt))
 
     def _mark_dirty(self) -> None:
         self._dirty = True
