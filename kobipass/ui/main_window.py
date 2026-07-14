@@ -38,7 +38,6 @@ from kobipass.i18n import crypto_message, i18n, tr
 from kobipass.permissions import (
     diff_entries_for_audit,
     effective_permissions,
-    view_only_permissions,
 )
 from kobipass.resources import app_icon
 from kobipass.session import AdminSession, Session, UserSession, session_from_unlock
@@ -437,24 +436,26 @@ class MainWindow(QMainWindow):
             return tr("role_admin")
         return tr("role_user", slot=self._session.user_slot)
 
-    def _row_permissions(self) -> tuple[UserPermissions | None, bool]:
+    def _row_permissions(self) -> UserPermissions | None:
+        """Oturumun etkin izinleri — yönetici şablonu kullanıcılar için AYNEN geçerlidir.
+
+        Eski blanket salt-okunur kilit kaldırıldı: kullanıcı yalnızca yöneticinin
+        'Düzenler' verdiği alanları düzenleyebilir; değişiklikler audit'e düşer.
+        Herkesi salt-okunur isteyen yönetici şablonda yazma yetkisi vermez.
+        """
         if not self._vault or not self._session:
-            return None, False
-        perms = effective_permissions(self._session, self._vault.user_permissions)
-        view_only = not isinstance(self._session, AdminSession)
-        if view_only:
-            perms = view_only_permissions(perms)
-        return perms, view_only
+            return None
+        return effective_permissions(self._session, self._vault.user_permissions)
 
     def _apply_row_permissions(self) -> None:
-        perms, view_only = self._row_permissions()
+        perms = self._row_permissions()
         labels = self._vault.resolved_field_labels() if self._vault else {}
         if not perms:
             for row in self._row_widgets:
                 row.apply_field_labels(labels)
             return
         for row in self._row_widgets:
-            row.apply_permissions(perms, view_only=view_only)
+            row.apply_permissions(perms, view_only=False)
             row.apply_field_labels(labels)
 
     def _apply_session_ui(self) -> None:
@@ -464,7 +465,7 @@ class MainWindow(QMainWindow):
         self._btn_users.setVisible(is_admin)
         self._btn_audit.setVisible(is_admin)
 
-        perms, view_only = self._row_permissions()
+        perms = self._row_permissions()
 
         can_add = perms.can_add_entry if perms else self._session is None
         can_delete = perms.can_delete_entry if perms else True
@@ -475,7 +476,7 @@ class MainWindow(QMainWindow):
 
         self._apply_row_permissions()
         for row in self._row_widgets:
-            row.set_can_delete(can_delete and not view_only and not self._kilitli_mi)
+            row.set_can_delete(can_delete and not self._kilitli_mi)
 
         self._update_tab_order()
 
@@ -600,7 +601,13 @@ class MainWindow(QMainWindow):
         event.ignore()
 
     def _handle_row_drop(self, event: QDropEvent) -> None:
-        if self._vault is None or self._is_view_only_session() or self._kilitli_mi:
+        # Sürükle-bırak sıralama yalnızca yönetici: satır sırası indeks bazlı
+        # audit karşılaştırmasını bozup sahte "değişti" kayıtları üretir.
+        if (
+            self._vault is None
+            or not isinstance(self._session, AdminSession)
+            or self._kilitli_mi
+        ):
             return
         raw = bytes(event.mimeData().data(ROW_MIME)).decode("utf-8")
         try:
@@ -763,8 +770,6 @@ class MainWindow(QMainWindow):
         if self._vault is not None:
             self._vault.entries = self._collect_entries()
 
-    def _is_view_only_session(self) -> bool:
-        return self._session is not None and not isinstance(self._session, AdminSession)
 
     def _add_row(
         self,
@@ -790,7 +795,8 @@ class MainWindow(QMainWindow):
         self._update_tab_order()
 
     def _remove_row(self, row: EntryRowWidget) -> None:
-        if self._is_view_only_session() or self._kilitli_mi:
+        perms = self._row_permissions()
+        if (perms is not None and not perms.can_delete_entry) or self._kilitli_mi:
             return
         if row not in self._row_widgets:
             return
