@@ -952,13 +952,15 @@ QListWidget#landingRecentList {
 }
 
 QListWidget#landingRecentList::item {
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: 0px;
+    margin: 0 0 6px 0;
+    border-radius: 10px;
+    background-color: #232833;
 }
 
 QListWidget#landingRecentList::item:hover,
 QListWidget#landingRecentList::item:selected {
-    background-color: #2d3340;
+    background-color: #2a3140;
 }
 
 /* --- Sağ panel: nav satırları, son kasa kartı süsleri, son açılanlar --- */
@@ -983,6 +985,12 @@ QLabel#landingLatestDoc {
     background-color: rgba(75, 104, 244, 0.16);
     border: 1px solid #3a4568;
     border-radius: 11px;
+}
+
+QLabel#landingAccessLock {
+    background-color: rgba(75, 104, 244, 0.16);
+    border: 1px solid #3a4568;
+    border-radius: 14px;
 }
 
 QPushButton#landingClearRecent {
@@ -1169,14 +1177,23 @@ QPushButton#landingSecondaryBtn {
 }
 
 QPushButton#landingPrimaryBtn {
-    background-color: #4b68f4;
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 #4460f2, stop: 1 #6d86ff
+    );
     color: #ffffff;
-    border: 1px solid #5f78f7;
+    border: 1px solid #7089ff;
+    text-align: center;
+    min-height: 46px;
+    font-size: 14px;
 }
 
 QPushButton#landingPrimaryBtn:hover {
-    background-color: #5d77f7;
-    border-color: #7890ff;
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 #5470ff, stop: 1 #7d94ff
+    );
+    border-color: #8ea3ff;
 }
 
 QPushButton#landingSecondaryBtn {
@@ -2651,13 +2668,21 @@ QListWidget#landingRecentList {
 }
 
 QListWidget#landingRecentList::item {
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: 0px;
+    margin: 0 0 6px 0;
+    border-radius: 10px;
+    background-color: #f4f7ff;
 }
 
 QListWidget#landingRecentList::item:hover,
 QListWidget#landingRecentList::item:selected {
-    background-color: #eff6ff;
+    background-color: #eef2ff;
+}
+
+QLabel#landingAccessLock {
+    background-color: #eaefff;
+    border: 1px solid #d3ddf7;
+    border-radius: 14px;
 }
 
 /* --- Sağ panel (aydınlık): nav satırları, süsler, son açılanlar --- */
@@ -2866,14 +2891,23 @@ QPushButton#landingSecondaryBtn {
 }
 
 QPushButton#landingPrimaryBtn {
-    background-color: #4b68f4;
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 #4460f2, stop: 1 #6d86ff
+    );
     color: #ffffff;
-    border: 1px solid #405de4;
+    border: 1px solid #4a67ee;
+    text-align: center;
+    min-height: 46px;
+    font-size: 14px;
 }
 
 QPushButton#landingPrimaryBtn:hover {
-    background-color: #405de4;
-    border-color: #304dcc;
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 #3f5cf0, stop: 1 #6480ff
+    );
+    border-color: #3d5ae6;
 }
 
 QPushButton#landingSecondaryBtn {

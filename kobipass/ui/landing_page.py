@@ -6,7 +6,7 @@ from pathlib import Path
 
 from datetime import datetime
 
-from PyQt6.QtCore import QRectF, Qt, pyqtSignal
+from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
@@ -319,14 +319,26 @@ class LandingPage(QWidget):
         actions_layout.setContentsMargins(28, 28, 28, 28)
         actions_layout.setSpacing(12)
 
+        access_header = QHBoxLayout()
+        access_header.setSpacing(14)
+        access_lock = QLabel()
+        access_lock.setObjectName("landingAccessLock")
+        access_lock.setFixedSize(52, 52)
+        access_lock.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        access_lock.setPixmap(icon_lock(QColor("#aeb9ff"), size=26).pixmap(26, 26))
+        access_header.addWidget(access_lock, 0, Qt.AlignmentFlag.AlignTop)
+
+        access_text = QVBoxLayout()
+        access_text.setSpacing(4)
         self._actions_title = QLabel()
         self._actions_title.setObjectName("landingActionsTitle")
-        actions_layout.addWidget(self._actions_title)
-
+        access_text.addWidget(self._actions_title)
         self._actions_subtitle = QLabel()
         self._actions_subtitle.setObjectName("landingActionsSubtitle")
         self._actions_subtitle.setWordWrap(True)
-        actions_layout.addWidget(self._actions_subtitle)
+        access_text.addWidget(self._actions_subtitle)
+        access_header.addLayout(access_text, 1)
+        actions_layout.addLayout(access_header)
 
         # ── Son kasa kartı ───────────────────────────────────────────────
         self._latest_card = QFrame()
@@ -511,7 +523,7 @@ class LandingPage(QWidget):
             row.open_requested.connect(self.recent_file_chosen.emit)
             row.remove_requested.connect(self._on_remove_recent)
             item = QListWidgetItem()
-            item.setSizeHint(row.sizeHint())
+            item.setSizeHint(QSize(0, max(64, row.sizeHint().height())))
             self._recent_list.addItem(item)
             self._recent_list.setItemWidget(item, row)
 
