@@ -78,6 +78,7 @@ from kobipass.ui.vault_empty_state import (
     VaultBody,
     VaultEmptyState,
 )
+from kobipass.ui.vault_record_summary import VaultRecordSummaryPanel
 from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry, utc_now_iso
 
 _FILTER_PAGE_SIZE = 100
@@ -335,6 +336,23 @@ class MainWindow(QMainWindow):
 
         root.addWidget(self._command_surface)
 
+        self._workspace_split = QWidget()
+        self._workspace_split.setObjectName("vaultWorkspaceSplit")
+        split_layout = QHBoxLayout(self._workspace_split)
+        split_layout.setContentsMargins(0, 0, 0, 0)
+        split_layout.setSpacing(10)
+
+        self._records_panel = QFrame()
+        self._records_panel.setObjectName("vaultRecordsPanel")
+        self._records_panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        records_layout = QVBoxLayout(self._records_panel)
+        records_layout.setContentsMargins(12, 10, 10, 10)
+        records_layout.setSpacing(8)
+
+        self._records_header = QLabel()
+        self._records_header.setObjectName("vaultRecordsHeader")
+        records_layout.addWidget(self._records_header)
+
         self._vault_body = VaultBody()
         self._scroll = self._vault_body.scroll
         self._scroll.setHorizontalScrollBarPolicy(
@@ -353,7 +371,7 @@ class MainWindow(QMainWindow):
         self._entries_host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._entries_layout = QVBoxLayout(self._entries_host)
         self._entries_layout.setContentsMargins(0, 0, 0, 0)
-        self._entries_layout.setSpacing(4)
+        self._entries_layout.setSpacing(8)
         self._entries_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self._add_bar = AddRecordBar(self._request_add_row)
@@ -365,7 +383,12 @@ class MainWindow(QMainWindow):
 
         self._scroll.setWidget(self._entries_host)
         self._scroll.verticalScrollBar().valueChanged.connect(self._check_scroll_position)
-        root.addWidget(self._vault_body, stretch=1)
+        records_layout.addWidget(self._vault_body, stretch=1)
+
+        self._record_summary = VaultRecordSummaryPanel()
+        split_layout.addWidget(self._records_panel, stretch=7)
+        split_layout.addWidget(self._record_summary, stretch=3)
+        root.addWidget(self._workspace_split, stretch=1)
 
         status = QStatusBar()
         status.setObjectName("vaultStatusBar")
@@ -472,6 +495,8 @@ class MainWindow(QMainWindow):
             )
         else:
             self._add_bar.setVisible(False)
+
+        self._update_record_summary()
 
     def _shortcut_add_row(self) -> None:
         if self._kilitli_mi:
@@ -862,6 +887,8 @@ class MainWindow(QMainWindow):
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))
         self._workspace_hint.setText(tr("vault_workspace_hint"))
+        self._records_header.setText(tr("vault_fields_section"))
+        self._record_summary.retranslate()
         self._title_bar.retranslate()
         self._landing_page.retranslate()
         self._add_bar.retranslate()
@@ -942,6 +969,26 @@ class MainWindow(QMainWindow):
         self._status_role.setProperty("clickable", is_admin)
         self._status_role.style().unpolish(self._status_role)
         self._status_role.style().polish(self._status_role)
+        self._update_record_summary()
+
+    def _update_record_summary(self) -> None:
+        total_fields = 0
+        hidden_values = 0
+        for row in self._row_widgets:
+            fields, hidden = row.field_stats()
+            total_fields += fields
+            hidden_values += hidden
+        perms = self._row_permissions()
+        can_add_fields = (
+            not self._kilitli_mi
+            and (perms is None or perms.info == "write")
+        )
+        self._record_summary.update_stats(
+            total_fields=total_fields,
+            hidden_values=hidden_values,
+            can_add_fields=can_add_fields,
+            dirty=bool(self._dirty or self._current_path is None),
+        )
 
     def _mark_dirty(self) -> None:
         self._dirty = True

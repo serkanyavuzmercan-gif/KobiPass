@@ -25,15 +25,15 @@ class AddRecordBar(QWidget):
         self._btn_add = QPushButton()
         self._btn_add.setObjectName("addRecordBtn")
         self._btn_add.setFixedHeight(ROW_CONTROL_HEIGHT)
+        self._btn_add.setMinimumWidth(220)
         self._btn_add.clicked.connect(on_add)
         self.retranslate()
 
         layout.addWidget(
             self._btn_add,
-            0,
+            1,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
         )
-        layout.addStretch(1)
 
     def retranslate(self) -> None:
         self._btn_add.setText(tr("btn_add_record"))

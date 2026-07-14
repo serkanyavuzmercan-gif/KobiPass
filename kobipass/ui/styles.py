@@ -222,6 +222,64 @@ QWidget#vaultBody {
     background-color: #1a1d23;
 }
 
+QWidget#vaultWorkspaceSplit {
+    background-color: transparent;
+}
+
+QFrame#vaultRecordsPanel {
+    background-color: #171b22;
+    border: 1px solid #2f3745;
+    border-radius: 14px;
+}
+
+QLabel#vaultRecordsHeader {
+    color: #7f8aa0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+}
+
+QFrame#vaultRecordSummary {
+    background-color: #171b22;
+    border: 1px solid #2f3745;
+    border-radius: 14px;
+}
+
+QLabel#vaultSummaryTitle {
+    color: #7f8aa0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+}
+
+QFrame#vaultSummaryStats {
+    background-color: #1d2330;
+    border: 1px solid #313a4a;
+    border-radius: 10px;
+}
+
+QLabel#vaultSummaryStatLabel {
+    color: #8b96a8;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+QLabel#vaultSummaryStatValue {
+    color: #eef2fb;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+QLabel#vaultSummaryCaption {
+    color: #7d89a0;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+QWidget#entryFieldsStack {
+    background: transparent;
+}
+
 QWidget#entryRow {
     background-color: #252830;
     border: 1px solid #343a46;
@@ -1945,6 +2003,63 @@ QWidget#vaultWatermarkPane {
 
 QWidget#vaultBody {
     background-color: #f4f6fb;
+}
+
+QWidget#vaultWorkspaceSplit {
+    background-color: transparent;
+}
+
+QFrame#vaultRecordsPanel {
+    background-color: #ffffff;
+    border: 1px solid #d8e0ef;
+    border-radius: 14px;
+}
+
+QLabel#vaultRecordsHeader {
+    color: #6b7a94;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+}
+
+QFrame#vaultRecordSummary {
+    background-color: #ffffff;
+    border: 1px solid #d8e0ef;
+    border-radius: 14px;
+}
+
+QLabel#vaultSummaryTitle {
+    color: #6b7a94;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+}
+
+QFrame#vaultSummaryStats {
+    background-color: #f7f9fd;
+    border: 1px solid #dde5f3;
+    border-radius: 10px;
+}
+
+QLabel#vaultSummaryStatLabel {
+    color: #6d7c95;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+QLabel#vaultSummaryStatValue {
+    color: #1a2740;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+QLabel#vaultSummaryCaption {
+    color: #6d7c95;
+    font-size: 11px;
+}
+
+QWidget#entryFieldsStack {
+    background: transparent;
 }
 
 QWidget#entryRow {

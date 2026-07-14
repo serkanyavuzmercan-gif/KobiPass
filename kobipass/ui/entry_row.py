@@ -191,6 +191,7 @@ class CompactField(QWidget):
         responsive_width: bool = False,
         max_width: int | None = None,
         primary_field: bool = False,
+        stacked: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -218,11 +219,16 @@ class CompactField(QWidget):
         self._strength_meter: QFrame | None = None
         self._base_width = fixed_width
         self._responsive_width = responsive_width
+        self._stacked = stacked
         self._max_width = max_width
         self._primary_field = primary_field
         self.setProperty("primaryField", primary_field)
-        self.setFixedWidth(fixed_width)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        if stacked:
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            self.setMinimumWidth(160)
+        else:
+            self.setFixedWidth(fixed_width)
+            self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         has_menu = sensitive or with_delete_menu
         has_eye = sensitive
@@ -377,11 +383,25 @@ class CompactField(QWidget):
 
     def set_compact_width(self, width: int) -> None:
         """Bilgi hücresinin toplam genişliğini kontrolleri bozmadan günceller."""
+        if self._stacked:
+            self.set_stacked_width(width)
+            return
         target = max(self._chrome_width + 72, width)
         if target == self.width():
             return
         self._edit.setFixedWidth(target - self._chrome_width)
         self.setFixedWidth(target)
+
+    def set_stacked_width(self, width: int) -> None:
+        """Dikey kart düzeninde alanı satır genişliğine yayar."""
+        if not self._stacked:
+            return
+        target = max(self._chrome_width + 72, width)
+        if target == self.width():
+            return
+        self._edit.setFixedWidth(max(72, target - self._chrome_width))
+        self.setFixedWidth(target)
+        self.width_changed.emit()
 
     def set_responsive_base_width(self, width: int) -> None:
         if not self._responsive_width:
@@ -660,56 +680,34 @@ class EntryRowWidget(QWidget):
         row.setSpacing(ROW_LAYOUT_SPACING)
         row.setAlignment(_ROW_ALIGN)
 
+        self._fields_host = QWidget()
+        self._fields_host.setObjectName("entryFieldsStack")
+        self._fields_layout = QVBoxLayout(self._fields_host)
+        self._fields_layout.setContentsMargins(0, 0, 0, 0)
+        self._fields_layout.setSpacing(6)
+        self._fields_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
         self._name = CompactField(
             field_key="field_name",
             fixed_width=NAME_FIELD_WIDTH,
             sensitive=False,
             with_delete_menu=True,
-            responsive_width=True,
+            responsive_width=False,
             max_width=None,
             primary_field=True,
+            stacked=True,
         )
         self._name.delete_requested.connect(self._confirm_and_remove)
-        self._name.width_changed.connect(self._schedule_info_field_layout)
-        row.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
-
-        self._scroll = EntryFieldsScroll()
-        self._scroll.setObjectName("entryFieldsScroll")
-        self._scroll.setWidgetResizable(True)
-        self._scroll.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Minimum,
-        )
-        self._scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        self._scroll.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT + 14)
-        self._scroll.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
-        )
-        self._scroll.viewport_resized.connect(self._schedule_info_field_layout)
-
-        self._extras_host = QWidget()
-        self._extras_host.setObjectName("entryExtrasHost")
-        self._extras_layout = QHBoxLayout(self._extras_host)
-        self._extras_layout.setContentsMargins(0, 0, 0, 0)
-        self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
-        self._extras_layout.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
-        )
+        self._fields_layout.addWidget(self._name)
 
         self._info1 = CompactField(
             info_index=1,
             fixed_width=INFO_FIELD_WIDTH,
             sensitive=True,
-            parent=self._extras_host,
+            stacked=True,
         )
         self._info1.field_remove_requested.connect(self._on_info_field_remove)
-        self._extras_layout.addWidget(self._info1, 0, Qt.AlignmentFlag.AlignTop)
+        self._fields_layout.addWidget(self._info1)
 
         self._field_step_column = QWidget()
         self._field_step_column.setObjectName("fieldStepColumn")
@@ -729,12 +727,9 @@ class EntryRowWidget(QWidget):
         field_step_layout.addWidget(
             self._remove_field_btn, 0, Qt.AlignmentFlag.AlignHCenter
         )
-        self._extras_layout.addWidget(
-            self._field_step_column, 0, Qt.AlignmentFlag.AlignTop
-        )
 
-        self._scroll.setWidget(self._extras_host)
-        row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
+        row.addWidget(self._fields_host, 1, Qt.AlignmentFlag.AlignTop)
+        row.addWidget(self._field_step_column, 0, Qt.AlignmentFlag.AlignTop)
 
         self.retranslate()
 
@@ -774,7 +769,39 @@ class EntryRowWidget(QWidget):
             self.remove_requested.emit(self)
 
     def _field_step_index(self) -> int:
-        return self._extras_layout.indexOf(self._field_step_column)
+        return self._fields_layout.count()
+
+    def field_stats(self) -> tuple[int, int]:
+        """Toplam alan sayısı ve gizli değer sayısı."""
+        total = 1 + 1 + len(self._extra_fields)
+        hidden = sum(
+            1
+            for field in self._sensitive_fields()
+            if field._hidden and field.text().strip()
+        )
+        return total, hidden
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._schedule_info_field_layout()
+
+    def _layout_info_fields(self) -> None:
+        width = self._fields_host.width()
+        if width <= 0:
+            width = (
+                self.width()
+                - ROW_MARGINS[0]
+                - ROW_MARGINS[2]
+                - FIELD_STEP_BTN_WIDTH
+                - ROW_LAYOUT_SPACING
+            )
+        if width <= 0:
+            return
+        for field in [self._name, self._info1, *self._extra_fields]:
+            field.set_stacked_width(width)
+
+    def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
+        self._schedule_info_field_layout()
 
     def _update_field_step_buttons(self) -> None:
         self._remove_field_btn.setEnabled(len(self._extra_fields) > 0)
@@ -797,43 +824,6 @@ class EntryRowWidget(QWidget):
     def _schedule_info_field_layout(self) -> None:
         QTimer.singleShot(0, self._layout_info_fields)
 
-    def _layout_info_fields(self) -> None:
-        row_content_width = (
-            self.width() - ROW_MARGINS[0] - ROW_MARGINS[2]
-        )
-        if row_content_width <= 0:
-            return
-        default_width = four_column_default_width(row_content_width)
-        self._name.set_responsive_base_width(default_width)
-
-        scroll_width = (
-            row_content_width - self._name.width() - ROW_LAYOUT_SPACING
-        )
-        width = three_column_info_width(scroll_width)
-        fields = [self._info1, *self._extra_fields]
-        for field in fields:
-            field.set_compact_width(width)
-        # Üç kolona kadar viewport dolar; dördüncü hücre yatay scroll'u başlatır.
-        content_width = (
-            len(fields) * width
-            + FIELD_STEP_BTN_WIDTH
-            + len(fields) * ROW_LAYOUT_SPACING
-        )
-        self._extras_host.setMinimumWidth(max(scroll_width, content_width))
-        self._extras_layout.invalidate()
-
-    def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
-        self._schedule_info_field_layout()
-
-        def update_scroll():
-            bar = self._scroll.horizontalScrollBar()
-            if scroll_to_end:
-                bar.setValue(bar.maximum())
-            else:
-                bar.setValue(min(bar.value(), bar.maximum()))
-
-        QTimer.singleShot(0, update_scroll)
-
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
         if (
             not block_signals
@@ -847,7 +837,7 @@ class EntryRowWidget(QWidget):
             info_index=info_index,
             fixed_width=INFO_FIELD_WIDTH,
             sensitive=True,
-            parent=self._extras_host,
+            stacked=True,
         )
         field._always_show = True
         field.set_custom_label(self._field_labels.get(f"info{info_index}", ""))
@@ -862,12 +852,7 @@ class EntryRowWidget(QWidget):
         field.textChanged().connect(self._emit_changed)
         field.field_remove_requested.connect(self._on_info_field_remove)
 
-        self._extras_layout.insertWidget(
-            self._field_step_index(),
-            field,
-            0,
-            _ROW_ALIGN,
-        )
+        self._fields_layout.addWidget(field)
         self._extra_fields.append(field)
         field.show()
         self._sync_scroll_width(scroll_to_end=not block_signals)
@@ -893,12 +878,12 @@ class EntryRowWidget(QWidget):
             # 1. Bilgi silinince 2. Bilgi yukarı kayar.
             promoted = self._extra_fields.pop(0)
             self._info1.setText(promoted.text())
-            self._extras_layout.removeWidget(promoted)
+            self._fields_layout.removeWidget(promoted)
             promoted.deleteLater()
             self._renumber_extra_fields()
         elif field in self._extra_fields:
             self._extra_fields.remove(field)
-            self._extras_layout.removeWidget(field)
+            self._fields_layout.removeWidget(field)
             field.deleteLater()
             self._renumber_extra_fields()
         else:
@@ -925,7 +910,7 @@ class EntryRowWidget(QWidget):
         if not self._extra_fields:
             return
         field = self._extra_fields.pop()
-        self._extras_layout.removeWidget(field)
+        self._fields_layout.removeWidget(field)
         field.deleteLater()
         self._renumber_extra_fields()
         self._sync_scroll_width()
@@ -936,7 +921,7 @@ class EntryRowWidget(QWidget):
 
     def _clear_extra_fields(self) -> None:
         for field in self._extra_fields:
-            self._extras_layout.removeWidget(field)
+            self._fields_layout.removeWidget(field)
             field.deleteLater()
         self._extra_fields.clear()
         self._sync_scroll_width()
