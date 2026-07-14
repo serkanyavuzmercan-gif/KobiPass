@@ -246,11 +246,15 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self._btn_clear, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._search_bar = QLineEdit()
+        self._search_bar.setObjectName("toolbarSearch")
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
+        self._search_bar.setMinimumWidth(160)
+        self._search_bar.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         self._search_bar.textChanged.connect(self._filter_rows)
-        toolbar.addWidget(self._search_bar)
-
-        toolbar.addStretch()
+        # Search fills leftover width; theme/lang stay right-aligned with fixed spacing.
+        toolbar.addWidget(self._search_bar, 1, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_theme = QPushButton()
         self._btn_theme.setObjectName("themeBtn")

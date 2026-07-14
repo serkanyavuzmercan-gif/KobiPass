@@ -871,6 +871,10 @@ QDialog#userAdminDialog QGroupBox {
     padding-top: 4px;
 }
 
+QDialog#userAdminDialog QGroupBox::title {
+    font-size: 12px;
+}
+
 QFrame#userSlotCard {
     border: 1px solid #3d4450;
     border-radius: 8px;
@@ -1761,6 +1765,10 @@ QDialog#userAdminDialog QLineEdit {
 QDialog#userAdminDialog QGroupBox {
     margin-top: 12px;
     padding-top: 4px;
+}
+
+QDialog#userAdminDialog QGroupBox::title {
+    font-size: 12px;
 }
 
 QFrame#userSlotCard {
