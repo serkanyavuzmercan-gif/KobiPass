@@ -261,6 +261,23 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "help_steps_title": "Üç adımda başlayın",
         "about_title": "Güvenlik Protokolü ve Hakkında",
+        "security_title": "Güvenlik Protokolü",
+        "btn_about_tip": "Hakkında",
+        "about_us_title": "Hakkında",
+        "about_us_eyebrow": "HAKKINDA",
+        "about_us_ver": "Sürüm {version}  ·  Ücretsiz",
+        "about_us_what": (
+            "Verilerinizi yalnızca kendi cihazınızda, güçlü şifrelemeyle saklayan "
+            "çevrimdışı bir parola kasası. Sunucu, internet bağlantısı veya dışa "
+            "aktarma yoktur — her şey bilgisayarınızda kalır."
+        ),
+        "about_us_made_by": "Alper Alyaz  ·  Hidroteknik",
+        "about_us_tagline": (
+            "Bu program, Türkiye'de bir mühendislik şirketi olan Hidroteknik "
+            "tarafından kâr amacı gütmeksizin geliştirilmiştir."
+        ),
+        "about_us_website": "Web sayfası",
+        "about_us_footer": "© 2026  Hidroteknik  ·  Ücretsiz kullanın ve paylaşın",
         "about_tab_security": "Güvenlik Protokolü",
         "about_tab_credits": "Açık Kaynak & Lisanslar",
         "security_window_eyebrow": "KOBIPASS GÜVENLİK MİMARİSİ",
@@ -622,6 +639,23 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "help_steps_title": "Start in three steps",
         "about_title": "Security Protocol & About",
+        "security_title": "Security Protocol",
+        "btn_about_tip": "About",
+        "about_us_title": "About",
+        "about_us_eyebrow": "ABOUT",
+        "about_us_ver": "Version {version}  ·  Free to use",
+        "about_us_what": (
+            "An offline password vault that keeps your data on your own device "
+            "with strong encryption. No servers, no internet, no export — "
+            "everything stays on your computer."
+        ),
+        "about_us_made_by": "Alper Alyaz  ·  Hidroteknik",
+        "about_us_tagline": (
+            "This app was made by Hidroteknik, an engineering company based in "
+            "Türkiye, as a non-profit project."
+        ),
+        "about_us_website": "Website",
+        "about_us_footer": "© 2026  Hidroteknik  ·  Free to use and share",
         "about_tab_security": "Security Protocol",
         "about_tab_credits": "Open Source & Licenses",
         "security_window_eyebrow": "KOBIPASS SECURITY ARCHITECTURE",

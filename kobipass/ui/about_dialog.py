@@ -1,12 +1,15 @@
-"""KobiPass premium Güvenlik Protokolü penceresi."""
+"""KobiPass 'Hakkında' penceresi — uygulama künyesi ve Hidroteknik tanıtımı.
+
+Güvenlik protokolü ayrı ``SecurityDialog`` penceresinde anlatılır.
+"""
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -17,7 +20,8 @@ from PyQt6.QtWidgets import (
 from kobipass import __version__
 from kobipass.i18n import tr
 from kobipass.resources import app_icon, logo_pixmap
-from kobipass.ui.icons import icon_shield
+
+HIDROTEKNIK_URL = "https://www.hidroteknik.com.tr/"
 
 
 class AboutDialog(QDialog):
@@ -26,16 +30,17 @@ class AboutDialog(QDialog):
         self.setObjectName("premiumInfoDialog")
         self.setWindowIcon(app_icon())
         self.setModal(True)
-        self.setMinimumSize(860, 560)
-        self.resize(900, 590)
+        self.setMinimumSize(520, 460)
+        self.resize(560, 500)
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
         )
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(22, 20, 22, 20)
+        outer.setContentsMargins(24, 22, 24, 20)
         outer.setSpacing(16)
 
+        # ── Başlık: logo + uygulama adı + sürüm ─────────────────────────────
         header = QHBoxLayout()
         header.setSpacing(14)
         logo = QLabel()
@@ -49,94 +54,68 @@ class AboutDialog(QDialog):
         self._eyebrow.setObjectName("premiumInfoEyebrow")
         self._title = QLabel()
         self._title.setObjectName("premiumInfoTitle")
-        self._subtitle = QLabel()
-        self._subtitle.setObjectName("premiumInfoSubtitle")
-        self._subtitle.setWordWrap(True)
+        self._version = QLabel()
+        self._version.setObjectName("premiumInfoSubtitle")
         header_text.addWidget(self._eyebrow)
         header_text.addWidget(self._title)
-        header_text.addWidget(self._subtitle)
+        header_text.addWidget(self._version)
         header.addLayout(header_text, 1)
         outer.addLayout(header)
 
-        body = QHBoxLayout()
-        body.setSpacing(16)
+        # ── Ne işe yarar ────────────────────────────────────────────────────
+        what_card = QFrame()
+        what_card.setObjectName("premiumInfoCard")
+        what_card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        what_layout = QVBoxLayout(what_card)
+        what_layout.setContentsMargins(16, 14, 16, 14)
+        what_layout.setSpacing(4)
+        self._what = QLabel()
+        self._what.setObjectName("premiumInfoCardText")
+        self._what.setWordWrap(True)
+        what_layout.addWidget(self._what)
+        outer.addWidget(what_card)
 
-        hero = QFrame()
-        hero.setObjectName("premiumInfoHero")
-        hero.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        hero.setMinimumWidth(240)
-        hero.setMaximumWidth(285)
-        hero_layout = QVBoxLayout(hero)
-        hero_layout.setContentsMargins(24, 24, 24, 24)
-        hero_layout.setSpacing(12)
+        # ── Yapan: Hidroteknik ──────────────────────────────────────────────
+        maker_card = QFrame()
+        maker_card.setObjectName("premiumInfoHero")
+        maker_card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        maker_layout = QVBoxLayout(maker_card)
+        maker_layout.setContentsMargins(18, 16, 18, 16)
+        maker_layout.setSpacing(8)
+        self._made_by = QLabel()
+        self._made_by.setObjectName("premiumInfoHeroTitle")
+        self._made_by.setWordWrap(True)
+        self._tagline = QLabel()
+        self._tagline.setObjectName("premiumInfoHeroText")
+        self._tagline.setWordWrap(True)
+        maker_layout.addWidget(self._made_by)
+        maker_layout.addWidget(self._tagline)
 
-        shield = QLabel()
-        shield.setObjectName("premiumInfoHeroIcon")
-        shield.setPixmap(icon_shield(size=60).pixmap(60, 60))
-        hero_layout.addWidget(shield)
-        hero_layout.addStretch(1)
+        self._website_btn = QPushButton()
+        self._website_btn.setObjectName("landingSecondaryBtn")
+        self._website_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._website_btn.clicked.connect(
+            lambda: QDesktopServices.openUrl(QUrl(HIDROTEKNIK_URL))
+        )
+        maker_layout.addWidget(self._website_btn, 0, Qt.AlignmentFlag.AlignLeft)
+        outer.addWidget(maker_card)
 
-        self._hero_title = QLabel()
-        self._hero_title.setObjectName("premiumInfoHeroTitle")
-        self._hero_title.setWordWrap(True)
-        hero_layout.addWidget(self._hero_title)
-        self._hero_text = QLabel()
-        self._hero_text.setObjectName("premiumInfoHeroText")
-        self._hero_text.setWordWrap(True)
-        hero_layout.addWidget(self._hero_text)
+        outer.addStretch(1)
 
-        self._trust_chips: list[QLabel] = []
-        for _ in range(3):
-            chip = QLabel()
-            chip.setObjectName("premiumInfoChip")
-            chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            hero_layout.addWidget(chip)
-            self._trust_chips.append(chip)
-        hero_layout.addStretch(2)
-        body.addWidget(hero)
-
-        content = QVBoxLayout()
-        content.setSpacing(10)
-        grid = QGridLayout()
-        grid.setSpacing(10)
-        self._card_titles: list[QLabel] = []
-        self._card_texts: list[QLabel] = []
-        for index in range(6):
-            card = QFrame()
-            card.setObjectName("premiumInfoCard")
-            card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-            card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(14, 12, 14, 12)
-            card_layout.setSpacing(5)
-            title = QLabel()
-            title.setObjectName("premiumInfoCardTitle")
-            title.setWordWrap(True)
-            text = QLabel()
-            text.setObjectName("premiumInfoCardText")
-            text.setWordWrap(True)
-            card_layout.addWidget(title)
-            card_layout.addWidget(text)
-            card_layout.addStretch()
-            grid.addWidget(card, index // 2, index % 2)
-            self._card_titles.append(title)
-            self._card_texts.append(text)
-        content.addLayout(grid, 1)
-
+        # ── Künye + teknoloji ───────────────────────────────────────────────
         credits = QFrame()
         credits.setObjectName("premiumCredits")
         credits.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         credits_layout = QHBoxLayout(credits)
         credits_layout.setContentsMargins(14, 10, 14, 10)
-        self._credits = QLabel()
-        self._credits.setObjectName("premiumCreditsText")
-        self._credits.setWordWrap(True)
-        credits_layout.addWidget(self._credits, 1)
+        self._footer = QLabel()
+        self._footer.setObjectName("premiumCreditsText")
+        self._footer.setWordWrap(True)
+        credits_layout.addWidget(self._footer, 1)
         self._tech = QLabel("PyQt6  ·  cryptography  ·  argon2-cffi")
         self._tech.setObjectName("premiumCreditsTech")
         credits_layout.addWidget(self._tech, 0, Qt.AlignmentFlag.AlignRight)
-        content.addWidget(credits)
-        body.addLayout(content, 1)
-        outer.addLayout(body, 1)
+        outer.addWidget(credits)
 
         buttons = QHBoxLayout()
         buttons.addStretch()
@@ -147,24 +126,17 @@ class AboutDialog(QDialog):
         self.close_btn.clicked.connect(self.accept)
         buttons.addWidget(self.close_btn)
         outer.addLayout(buttons)
+
         self.retranslate()
 
     def retranslate(self) -> None:
-        self.setWindowTitle(tr("about_title"))
-        self._eyebrow.setText(tr("security_window_eyebrow"))
-        self._title.setText(tr("security_window_title"))
-        self._subtitle.setText(tr("security_window_subtitle"))
-        self._hero_title.setText(tr("security_hero_title"))
-        self._hero_text.setText(tr("security_hero_text"))
-        for label, key in zip(
-            self._trust_chips,
-            ("landing_trust_aes", "landing_trust_argon", "landing_trust_local"),
-        ):
-            label.setText(tr(key))
-        for index in range(6):
-            self._card_titles[index].setText(tr(f"security_card{index + 1}_title"))
-            self._card_texts[index].setText(tr(f"security_card{index + 1}_text"))
-        self._credits.setText(
-            tr("security_credits", version=__version__)
-        )
+        self.setWindowTitle(tr("about_us_title"))
+        self._eyebrow.setText(tr("about_us_eyebrow"))
+        self._title.setText(tr("app_name"))
+        self._version.setText(tr("about_us_ver", version=__version__))
+        self._what.setText(tr("about_us_what"))
+        self._made_by.setText(tr("about_us_made_by"))
+        self._tagline.setText(tr("about_us_tagline"))
+        self._website_btn.setText(tr("about_us_website"))
+        self._footer.setText(tr("about_us_footer"))
         self.close_btn.setText(tr("help_close"))

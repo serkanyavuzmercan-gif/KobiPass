@@ -177,6 +177,31 @@ def icon_help(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
     return _scaled_icon(f"help:{color.name()}:{size}", draw, size)
 
 
+def icon_info(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
+    """Daire içinde 'i' — hakkında."""
+    def draw(p: QPainter) -> None:
+        from PyQt6.QtCore import QRectF
+        from PyQt6.QtGui import QFont
+
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(_pt(12 * s, 12 * s), 9 * s, 9 * s)
+        font = QFont()
+        font.setBold(True)
+        font.setPixelSize(int(12 * s))
+        font.setFamily("Georgia")
+        p.setFont(font)
+        p.setPen(color)
+        p.drawText(
+            QRectF(3 * s, 3 * s, 18 * s, 18 * s),
+            Qt.AlignmentFlag.AlignCenter,
+            "i",
+        )
+
+    return _scaled_icon(f"info:{color.name()}:{size}", draw, size)
+
+
 def icon_sun(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
     """Güneş — aydınlık moda geç."""
     def draw(p: QPainter) -> None:

@@ -60,8 +60,8 @@ from kobipass.ui.dialogs import (
     show_restriction as show_restriction_dialog,
 )
 from kobipass.ui.entry_row import ROW_MIME, EntryRowWidget
-from kobipass.ui.help_panel import HelpPanel
 from kobipass.ui.landing_page import LandingPage
+from kobipass.ui.security_dialog import SecurityDialog
 from kobipass.backup import (
     clear_read_only,
     create_backup,
@@ -168,6 +168,7 @@ class MainWindow(QMainWindow):
         self._dirty = False
         self._row_widgets: list[EntryRowWidget] = []
         self._about_dialog: AboutDialog | None = None
+        self._security_dialog: SecurityDialog | None = None
         self._showing_copy_notice = False
         self._copy_notice_field = ""
         self._copy_notice_has_text = True
@@ -246,9 +247,6 @@ class MainWindow(QMainWindow):
 
         self._title_bar = CustomTitleBar(self)
         outer.addWidget(self._title_bar)
-
-        # Yardım, Güvenlik Protokolü ile aynı premium pencere dilini kullanır.
-        self._help_panel = HelpPanel(self)
 
         self._stacked_widget = QStackedWidget()
         outer.addWidget(self._stacked_widget, stretch=1)
@@ -403,7 +401,8 @@ class MainWindow(QMainWindow):
             self._yeni_dosya_olusturma_ekranini_ac
         )
         self.landing_page.btn_security.clicked.connect(self._guvenlik_penceresini_ac)
-        self._landing_page.btn_help.clicked.connect(self._show_help)
+        self._landing_page.btn_about.clicked.connect(self._open_about_dialog)
+        self._landing_page.btn_lang.clicked.connect(i18n.toggle)
         self._landing_page.btn_theme.clicked.connect(theme_manager.toggle)
         self._landing_page.recent_file_chosen.connect(self._open_recent_path)
 
@@ -526,8 +525,6 @@ class MainWindow(QMainWindow):
         self._landing_page.refresh_recent()
 
     def _show_vault_view(self) -> None:
-        # Karşılama ekranında açık kalan yardım paneli kasaya geçince kapansın.
-        self._help_panel.setVisible(False)
         self._stacked_widget.setCurrentWidget(self._vault_view)
         self.statusBar().show()
 
@@ -888,7 +885,8 @@ class MainWindow(QMainWindow):
         self._empty_state.retranslate()
         for row in self._row_widgets:
             row.retranslate()
-        self._help_panel.retranslate()
+        if self._security_dialog is not None:
+            self._security_dialog.retranslate()
         if self._about_dialog is not None:
             self._about_dialog.retranslate()
         if self._showing_copy_notice:
@@ -1096,14 +1094,18 @@ class MainWindow(QMainWindow):
         self._refresh_empty_state()
 
     def _open_security_dialog(self) -> None:
+        if self._security_dialog is None:
+            self._security_dialog = SecurityDialog(self)
+        self._security_dialog.show()
+        self._security_dialog.raise_()
+        self._security_dialog.activateWindow()
+
+    def _open_about_dialog(self) -> None:
         if self._about_dialog is None:
             self._about_dialog = AboutDialog(self)
         self._about_dialog.show()
         self._about_dialog.raise_()
         self._about_dialog.activateWindow()
-
-    def _show_help(self) -> None:
-        self._help_panel.toggle()
 
     def _require_admin(self, restriction_key: str = "restricted_admin_feature") -> bool:
         """Yönetici değilse uygun açıklamayı gösterir ve False döner."""
