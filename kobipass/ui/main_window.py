@@ -77,7 +77,6 @@ from kobipass.ui.vault_settings_dialog import VaultSettingsDialog
 from kobipass.ui.vault_empty_state import (
     VaultBody,
     VaultEmptyState,
-    should_show_empty_state,
 )
 from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry, utc_now_iso
 
@@ -433,6 +432,21 @@ class MainWindow(QMainWindow):
             return
         self._add_row()
 
+    def _focus_first_row(self) -> None:
+        if not self._row_widgets:
+            return
+        edits = self._row_widgets[0].focus_edits()
+        if edits:
+            edits[0].setFocus()
+
+    def _ensure_editing_row(self) -> None:
+        """Kayıt yokken doğrudan düzenlenebilir bir satır aç."""
+        if self._row_widgets or self._kilitli_mi:
+            return
+        if not self._can_add_record(self._row_permissions()):
+            return
+        self._add_row(refresh_session=False)
+
     def _on_empty_state_add(self) -> None:
         before = len(self._row_widgets)
         self._request_add_row()
@@ -442,24 +456,16 @@ class MainWindow(QMainWindow):
                 edits[0].setFocus()
 
     def _refresh_empty_state(self) -> None:
-        show = should_show_empty_state(len(self._row_widgets)) and not self._kilitli_mi
-        self._empty_state.setVisible(show)
+        # Boş durum ekranı gösterilmez; kayıt ekleme çubuğu her zaman kullanılır.
+        self._empty_state.setVisible(False)
+        self._entries_layout.setStretchFactor(self._empty_state, 0)
+        self._empty_state.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored
+        )
         perms = self._row_permissions()
         add_allowed = self._can_add_record(perms)
-        self._empty_state.set_restricted(not add_allowed)
-        # Stretch yalnızca boş durumda — kayıt varken aralıkları sıkıştırmaz.
-        self._entries_layout.setStretchFactor(self._empty_state, 1 if show else 0)
-        if show:
-            self._empty_state.setSizePolicy(
-                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-            )
-        else:
-            self._empty_state.setSizePolicy(
-                QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored
-            )
-        has_rows = len(self._row_widgets) > 0
-        if has_rows:
-            self._add_bar.setVisible(not self._kilitli_mi)
+        if not self._kilitli_mi:
+            self._add_bar.setVisible(True)
             self._add_bar.set_restricted(
                 not add_allowed,
                 tr("restricted_add_record") if not add_allowed else "",
@@ -469,9 +475,6 @@ class MainWindow(QMainWindow):
 
     def _shortcut_add_row(self) -> None:
         if self._kilitli_mi:
-            return
-        if len(self._row_widgets) == 0:
-            self._on_empty_state_add()
             return
         self._request_add_row()
 
@@ -534,6 +537,7 @@ class MainWindow(QMainWindow):
         self._kilitli_mi = False
         self._load_vault_data(KobiVault())
         self._show_vault_view()
+        QTimer.singleShot(0, self._focus_first_row)
 
     def _guvenlik_penceresini_ac(self) -> None:
         self._open_security_dialog()
@@ -1068,6 +1072,7 @@ class MainWindow(QMainWindow):
         self._clear_dirty()
         for row in self._row_widgets:
             row.set_sensitive_shown(False)
+        self._ensure_editing_row()
         self._apply_session_ui()
         self._reset_idle_timer()
         self._refresh_empty_state()
