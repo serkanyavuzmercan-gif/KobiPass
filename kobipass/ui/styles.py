@@ -589,6 +589,38 @@ QPushButton#landingSquareBtn:pressed {
     border-color: #2563eb;
 }
 
+QWidget#subUserCard {
+    background-color: #252830;
+    border: 1px solid #3d4450;
+    border-radius: 12px;
+}
+
+QLabel#subUserCardTitle {
+    color: #e8eaed;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+QToolButton#subUserRemoveBtn {
+    background: transparent;
+    color: #9aa0a8;
+    border: none;
+    font-size: 14px;
+    padding: 2px 6px;
+}
+
+QToolButton#subUserRemoveBtn:hover {
+    color: #ffffff;
+    background-color: #c42b1c;
+    border-radius: 4px;
+}
+
+QLabel#sectionTitle {
+    color: #e8eaed;
+    font-size: 14px;
+    font-weight: 600;
+}
+
 QLabel#landingRecentTitle {
     color: #9aa0a8;
     font-size: 13px;
@@ -1198,6 +1230,38 @@ QPushButton#landingSquareBtn:hover {
 QPushButton#landingSquareBtn:pressed {
     background-color: #dbeafe;
     border-color: #2563eb;
+}
+
+QWidget#subUserCard {
+    background-color: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+}
+
+QLabel#subUserCardTitle {
+    color: #1f2937;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+QToolButton#subUserRemoveBtn {
+    background: transparent;
+    color: #6b7280;
+    border: none;
+    font-size: 14px;
+    padding: 2px 6px;
+}
+
+QToolButton#subUserRemoveBtn:hover {
+    color: #ffffff;
+    background-color: #c42b1c;
+    border-radius: 4px;
+}
+
+QLabel#sectionTitle {
+    color: #1f2937;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 QLabel#landingRecentTitle {

@@ -66,6 +66,12 @@ def session_from_unlock(
         if result.user_slot
         else f"Kullanıcı {result.user_slot}"
     )
+    if result.user_slot:
+        username = ""
+        if result.user_slot <= len(vault.user_slot_usernames):
+            username = vault.user_slot_usernames[result.user_slot - 1].strip()
+        if username:
+            label = username
     return UserSession(
         user_slot=result.user_slot or 1,
         user_label=label,

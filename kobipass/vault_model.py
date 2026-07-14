@@ -92,7 +92,7 @@ class VaultEntry:
 
 @dataclass
 class UserPermissions:
-    """Tüm kullanıcılar için ortak izin şablonu."""
+    """Tek bir alt kullanıcı için alan izinleri."""
 
     name: FieldLevel = "read"
     info1: FieldLevel = "write"
@@ -102,6 +102,24 @@ class UserPermissions:
     can_add_entry: bool = False
     can_delete_entry: bool = False
     can_save: bool = True
+
+    def with_infos_level(self, level: FieldLevel) -> UserPermissions:
+        """Bilgiler seçicisi: info1–info4 aynı seviyeye ayarlanır."""
+        return UserPermissions(
+            name=self.name,
+            info1=level,
+            info2=level,
+            info3=level,
+            info4=level,
+            can_add_entry=self.can_add_entry,
+            can_delete_entry=self.can_delete_entry,
+            can_save=self.can_save,
+        )
+
+    @property
+    def infos_level(self) -> FieldLevel:
+        """UI'daki 'Bilgiler' seçicisi için temsil seviyesi (info1)."""
+        return self.info1
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -192,17 +210,61 @@ class AuditEntry:
         )
 
 
+def _default_slot_labels() -> list[str]:
+    return [f"Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)]
+
+
+def _default_slot_usernames() -> list[str]:
+    return ["" for _ in range(USER_SLOT_COUNT)]
+
+
+def _default_slot_permissions() -> list[UserPermissions]:
+    return [UserPermissions() for _ in range(USER_SLOT_COUNT)]
+
+
+def _normalize_slot_list(
+    values: Any,
+    *,
+    filler: Any,
+    transform=None,
+) -> list:
+    result: list = []
+    if isinstance(values, list):
+        for item in values[:USER_SLOT_COUNT]:
+            result.append(transform(item) if transform else item)
+    while len(result) < USER_SLOT_COUNT:
+        result.append(filler() if callable(filler) else filler)
+    return result[:USER_SLOT_COUNT]
+
+
 @dataclass
 class KobiVault:
     """Şifrelenmiş vault gövdesinin JSON içeriği."""
 
     entries: list[VaultEntry] = field(default_factory=list)
     user_permissions: UserPermissions = field(default_factory=UserPermissions)
-    user_slot_labels: list[str] = field(
-        default_factory=lambda: [f"Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)]
+    user_slot_permissions: list[UserPermissions] = field(
+        default_factory=_default_slot_permissions
     )
+    user_slot_labels: list[str] = field(default_factory=_default_slot_labels)
+    user_slot_usernames: list[str] = field(default_factory=_default_slot_usernames)
     field_labels: dict[str, str] = field(default_factory=dict)
     audit_log: list[AuditEntry] = field(default_factory=list)
+
+    def permissions_for_slot(self, slot: int) -> UserPermissions:
+        """1-based kullanıcı slot izni; yoksa ortak şablona düşer."""
+        index = slot - 1
+        if 0 <= index < len(self.user_slot_permissions):
+            return self.user_slot_permissions[index]
+        return self.user_permissions
+
+    def set_slot_permissions(self, permissions: list[UserPermissions]) -> None:
+        self.user_slot_permissions = _normalize_slot_list(
+            permissions,
+            filler=UserPermissions,
+        )
+        if self.user_slot_permissions:
+            self.user_permissions = self.user_slot_permissions[0]
 
     def resolved_field_labels(self) -> dict[str, str]:
         result = dict(DEFAULT_FIELD_LABELS)
@@ -215,11 +277,29 @@ class KobiVault:
         return field_label_for(field_name, self.field_labels)
 
     def to_dict(self) -> dict[str, Any]:
+        slot_perms = _normalize_slot_list(
+            self.user_slot_permissions,
+            filler=UserPermissions,
+        )
         return {
-            "version": 2,
+            "version": 3,
             "entries": [e.to_dict() for e in self.entries],
-            "user_permissions": self.user_permissions.to_dict(),
-            "user_slot_labels": list(self.user_slot_labels),
+            "user_permissions": slot_perms[0].to_dict(),
+            "user_slot_permissions": [p.to_dict() for p in slot_perms],
+            "user_slot_labels": list(
+                _normalize_slot_list(
+                    self.user_slot_labels,
+                    filler=lambda: "Kullanıcı",
+                    transform=str,
+                )
+            ),
+            "user_slot_usernames": list(
+                _normalize_slot_list(
+                    self.user_slot_usernames,
+                    filler=lambda: "",
+                    transform=lambda x: str(x),
+                )
+            ),
             "field_labels": {
                 key: value
                 for key, value in self.resolved_field_labels().items()
@@ -231,12 +311,34 @@ class KobiVault:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> KobiVault:
         entries = [VaultEntry.from_dict(item) for item in data.get("entries", [])]
-        perms = UserPermissions.from_dict(data.get("user_permissions", {}))
-        labels = data.get("user_slot_labels")
-        if not isinstance(labels, list) or len(labels) != USER_SLOT_COUNT:
-            labels = [f"Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)]
+        legacy_perms = UserPermissions.from_dict(data.get("user_permissions", {}))
+        raw_slot_perms = data.get("user_slot_permissions")
+        if isinstance(raw_slot_perms, list) and raw_slot_perms:
+            slot_perms = _normalize_slot_list(
+                raw_slot_perms,
+                filler=lambda: UserPermissions.from_dict(legacy_perms.to_dict()),
+                transform=lambda item: UserPermissions.from_dict(
+                    item if isinstance(item, dict) else {}
+                ),
+            )
         else:
-            labels = [str(x) for x in labels]
+            slot_perms = [
+                UserPermissions.from_dict(legacy_perms.to_dict())
+                for _ in range(USER_SLOT_COUNT)
+            ]
+        labels = _normalize_slot_list(
+            data.get("user_slot_labels"),
+            filler=lambda: "Kullanıcı",
+            transform=str,
+        )
+        for index, label in enumerate(labels):
+            if not str(label).strip():
+                labels[index] = f"Kullanıcı {index + 1}"
+        usernames = _normalize_slot_list(
+            data.get("user_slot_usernames"),
+            filler=lambda: "",
+            transform=lambda x: str(x),
+        )
         raw_field_labels = data.get("field_labels", {})
         field_labels: dict[str, str] = {}
         if isinstance(raw_field_labels, dict):
@@ -252,8 +354,10 @@ class KobiVault:
         ]
         return cls(
             entries=entries,
-            user_permissions=perms,
+            user_permissions=slot_perms[0],
+            user_slot_permissions=slot_perms,
             user_slot_labels=labels,
+            user_slot_usernames=usernames,
             field_labels=field_labels,
             audit_log=audit,
         )

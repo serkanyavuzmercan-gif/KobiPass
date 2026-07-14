@@ -424,7 +424,7 @@ class MainWindow(QMainWindow):
     def _row_permissions(self) -> tuple[UserPermissions | None, bool]:
         if not self._vault or not self._session:
             return None, False
-        perms = effective_permissions(self._session, self._vault.user_permissions)
+        perms = effective_permissions(self._session, self._vault)
         view_only = not isinstance(self._session, AdminSession)
         if view_only:
             perms = view_only_permissions(perms)
@@ -863,9 +863,14 @@ class MainWindow(QMainWindow):
             self._session.admin_password = data["admin_new"]
 
         self._vault.user_permissions = data["permissions"]
+        if data.get("slot_permissions"):
+            self._vault.set_slot_permissions(data["slot_permissions"])
         self._vault.field_labels = data.get("field_labels", {})
         self._vault.user_slot_labels = data.get(
             "user_slot_labels", self._vault.user_slot_labels
+        )
+        self._vault.user_slot_usernames = data.get(
+            "user_slot_usernames", self._vault.user_slot_usernames
         )
         self._pending_user_passwords = data["user_passwords"]
         self._session.user_passwords = data["user_passwords"]
@@ -963,7 +968,7 @@ class MainWindow(QMainWindow):
         if isinstance(self._session, UserSession):
             if not self._vault or not self._session.keys:
                 return
-            if not self._vault.user_permissions.can_save:
+            if not self._vault.permissions_for_slot(self._session.user_slot).can_save:
                 return
             self._sync_vault_entries()
             new_entries = self._collect_entries()
@@ -971,7 +976,7 @@ class MainWindow(QMainWindow):
                 self._snapshot_entries,
                 new_entries,
                 self._session,
-                self._vault.user_permissions,
+                self._vault.permissions_for_slot(self._session.user_slot),
                 self._vault,
             )
             self._vault.audit_log.extend(logs)
@@ -1020,10 +1025,20 @@ class MainWindow(QMainWindow):
         if not data:
             return
 
-        vault = KobiVault(
-            entries=entries,
-            user_permissions=data["permissions"],
+        vault = KobiVault(entries=entries)
+        vault.user_slot_labels = data.get(
+            "user_slot_labels", vault.user_slot_labels
         )
+        vault.user_slot_usernames = data.get(
+            "user_slot_usernames", vault.user_slot_usernames
+        )
+        if data.get("slot_permissions"):
+            vault.set_slot_permissions(data["slot_permissions"])
+        else:
+            base = data["permissions"]
+            vault.set_slot_permissions(
+                [UserPermissions.from_dict(base.to_dict()) for _ in range(3)]
+            )
         path = Path(path_str)
         try:
             write_vault_file(

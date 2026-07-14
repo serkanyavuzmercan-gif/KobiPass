@@ -1,26 +1,28 @@
 """
-Yönetici: kullanıcı parolaları, alan etiketleri ve ortak izin şablonu.
+Yönetici: alt kullanıcı kartları (kişiye özel izinler) + alan etiketleri.
 """
 
 from __future__ import annotations
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QCheckBox,
-    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
-    QGridLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
 from kobipass.i18n import MIN_PASSWORD_LENGTH, tr
 from kobipass.resources import app_icon
-from kobipass.vault_model import FIELD_NAMES, KobiVault, USER_SLOT_COUNT
+from kobipass.ui.sub_user_card import SubUserCard
+from kobipass.vault_model import FIELD_NAMES, KobiVault, USER_SLOT_COUNT, UserPermissions
 
 
 class UserAdminDialog(QDialog):
@@ -36,18 +38,23 @@ class UserAdminDialog(QDialog):
         self.setWindowTitle(tr("users_title"))
         self.setWindowIcon(app_icon())
         self.setModal(True)
-        self.setMinimumWidth(560)
+        self.setMinimumWidth(620)
+        self.resize(660, 720)
         self._vault = vault
         self._enabled_flags = list(enabled_flags)
         self._passwords_changed = False
         self._require_admin_current = require_admin_current
         self._result: dict | None = None
+        self._cards: list[SubUserCard] = []
 
         layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
         info = QLabel(tr("users_info"))
         info.setWordWrap(True)
         layout.addWidget(info)
 
+        # Yönetici — sabit, scroll dışı
         admin_group = QGroupBox(tr("admin_change_section"))
         admin_form = QFormLayout(admin_group)
         admin_info = QLabel(tr("admin_change_info"))
@@ -64,37 +71,6 @@ class UserAdminDialog(QDialog):
         admin_form.addRow(tr("admin_pwd_new_repeat"), self._admin_new_repeat)
         layout.addWidget(admin_group)
 
-        pwd_group = QGroupBox(tr("users_title"))
-        pwd_form = QFormLayout(pwd_group)
-        self._enabled_boxes: list[QCheckBox] = []
-        self._user_fields: list[tuple[QLineEdit, QLineEdit]] = []
-        self._label_edits: list[QLineEdit] = []
-        for n in range(USER_SLOT_COUNT):
-            enabled = QCheckBox(tr("user_pwd_label", n=n + 1))
-            enabled.setChecked(
-                self._enabled_flags[n] if n < len(self._enabled_flags) else False
-            )
-            self._enabled_boxes.append(enabled)
-            label_edit = QLineEdit()
-            label_edit.setText(
-                vault.user_slot_labels[n]
-                if n < len(vault.user_slot_labels)
-                else f"Kullanıcı {n + 1}"
-            )
-            self._label_edits.append(label_edit)
-            p1 = QLineEdit()
-            p1.setEchoMode(QLineEdit.EchoMode.Password)
-            p1.setPlaceholderText(tr("pwd_placeholder"))
-            p2 = QLineEdit()
-            p2.setEchoMode(QLineEdit.EchoMode.Password)
-            p2.setPlaceholderText(tr("pwd_repeat_placeholder"))
-            self._user_fields.append((p1, p2))
-            pwd_form.addRow(enabled)
-            pwd_form.addRow(tr("field_name"), label_edit)
-            pwd_form.addRow(tr("pwd_label"), p1)
-            pwd_form.addRow(tr("pwd_repeat_label"), p2)
-        layout.addWidget(pwd_group)
-
         labels_group = QGroupBox(tr("labels_section"))
         labels_form = QFormLayout(labels_group)
         labels_info = QLabel(tr("labels_info"))
@@ -110,28 +86,52 @@ class UserAdminDialog(QDialog):
             labels_form.addRow(tr(f"field_{field_name}"), edit)
         layout.addWidget(labels_group)
 
-        perm_group = QGroupBox(tr("perm_section"))
-        perm_layout = QGridLayout(perm_group)
-        levels = [
-            ("perm_none", "none"),
-            ("perm_read", "read"),
-            ("perm_hidden_read", "hidden_read"),
-            ("perm_write", "write"),
-        ]
-        self._perm_combos: dict[str, QComboBox] = {}
-        perms = vault.user_permissions
-        for row, field_name in enumerate(FIELD_NAMES, start=1):
-            perm_layout.addWidget(QLabel(tr(f"field_{field_name}")), row, 0)
-            combo = QComboBox()
-            for label_key, value in levels:
-                combo.addItem(tr(label_key), value)
-            current = perms.field_level(field_name)
-            idx = combo.findData(current)
-            if idx >= 0:
-                combo.setCurrentIndex(idx)
-            self._perm_combos[field_name] = combo
-            perm_layout.addWidget(combo, row, 1)
-        layout.addWidget(perm_group)
+        users_header = QHBoxLayout()
+        users_title = QLabel(tr("sub_users_section"))
+        users_title.setObjectName("sectionTitle")
+        users_header.addWidget(users_title)
+        users_header.addStretch()
+        self._add_btn = QPushButton(tr("btn_add_sub_user"))
+        self._add_btn.setObjectName("primaryBtn")
+        self._add_btn.clicked.connect(self._add_card)
+        users_header.addWidget(self._add_btn)
+        layout.addLayout(users_header)
+
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._cards_host = QWidget()
+        self._cards_layout = QVBoxLayout(self._cards_host)
+        self._cards_layout.setContentsMargins(0, 0, 0, 0)
+        self._cards_layout.setSpacing(10)
+        self._cards_layout.addStretch()
+        self._scroll.setWidget(self._cards_host)
+        layout.addWidget(self._scroll, stretch=1)
+
+        for index in range(USER_SLOT_COUNT):
+            enabled = (
+                self._enabled_flags[index] if index < len(self._enabled_flags) else False
+            )
+            if not enabled:
+                continue
+            label = (
+                vault.user_slot_labels[index]
+                if index < len(vault.user_slot_labels)
+                else tr("user_default_name", n=index + 1)
+            )
+            username = (
+                vault.user_slot_usernames[index]
+                if index < len(vault.user_slot_usernames)
+                else ""
+            )
+            perms = vault.permissions_for_slot(index + 1)
+            self._insert_card(
+                username=username,
+                display_name=label,
+                permissions=perms,
+                password_required=False,
+            )
 
         self._error = QLabel("")
         self._error.setStyleSheet("color: #f08080;")
@@ -151,9 +151,57 @@ class UserAdminDialog(QDialog):
         if cancel_btn:
             cancel_btn.setText(tr("cancel"))
 
-    def _on_accept(self) -> None:
-        from kobipass.vault_model import UserPermissions
+        self._sync_add_button()
 
+    def _insert_card(
+        self,
+        *,
+        username: str = "",
+        display_name: str = "",
+        permissions: UserPermissions | None = None,
+        password_required: bool = True,
+    ) -> None:
+        if len(self._cards) >= USER_SLOT_COUNT:
+            return
+        card = SubUserCard(
+            len(self._cards),
+            username=username,
+            display_name=display_name,
+            permissions=permissions,
+            password_required=password_required,
+        )
+        card.remove_requested.connect(self._remove_card)
+        self._cards.append(card)
+        self._cards_layout.insertWidget(self._cards_layout.count() - 1, card)
+        self._renumber_cards()
+        self._sync_add_button()
+
+    def _add_card(self) -> None:
+        self._insert_card(password_required=True)
+
+    def _remove_card(self, card: SubUserCard) -> None:
+        if card not in self._cards:
+            return
+        self._cards.remove(card)
+        self._cards_layout.removeWidget(card)
+        card.deleteLater()
+        self._renumber_cards()
+        self._sync_add_button()
+
+    def _renumber_cards(self) -> None:
+        for index, card in enumerate(self._cards):
+            card.set_index(index)
+
+    def _sync_add_button(self) -> None:
+        remaining = USER_SLOT_COUNT - len(self._cards)
+        self._add_btn.setEnabled(remaining > 0)
+        self._add_btn.setText(
+            tr("btn_add_sub_user")
+            if remaining > 0
+            else tr("btn_add_sub_user_full", max=USER_SLOT_COUNT)
+        )
+
+    def _on_accept(self) -> None:
         admin_current = self._admin_current.text()
         admin_new = self._admin_new.text()
         admin_repeat = self._admin_new_repeat.text()
@@ -168,52 +216,58 @@ class UserAdminDialog(QDialog):
                 self._error.setText(tr("pwd_mismatch"))
                 return
 
+        collected = [card.collect() for card in self._cards]
         user_passwords: list[tuple[bool, str]] = []
-        for index, (enabled_box, (p1, p2)) in enumerate(
-            zip(self._enabled_boxes, self._user_fields)
-        ):
-            enabled = enabled_box.isChecked()
-            pwd1 = p1.text()
-            pwd2 = p2.text()
-            if enabled:
-                if pwd1 or pwd2:
-                    if len(pwd1) < MIN_PASSWORD_LENGTH:
-                        self._error.setText(
-                            tr("pwd_too_short", min_len=MIN_PASSWORD_LENGTH)
-                        )
-                        return
-                    if pwd1 != pwd2:
-                        self._error.setText(tr("pwd_mismatch"))
-                        return
-                    user_passwords.append((True, pwd1))
-                    self._passwords_changed = True
-                else:
-                    user_passwords.append((True, ""))
-            else:
-                user_passwords.append((False, ""))
+        slot_labels: list[str] = []
+        slot_usernames: list[str] = []
+        slot_permissions: list[UserPermissions] = []
 
-        perms = UserPermissions(
-            name=self._perm_combos["name"].currentData(),
-            info1=self._perm_combos["info1"].currentData(),
-            info2=self._perm_combos["info2"].currentData(),
-            info3=self._perm_combos["info3"].currentData(),
-            info4=self._perm_combos["info4"].currentData(),
-        )
+        for index in range(USER_SLOT_COUNT):
+            if index >= len(collected):
+                user_passwords.append((False, ""))
+                slot_labels.append(tr("user_default_name", n=index + 1))
+                slot_usernames.append("")
+                slot_permissions.append(UserPermissions())
+                continue
+
+            data = collected[index]
+            pwd1 = data["password"]
+            pwd2 = data["password_repeat"]
+            if pwd1 or pwd2:
+                if len(pwd1) < MIN_PASSWORD_LENGTH:
+                    self._error.setText(
+                        tr("pwd_too_short", min_len=MIN_PASSWORD_LENGTH)
+                    )
+                    return
+                if pwd1 != pwd2:
+                    self._error.setText(tr("pwd_mismatch"))
+                    return
+                user_passwords.append((True, pwd1))
+                self._passwords_changed = True
+            else:
+                # Mevcut kullanıcı: parola boş bırakılabilir
+                if data["password_required"]:
+                    self._error.setText(tr("sub_user_pwd_required", n=index + 1))
+                    return
+                user_passwords.append((True, ""))
+
+            slot_labels.append(data["display_name"])
+            slot_usernames.append(data["username"])
+            slot_permissions.append(data["permissions"])
+
         field_labels = {
             key: edit.text().strip()
             for key, edit in self._field_label_edits.items()
             if edit.text().strip()
         }
-        slot_labels = [
-            edit.text().strip() or f"Kullanıcı {index + 1}"
-            for index, edit in enumerate(self._label_edits)
-        ]
         self._result = {
             "user_passwords": user_passwords,
-            "permissions": perms,
+            "permissions": slot_permissions[0] if slot_permissions else UserPermissions(),
+            "slot_permissions": slot_permissions,
             "passwords_changed": self._passwords_changed,
             "field_labels": field_labels,
             "user_slot_labels": slot_labels,
+            "user_slot_usernames": slot_usernames,
             "admin_current": admin_current,
             "admin_new": admin_new if admin_new else None,
         }

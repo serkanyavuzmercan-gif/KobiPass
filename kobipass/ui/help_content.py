@@ -92,7 +92,7 @@ def help_html() -> str:
     <h3 style="color:#e8eaed;">Roller</h3>
     <ul style="color:#c8ccd2;line-height:1.55;">
     <li><b>Yönetici</b> — Tüm kayıtlar, kullanıcı parolaları, izinler ve değişiklik geçmişi.</li>
-    <li><b>Kullanıcı 1–3</b> — Ortak izin şablonu; değişiklikler loglanır.</li>
+    <li><b>Kullanıcı 1–3</b> — Her kullanıcının kendi izin şablonu; değişiklikler loglanır.</li>
     </ul>
 
     <h3 style="color:#e8eaed;">Nasıl kullanılır?</h3>
@@ -128,7 +128,7 @@ def help_html() -> str:
     <h3 style="color:#e8eaed;">Roles</h3>
     <ul style="color:#c8ccd2;line-height:1.55;">
     <li><b>Administrator</b> — All records, user passwords, permissions, change history.</li>
-    <li><b>Users 1–3</b> — Shared permission template; changes are logged.</li>
+    <li><b>Users 1–3</b> — Each user has their own permission template; changes are logged.</li>
     </ul>
 
     <h3 style="color:#e8eaed;">How to use</h3>
