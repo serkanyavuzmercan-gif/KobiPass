@@ -97,9 +97,7 @@ def admin_permissions() -> UserPermissions:
     return UserPermissions(
         name="write",
         info1="write",
-        info2="write",
-        info3="write",
-        info4="write",
+        info_rest="write",
         can_add_entry=True,
         can_delete_entry=True,
         can_save=True,
