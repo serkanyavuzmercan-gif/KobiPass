@@ -43,8 +43,8 @@ def _audit_user_display(entry: AuditEntry, vault: KobiVault) -> str:
     labels = getattr(vault, "user_slot_labels", []) or []
     if 1 <= slot <= len(labels):
         label = str(labels[slot - 1]).strip()
-        # Sabit Türkçe varsayılan (vault_model) — özel değilse dile göre çevir.
-        if label and label != f"Kullanıcı {slot}":
+        # Varsayılan etiketler (eski/yeni) — özel değilse dile göre çevir.
+        if label and label not in (f"Kullanıcı {slot}", f"Alt Kullanıcı {slot}"):
             return label
     return tr("role_user", slot=slot)
 

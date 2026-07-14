@@ -860,8 +860,10 @@ QDialog#userAdminDialog QGroupBox {
     padding-top: 4px;
 }
 
-QGroupBox#userSlotCard {
+QFrame#userSlotCard {
+    border: 1px solid #3d4450;
     border-radius: 8px;
+    background-color: #1e2229;
 }
 """
 
@@ -1717,7 +1719,9 @@ QDialog#userAdminDialog QGroupBox {
     padding-top: 4px;
 }
 
-QGroupBox#userSlotCard {
+QFrame#userSlotCard {
+    border: 1px solid #dde3f0;
     border-radius: 8px;
+    background-color: #ffffff;
 }
 """

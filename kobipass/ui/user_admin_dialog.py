@@ -8,17 +8,21 @@ kutularında görünür/gizli göz düğmesi vardır.
 
 from __future__ import annotations
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QFrame,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -27,7 +31,7 @@ from kobipass.i18n import MIN_PASSWORD_LENGTH, tr
 from kobipass.resources import app_icon
 from kobipass.ui.icons import icon_eye, icon_eye_off
 from kobipass.ui.strength import attach_strength_label
-from kobipass.vault_model import FIELD_NAMES, KobiVault, USER_SLOT_COUNT
+from kobipass.vault_model import FIELD_NAMES, KobiVault, PERM_FIELDS
 
 
 def _password_edit(placeholder: str = "") -> QLineEdit:
@@ -102,52 +106,46 @@ class UserAdminDialog(QDialog):
         admin_form.addRow(tr("admin_pwd_new_repeat"), self._admin_new_repeat)
         left.addWidget(admin_group)
 
-        self._enabled_boxes: list[QCheckBox] = []
-        self._user_fields: list[tuple[QLineEdit, QLineEdit]] = []
-        self._label_edits: list[QLineEdit] = []
-        for n in range(USER_SLOT_COUNT):
-            card = QGroupBox()
-            card.setObjectName("userSlotCard")
-            card_form = QFormLayout(card)
-            card_form.setContentsMargins(12, 8, 12, 10)
-            card_form.setVerticalSpacing(6)
+        # ── Alt kullanıcılar: dinamik kartlar + ekle; 3'ten sonra scroll ─────
+        users_group = QGroupBox(tr("users_section"))
+        users_group_layout = QVBoxLayout(users_group)
+        users_group_layout.setContentsMargins(10, 8, 10, 10)
+        users_group_layout.setSpacing(8)
 
-            enabled = QCheckBox(tr("user_pwd_label", n=n + 1))
-            enabled.setChecked(
-                self._enabled_flags[n] if n < len(self._enabled_flags) else False
-            )
-            self._enabled_boxes.append(enabled)
-            card_form.addRow(enabled)
+        self._slots_host = QWidget()
+        self._slots_layout = QVBoxLayout(self._slots_host)
+        self._slots_layout.setContentsMargins(0, 0, 0, 0)
+        self._slots_layout.setSpacing(10)
+        self._slots_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-            label_edit = QLineEdit()
-            label_edit.setText(
+        slots_scroll = QScrollArea()
+        slots_scroll.setWidgetResizable(True)
+        slots_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        slots_scroll.setWidget(self._slots_host)
+        slots_scroll.setMinimumHeight(340)  # ~3 kart; fazlası kaydırılır
+        users_group_layout.addWidget(slots_scroll, 1)
+
+        self._add_user_btn = QPushButton(tr("add_user_btn"))
+        self._add_user_btn.setObjectName("addRecordBtn")
+        self._add_user_btn.clicked.connect(lambda: self._add_slot_card())
+        users_group_layout.addWidget(
+            self._add_user_btn, 0, Qt.AlignmentFlag.AlignLeft
+        )
+
+        left.addWidget(users_group, 1)
+        columns.addLayout(left, 1)
+
+        # Mevcut slotları kur (en az 3, kayıtlı slot sayısı kadar).
+        self._slot_cards: list[dict] = []
+        initial = max(len(self._enabled_flags), len(vault.user_slot_labels), 1)
+        for n in range(initial):
+            enabled = self._enabled_flags[n] if n < len(self._enabled_flags) else False
+            label = (
                 vault.user_slot_labels[n]
                 if n < len(vault.user_slot_labels)
-                else f"Kullanıcı {n + 1}"
+                else ""
             )
-            self._label_edits.append(label_edit)
-            p1 = _password_edit(tr("pwd_placeholder"))
-            p2 = _password_edit(tr("pwd_repeat_placeholder"))
-            self._user_fields.append((p1, p2))
-
-            card_form.addRow(tr("field_name"), label_edit)
-            card_form.addRow(tr("pwd_label"), p1)
-            card_form.addRow(tr("pwd_repeat_label"), p2)
-
-            # Kapalı slotun alanları soluk ve kilitli dursun.
-            def _bind(box: QCheckBox, widgets: tuple[QLineEdit, ...]) -> None:
-                def apply(checked: bool) -> None:
-                    for w in widgets:
-                        w.setEnabled(checked)
-
-                box.toggled.connect(apply)
-                apply(box.isChecked())
-
-            _bind(enabled, (label_edit, p1, p2))
-            left.addWidget(card)
-
-        left.addStretch()
-        columns.addLayout(left, 1)
+            self._add_slot_card(enabled=enabled, label=label)
 
         # ── Sağ sütun: izin tablosu + genel yetkiler + alan etiketleri ───────
         right = QVBoxLayout()
@@ -163,7 +161,7 @@ class UserAdminDialog(QDialog):
         ]
         self._perm_combos: dict[str, QComboBox] = {}
         perms = vault.user_permissions
-        for row, field_name in enumerate(FIELD_NAMES):
+        for row, field_name in enumerate(PERM_FIELDS):
             perm_layout.addWidget(QLabel(tr(f"field_{field_name}")), row, 0)
             combo = QComboBox()
             for label_key, value in levels:
@@ -224,6 +222,40 @@ class UserAdminDialog(QDialog):
         if cancel_btn:
             cancel_btn.setText(tr("cancel"))
 
+    def _add_slot_card(self, *, enabled: bool = True, label: str = "") -> None:
+        """Yeni bir 'Alt Kullanıcı' kartı ekler (ekle butonu + ilk kurulum)."""
+        n = len(self._slot_cards)
+        card = QFrame()
+        card.setObjectName("userSlotCard")
+        card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        form = QFormLayout(card)
+        form.setContentsMargins(12, 12, 12, 12)
+        form.setVerticalSpacing(6)
+
+        enabled_box = QCheckBox(tr("user_pwd_label", n=n + 1))
+        enabled_box.setChecked(enabled)
+        form.addRow(enabled_box)
+
+        label_edit = QLineEdit()
+        label_edit.setText(label or tr("user_default_label", n=n + 1))
+        p1 = _password_edit(tr("pwd_placeholder"))
+        p2 = _password_edit(tr("pwd_repeat_placeholder"))
+        form.addRow(tr("field_name"), label_edit)
+        form.addRow(tr("pwd_label"), p1)
+        form.addRow(tr("pwd_repeat_label"), p2)
+
+        def apply(checked: bool) -> None:
+            for w in (label_edit, p1, p2):
+                w.setEnabled(checked)
+
+        enabled_box.toggled.connect(apply)
+        apply(enabled_box.isChecked())
+
+        self._slots_layout.addWidget(card)
+        self._slot_cards.append(
+            {"enabled": enabled_box, "label": label_edit, "p1": p1, "p2": p2}
+        )
+
     def _on_accept(self) -> None:
         from kobipass.vault_model import UserPermissions
 
@@ -242,10 +274,10 @@ class UserAdminDialog(QDialog):
                 return
 
         user_passwords: list[tuple[bool, str]] = []
-        for enabled_box, (p1, p2) in zip(self._enabled_boxes, self._user_fields):
-            enabled = enabled_box.isChecked()
-            pwd1 = p1.text()
-            pwd2 = p2.text()
+        for card in self._slot_cards:
+            enabled = card["enabled"].isChecked()
+            pwd1 = card["p1"].text()
+            pwd2 = card["p2"].text()
             if enabled:
                 if pwd1 or pwd2:
                     if len(pwd1) < MIN_PASSWORD_LENGTH:
@@ -266,9 +298,7 @@ class UserAdminDialog(QDialog):
         perms = UserPermissions(
             name=self._perm_combos["name"].currentData(),
             info1=self._perm_combos["info1"].currentData(),
-            info2=self._perm_combos["info2"].currentData(),
-            info3=self._perm_combos["info3"].currentData(),
-            info4=self._perm_combos["info4"].currentData(),
+            info_rest=self._perm_combos["info_rest"].currentData(),
             can_add_entry=self._can_add_box.isChecked(),
             can_delete_entry=self._can_delete_box.isChecked(),
             can_save=self._can_save_box.isChecked(),
@@ -279,8 +309,8 @@ class UserAdminDialog(QDialog):
             if edit.text().strip()
         }
         slot_labels = [
-            edit.text().strip() or f"Kullanıcı {index + 1}"
-            for index, edit in enumerate(self._label_edits)
+            card["label"].text().strip() or tr("user_default_label", n=index + 1)
+            for index, card in enumerate(self._slot_cards)
         ]
         self._result = {
             "user_passwords": user_passwords,

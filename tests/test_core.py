@@ -161,9 +161,7 @@ def test_audit_masks_sensitive_fields(tmp_path: Path) -> None:
     perms = UserPermissions(
         name="write",
         info1="write",
-        info2="write",
-        info3="none",
-        info4="none",
+        info_rest="write",
     )
     logs = diff_entries_for_audit(old, new, session, perms)
     field_logs = [item for item in logs if item.action == "field_edit"]
@@ -281,3 +279,47 @@ def test_atomic_write_roundtrip(tmp_path: Path) -> None:
     assert path.exists()
     assert not list(tmp_path.glob("*.tmp"))
     assert read_vault_file(path, "admin-pass").vault.entries[0].info1 == "secret"
+
+
+def test_variable_user_slots(tmp_path: Path) -> None:
+    """v3 değişken slot round-trip + v2->v3 kullanıcı ekleme upgrade."""
+    from kobipass import crypto as C
+
+    # v3: 5 alt kullanıcı
+    vault = KobiVault(entries=[VaultEntry(name="A", info1="1")])
+    p3 = tmp_path / "multi.enc"
+    C.write_vault_file(p3, vault, "adm", [(True, f"u{i}") for i in range(5)])
+    r = read_vault_file(p3, "adm")
+    assert r.keys.version == C.VERSION_ARGON2_MULTI
+    assert len(r.keys.user_slots) == 5
+    assert read_vault_file(p3, "u4").user_slot == 5
+
+    # v2 (eski sabit-3) -> 4. kullanıcı eklenince v3'e yükselir, eskiler açılır
+    p2 = tmp_path / "legacy.enc"
+    C.write_vault_file(p2, vault, "adm", [(True, "a"), (False, ""), (False, "")],
+                       version=C.VERSION_ARGON2)
+    assert read_vault_file(p2, "adm").keys.version == 2
+    unlock = read_vault_file(p2, "adm")
+    nk = C.write_vault_file_updated(
+        p2, vault, unlock.keys, [(True, "a"), (False, ""), (False, ""), (True, "d")]
+    )
+    assert nk.version == C.VERSION_ARGON2_MULTI
+    assert read_vault_file(p2, "a").user_slot == 1
+    assert read_vault_file(p2, "d").user_slot == 4
+    assert read_vault_file(p2, "adm").role == "admin"
+
+
+def test_permission_info_rest_backcompat() -> None:
+    """Eski info2/3/4 izinleri tek info_rest'e indirilir; yeni model round-trip."""
+    perms = UserPermissions(name="read", info1="write", info_rest="hidden_read")
+    restored = UserPermissions.from_dict(perms.to_dict())
+    assert restored.info_rest == "hidden_read"
+    assert restored.level_for_info_index(2) == "hidden_read"
+    assert restored.level_for_info_index(7) == "hidden_read"
+    assert restored.level_for_info_index(1) == "write"
+
+    # Eski kasa (info2/3/4) -> info_rest = info2
+    legacy = UserPermissions.from_dict(
+        {"name": "read", "info1": "write", "info2": "write", "info3": "none"}
+    )
+    assert legacy.info_rest == "write"

@@ -47,9 +47,7 @@ def view_only_permissions(perms: UserPermissions) -> UserPermissions:
     return UserPermissions(
         name=strip_write(perms.name),
         info1=strip_write(perms.info1),
-        info2=strip_write(perms.info2),
-        info3=strip_write(perms.info3),
-        info4=strip_write(perms.info4),
+        info_rest=strip_write(perms.info_rest),
         can_add_entry=False,
         can_delete_entry=False,
         can_save=False,

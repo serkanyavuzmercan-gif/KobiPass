@@ -11,6 +11,8 @@ from typing import Any, Literal
 
 FieldLevel = Literal["none", "read", "hidden_read", "write"]
 FIELD_NAMES = ("name", "info1", "info2", "info3", "info4")
+# İzin şablonu alanları: 2. bilgi ve sonrası tek 'Bilgiler' (info_rest).
+PERM_FIELDS = ("name", "info1", "info_rest")
 USER_SLOT_COUNT = 3
 DEFAULT_FIELD_LABELS: dict[str, str] = {
     "name": "",
@@ -97,13 +99,15 @@ class VaultEntry:
 
 @dataclass
 class UserPermissions:
-    """Tüm kullanıcılar için ortak izin şablonu."""
+    """Tüm alt kullanıcılar için ortak izin şablonu.
+
+    İsim ve 1. Bilgi (parola) kendi iznine sahiptir; 2. bilgiden itibaren tüm
+    ek bilgi alanları tek bir 'Bilgiler' iznini (info_rest) paylaşır.
+    """
 
     name: FieldLevel = "read"
     info1: FieldLevel = "write"
-    info2: FieldLevel = "hidden_read"
-    info3: FieldLevel = "none"
-    info4: FieldLevel = "none"
+    info_rest: FieldLevel = "read"  # 2. bilgi ve sonrası — varsayılan Görür
     can_add_entry: bool = False
     can_delete_entry: bool = False
     can_save: bool = True
@@ -112,9 +116,7 @@ class UserPermissions:
         return {
             "name": self.name,
             "info1": self.info1,
-            "info2": self.info2,
-            "info3": self.info3,
-            "info4": self.info4,
+            "info_rest": self.info_rest,
             "can_add_entry": self.can_add_entry,
             "can_delete_entry": self.can_delete_entry,
             "can_save": self.can_save,
@@ -128,31 +130,36 @@ class UserPermissions:
                 return value  # type: ignore[return-value]
             return default
 
+        # Geriye uyumluluk: eski kasalar info2/info3/info4 tutar → info_rest'e indir.
+        if "info_rest" in data:
+            info_rest = level("info_rest", "read")
+        else:
+            info_rest = level("info2", "read")
+
         return cls(
             name=level("name", "read"),
             info1=level("info1", "write"),
-            info2=level("info2", "hidden_read"),
-            info3=level("info3", "none"),
-            info4=level("info4", "none"),
+            info_rest=info_rest,
             can_add_entry=bool(data.get("can_add_entry", False)),
             can_delete_entry=bool(data.get("can_delete_entry", False)),
             can_save=bool(data.get("can_save", True)),
         )
 
     def field_level(self, field_name: str) -> FieldLevel:
-        if field_name in FIELD_NAMES:
-            return getattr(self, field_name, "none")
+        if field_name == "name":
+            return self.name
+        if field_name == "info1":
+            return self.info1
+        if field_name == "info_rest":
+            return self.info_rest
         if field_name.startswith("info") and field_name[4:].isdigit():
-            number = int(field_name[4:])
-            if number >= 5:
-                return self.info4
+            return self.info_rest  # info2, info3, ... hepsi ortak
         return "none"
 
     def level_for_info_index(self, info_index: int) -> FieldLevel:
         if info_index <= 1:
             return self.info1
-        field_name = f"info{info_index}"
-        return self.field_level(field_name)
+        return self.info_rest
 
 
 @dataclass
@@ -204,7 +211,9 @@ class KobiVault:
     entries: list[VaultEntry] = field(default_factory=list)
     user_permissions: UserPermissions = field(default_factory=UserPermissions)
     user_slot_labels: list[str] = field(
-        default_factory=lambda: [f"Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)]
+        default_factory=lambda: [
+            f"Alt Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)
+        ]
     )
     field_labels: dict[str, str] = field(default_factory=dict)
     audit_log: list[AuditEntry] = field(default_factory=list)
@@ -238,8 +247,8 @@ class KobiVault:
         entries = [VaultEntry.from_dict(item) for item in data.get("entries", [])]
         perms = UserPermissions.from_dict(data.get("user_permissions", {}))
         labels = data.get("user_slot_labels")
-        if not isinstance(labels, list) or len(labels) != USER_SLOT_COUNT:
-            labels = [f"Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)]
+        if not isinstance(labels, list) or not labels:
+            labels = [f"Alt Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)]
         else:
             labels = [str(x) for x in labels]
         raw_field_labels = data.get("field_labels", {})

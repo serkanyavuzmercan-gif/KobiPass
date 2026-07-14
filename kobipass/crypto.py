@@ -32,10 +32,23 @@ from kobipass.vault_model import (
 )
 
 MAGIC = b"KBPS"
+# Sürüm hem KDF'yi hem slot düzenini kodlar:
+#   v1 = PBKDF2,  sabit 3 slot   (eski)
+#   v2 = Argon2id, sabit 3 slot  (eski)
+#   v3 = Argon2id, değişken slot (slot sayısı byte'ı ile)
+#   v4 = PBKDF2,  değişken slot  (eski v1 dosyasına kullanıcı eklenince)
 VERSION_PBKDF2 = 0x01
 VERSION_ARGON2 = 0x02
-VERSION = VERSION_ARGON2
-SUPPORTED_VERSIONS = frozenset({VERSION_PBKDF2, VERSION_ARGON2})
+VERSION_ARGON2_MULTI = 0x03
+VERSION_PBKDF2_MULTI = 0x04
+VERSION = VERSION_ARGON2_MULTI  # yeni kasalar değişken slot destekler
+SUPPORTED_VERSIONS = frozenset({0x01, 0x02, 0x03, 0x04})
+MULTI_VERSIONS = frozenset({0x03, 0x04})       # slot sayısı byte'ı taşıyanlar
+_PBKDF2_VERSIONS = frozenset({0x01, 0x04})     # KDF = PBKDF2 olanlar
+LEGACY_SLOT_COUNT = 3
+MAX_USER_SLOTS = 64
+# Değişken slotlu dosyaya kullanıcı eklenince aynı KDF'yi koruyan yeni sürüm.
+_UPGRADE_VERSION = {VERSION_PBKDF2: VERSION_PBKDF2_MULTI, VERSION_ARGON2: VERSION_ARGON2_MULTI}
 SALT_SIZE = 16
 NONCE_SIZE = 12
 DEK_SIZE = 32
@@ -46,7 +59,8 @@ ARGON2_PARALLELISM = 4
 KEY_LENGTH = 32
 WRAP_CIPHERTEXT_SIZE = DEK_SIZE + 16  # AES-GCM tag
 WRAP_BLOCK_SIZE = SALT_SIZE + NONCE_SIZE + WRAP_CIPHERTEXT_SIZE
-HEADER_SIZE = 5 + WRAP_BLOCK_SIZE + USER_SLOT_COUNT * (1 + WRAP_BLOCK_SIZE)
+# En küçük geçerli gövde: magic+sürüm(+sayı) + admin_wrap + min vault blob.
+MIN_BODY_SIZE = 6 + WRAP_BLOCK_SIZE + NONCE_SIZE + 16
 FILE_CHECKSUM_SIZE = 32
 
 
@@ -115,7 +129,9 @@ class UnlockResult:
 def derive_key(password: str, salt: bytes, version: int = VERSION) -> bytes:
     if len(salt) != SALT_SIZE:
         raise VaultCryptoError("crypto.invalid_salt")
-    if version == VERSION_PBKDF2:
+    if version not in SUPPORTED_VERSIONS:
+        raise VaultCryptoError("crypto.unsupported_version")
+    if version in _PBKDF2_VERSIONS:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=KEY_LENGTH,
@@ -123,17 +139,15 @@ def derive_key(password: str, salt: bytes, version: int = VERSION) -> bytes:
             iterations=PBKDF2_ITERATIONS,
         )
         return kdf.derive(password.encode("utf-8"))
-    if version == VERSION_ARGON2:
-        return hash_secret_raw(
-            secret=password.encode("utf-8"),
-            salt=salt,
-            time_cost=ARGON2_TIME_COST,
-            memory_cost=ARGON2_MEMORY_COST,
-            parallelism=ARGON2_PARALLELISM,
-            hash_len=KEY_LENGTH,
-            type=Type.ID,
-        )
-    raise VaultCryptoError("crypto.unsupported_version")
+    return hash_secret_raw(
+        secret=password.encode("utf-8"),
+        salt=salt,
+        time_cost=ARGON2_TIME_COST,
+        memory_cost=ARGON2_MEMORY_COST,
+        parallelism=ARGON2_PARALLELISM,
+        hash_len=KEY_LENGTH,
+        type=Type.ID,
+    )
 
 
 def _wrap_dek(dek: bytes, password: str, version: int = VERSION) -> bytes:
@@ -191,19 +205,19 @@ def _finalize_vault_bytes(blob: bytes) -> bytes:
 
 def _strip_file_checksum(data: bytes) -> bytes:
     """Sondaki SHA-256 özetini doğrular; eski dosyalar için geriye dönük uyumluluk."""
-    if len(data) < FILE_CHECKSUM_SIZE + HEADER_SIZE + NONCE_SIZE + 16:
+    if len(data) < FILE_CHECKSUM_SIZE + MIN_BODY_SIZE:
         return data
     body = data[:-FILE_CHECKSUM_SIZE]
     if hashlib.sha256(body).digest() == data[-FILE_CHECKSUM_SIZE:]:
         return body
-    if len(data) >= HEADER_SIZE and data[:4] == MAGIC:
+    if len(data) >= MIN_BODY_SIZE and data[:4] == MAGIC:
         return data
     raise VaultCryptoError("crypto.file_corrupt")
 
 
 def _parse_file(data: bytes) -> tuple[int, bytes, list[UserSlotWrap], bytes]:
     data = _strip_file_checksum(data)
-    if len(data) < HEADER_SIZE + NONCE_SIZE + 16:
+    if len(data) < MIN_BODY_SIZE:
         raise VaultCryptoError("crypto.file_too_short")
     if data[:4] != MAGIC:
         raise VaultCryptoError("crypto.invalid_file")
@@ -212,11 +226,23 @@ def _parse_file(data: bytes) -> tuple[int, bytes, list[UserSlotWrap], bytes]:
         raise VaultCryptoError("crypto.unsupported_version")
 
     offset = 5
+    if version in MULTI_VERSIONS:
+        slot_count = data[offset]
+        offset += 1
+        if slot_count > MAX_USER_SLOTS:
+            raise VaultCryptoError("crypto.invalid_user_slots")
+    else:
+        slot_count = LEGACY_SLOT_COUNT
+
+    end_of_slots = offset + WRAP_BLOCK_SIZE + slot_count * (1 + WRAP_BLOCK_SIZE)
+    if len(data) < end_of_slots + NONCE_SIZE + 16:
+        raise VaultCryptoError("crypto.file_too_short")
+
     admin_wrap = data[offset : offset + WRAP_BLOCK_SIZE]
     offset += WRAP_BLOCK_SIZE
 
     user_slots: list[UserSlotWrap] = []
-    for _ in range(USER_SLOT_COUNT):
+    for _ in range(slot_count):
         enabled = data[offset] == 1
         offset += 1
         wrap = data[offset : offset + WRAP_BLOCK_SIZE]
@@ -227,8 +253,16 @@ def _parse_file(data: bytes) -> tuple[int, bytes, list[UserSlotWrap], bytes]:
     return version, admin_wrap, user_slots, vault_blob
 
 
+def _header_prefix(version: int, slot_count: int) -> list[bytes]:
+    parts = [MAGIC, bytes([version])]
+    if version in MULTI_VERSIONS:
+        parts.append(bytes([slot_count]))
+    return parts
+
+
 def _serialize_keys(keys: VaultFileKeys, vault: KobiVault) -> bytes:
-    parts = [MAGIC, bytes([keys.version]), keys.admin_wrap]
+    parts = _header_prefix(keys.version, len(keys.user_slots))
+    parts.append(keys.admin_wrap)
     for slot in keys.user_slots:
         parts.append(struct.pack("B", 1 if slot.enabled else 0))
         parts.append(slot.wrap)
@@ -244,15 +278,19 @@ def build_vault_file(
     version: int = VERSION,
 ) -> bytes:
     """Vault dosyası oluşturur veya tüm sarmalayıcıları yeniden üretir."""
-    if len(user_passwords) != USER_SLOT_COUNT:
-        raise VaultCryptoError("crypto.invalid_user_slots")
     if version not in SUPPORTED_VERSIONS:
         raise VaultCryptoError("crypto.unsupported_version")
+    if version in MULTI_VERSIONS:
+        if not 0 <= len(user_passwords) <= MAX_USER_SLOTS:
+            raise VaultCryptoError("crypto.invalid_user_slots")
+    elif len(user_passwords) != LEGACY_SLOT_COUNT:
+        raise VaultCryptoError("crypto.invalid_user_slots")
 
     dek = os.urandom(DEK_SIZE)
     admin_wrap = _wrap_dek(dek, admin_password, version)
 
-    parts = [MAGIC, bytes([version]), admin_wrap]
+    parts = _header_prefix(version, len(user_passwords))
+    parts.append(admin_wrap)
     for enabled, password in user_passwords:
         parts.append(struct.pack("B", 1 if enabled else 0))
         if enabled and password:
@@ -281,12 +319,12 @@ def update_user_wraps(
     Kullanıcı slot sarmalayıcılarını günceller.
     Boş parola = mevcut sarmalayıcı korunur (parola değişmedi).
     """
-    if len(user_passwords) != USER_SLOT_COUNT:
+    if len(user_passwords) > MAX_USER_SLOTS:
         raise VaultCryptoError("crypto.invalid_user_slots")
 
     updated: list[UserSlotWrap] = []
     for index, (enabled, password) in enumerate(user_passwords):
-        old = keys.user_slots[index]
+        old = keys.user_slots[index] if index < len(keys.user_slots) else None
         if not enabled:
             updated.append(UserSlotWrap(enabled=False, wrap=_empty_wrap()))
         elif password:
@@ -296,7 +334,7 @@ def update_user_wraps(
                     wrap=_wrap_dek(keys.dek, password, keys.version),
                 )
             )
-        elif old.enabled:
+        elif old is not None and old.enabled:
             updated.append(UserSlotWrap(enabled=True, wrap=old.wrap))
         else:
             updated.append(UserSlotWrap(enabled=False, wrap=_empty_wrap()))
@@ -327,6 +365,11 @@ def write_vault_file_updated(
         if user_passwords is not None
         else keys.user_slots
     )
+    # Slot sayısı 3'ten farklıysa ve dosya hâlâ eski sabit formattaysa,
+    # aynı KDF'yi koruyan değişken-slot sürümüne yükselt.
+    version = keys.version
+    if len(user_slots) != LEGACY_SLOT_COUNT and version not in MULTI_VERSIONS:
+        version = _UPGRADE_VERSION[version]
     admin_wrap = keys.admin_wrap
     if admin_password:
         admin_wrap = _wrap_dek(keys.dek, admin_password, keys.version)
@@ -334,7 +377,7 @@ def write_vault_file_updated(
         admin_wrap=admin_wrap,
         user_slots=user_slots,
         dek=keys.dek,
-        version=keys.version,
+        version=version,
     )
     _atomic_write(path, _serialize_keys(new_keys, vault))
     return new_keys

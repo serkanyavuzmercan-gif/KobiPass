@@ -25,7 +25,12 @@ from PyQt6.QtWidgets import (
 from kobipass.i18n import MIN_PASSWORD_LENGTH, i18n, tr
 from kobipass.resources import app_icon
 from kobipass.ui.strength import attach_strength_label
-from kobipass.vault_model import FIELD_NAMES, FieldLevel, UserPermissions, USER_SLOT_COUNT
+from kobipass.vault_model import (
+    FieldLevel,
+    PERM_FIELDS,
+    UserPermissions,
+    USER_SLOT_COUNT,
+)
 
 
 def _validate_password_pair(
@@ -108,11 +113,9 @@ class SetupVaultDialog(QDialog):
         defaults: dict[str, FieldLevel] = {
             "name": "read",
             "info1": "write",
-            "info2": "hidden_read",
-            "info3": "none",
-            "info4": "none",
+            "info_rest": "read",
         }
-        for row, field_name in enumerate(FIELD_NAMES, start=1):
+        for row, field_name in enumerate(PERM_FIELDS, start=1):
             perm_layout.addWidget(QLabel(tr(f"field_{field_name}")), row, 0)
             combo = QComboBox()
             for label_key, value in levels:
@@ -176,9 +179,7 @@ class SetupVaultDialog(QDialog):
         perms = UserPermissions(
             name=self._perm_combos["name"].currentData(),
             info1=self._perm_combos["info1"].currentData(),
-            info2=self._perm_combos["info2"].currentData(),
-            info3=self._perm_combos["info3"].currentData(),
-            info4=self._perm_combos["info4"].currentData(),
+            info_rest=self._perm_combos["info_rest"].currentData(),
         )
         self._result = {
             "admin_password": self._admin1.text(),
