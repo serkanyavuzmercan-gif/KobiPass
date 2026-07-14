@@ -202,6 +202,23 @@ QToolButton#removeFieldBtn:disabled {
 }
 
 QWidget#entriesContainer {
+    background-color: transparent;
+}
+
+QScrollArea#vaultEntriesScroll {
+    background-color: transparent;
+    border: none;
+}
+
+QScrollArea#vaultEntriesScroll > QWidget > QWidget {
+    background-color: transparent;
+}
+
+QWidget#vaultWatermarkPane {
+    background-color: #1a1d23;
+}
+
+QWidget#vaultBody {
     background-color: #1a1d23;
 }
 
@@ -1167,6 +1184,23 @@ QToolButton#removeFieldBtn:disabled {
 }
 
 QWidget#entriesContainer {
+    background-color: transparent;
+}
+
+QScrollArea#vaultEntriesScroll {
+    background-color: transparent;
+    border: none;
+}
+
+QScrollArea#vaultEntriesScroll > QWidget > QWidget {
+    background-color: transparent;
+}
+
+QWidget#vaultWatermarkPane {
+    background-color: #f4f6fb;
+}
+
+QWidget#vaultBody {
     background-color: #f4f6fb;
 }
 

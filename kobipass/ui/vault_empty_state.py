@@ -1,15 +1,16 @@
 """
-Kasa görünümü boş durum paneli: hafif filigran + kısa rehber + CTA.
-Az kayıt varken görünür; liste büyüyünce kaybolur.
+Kasa görünümü: kalıcı hafif logo filigranı + boş durum rehberi.
+Filigran her zaman görünür; rehber yalnızca kayıt yokken.
 """
 
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPainter
+from PyQt6.QtGui import QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -18,8 +19,11 @@ from PyQt6.QtWidgets import (
 from kobipass.i18n import tr
 from kobipass.resources import logo_pixmap
 
-_WATERMARK_OPACITY = 0.08
-_WATERMARK_HEIGHT = 168
+_WATERMARK_OPACITY = 0.075
+# Pencerenin kısa kenarına göre oran — ekrana daha yayılır, yine silik kalır.
+_WATERMARK_SIZE_RATIO = 0.58
+_WATERMARK_MIN = 220
+_WATERMARK_MAX = 520
 
 
 def should_show_empty_state(row_count: int) -> bool:
@@ -27,8 +31,72 @@ def should_show_empty_state(row_count: int) -> bool:
     return row_count == 0
 
 
+class VaultWatermarkPane(QWidget):
+    """Kasa gövdesinin arkasında duran, asla kaybolmayan logo filigranı."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("vaultWatermarkPane")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._source = logo_pixmap(512)
+        self._scaled = QPixmap()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._rebuild_scaled()
+
+    def _rebuild_scaled(self) -> None:
+        if self._source.isNull() or self.width() < 8 or self.height() < 8:
+            self._scaled = QPixmap()
+            return
+        side = int(min(self.width(), self.height()) * _WATERMARK_SIZE_RATIO)
+        side = max(_WATERMARK_MIN, min(_WATERMARK_MAX, side))
+        self._scaled = self._source.scaled(
+            side,
+            side,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        super().paintEvent(event)
+        if self._scaled.isNull():
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.setOpacity(_WATERMARK_OPACITY)
+        x = (self.width() - self._scaled.width()) // 2
+        y = (self.height() - self._scaled.height()) // 2
+        painter.drawPixmap(x, y, self._scaled)
+        painter.end()
+
+
+class VaultBody(QWidget):
+    """Filigran + scroll üst üste; filigran her zaman görünür."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("vaultBody")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.watermark = VaultWatermarkPane(self)
+        self.scroll = QScrollArea(self)
+        self.scroll.setObjectName("vaultEntriesScroll")
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.scroll.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.scroll.viewport().setAutoFillBackground(False)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.watermark.setGeometry(self.rect())
+        self.scroll.setGeometry(self.rect())
+        self.watermark.lower()
+        self.scroll.raise_()
+
+
 class VaultEmptyState(QWidget):
-    """Kayıt listesinin altındaki rehber alan + filigran."""
+    """Kayıt yokken rehber + CTA (filigran ayrı katmanda kalır)."""
 
     add_requested = pyqtSignal()
 
@@ -40,7 +108,6 @@ class VaultEmptyState(QWidget):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
         self.setMinimumHeight(180)
-        self._watermark = logo_pixmap(_WATERMARK_HEIGHT)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 28, 24, 28)
@@ -71,18 +138,6 @@ class VaultEmptyState(QWidget):
 
         layout.addStretch(2)
         self.retranslate()
-
-    def paintEvent(self, event) -> None:  # noqa: N802
-        super().paintEvent(event)
-        if self._watermark.isNull():
-            return
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        painter.setOpacity(_WATERMARK_OPACITY)
-        x = (self.width() - self._watermark.width()) // 2
-        y = (self.height() - self._watermark.height()) // 2
-        painter.drawPixmap(x, y, self._watermark)
-        painter.end()
 
     def retranslate(self) -> None:
         self._title.setText(tr("empty_state_title"))

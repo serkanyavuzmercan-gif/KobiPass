@@ -71,7 +71,11 @@ from kobipass.ui.icons import icon_home, icon_sun, icon_theme
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
-from kobipass.ui.vault_empty_state import VaultEmptyState, should_show_empty_state
+from kobipass.ui.vault_empty_state import (
+    VaultBody,
+    VaultEmptyState,
+    should_show_empty_state,
+)
 from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry, utc_now_iso
 
 _FILTER_PAGE_SIZE = 100
@@ -320,12 +324,11 @@ class MainWindow(QMainWindow):
         badge_layout.setContentsMargins(0, 5, 0, 10)
         root.addLayout(badge_layout)
 
-        self._scroll = QScrollArea()
-        self._scroll.setWidgetResizable(True)
+        self._vault_body = VaultBody()
+        self._scroll = self._vault_body.scroll
         self._scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
-        self._scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         self._scroll.setAcceptDrops(True)
         self._scroll.viewport().setAcceptDrops(True)
 
@@ -336,6 +339,7 @@ class MainWindow(QMainWindow):
             QSizePolicy.Policy.Preferred,
             QSizePolicy.Policy.Minimum,
         )
+        self._entries_host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._entries_layout = QVBoxLayout(self._entries_host)
         self._entries_layout.setContentsMargins(0, 0, 0, 0)
         self._entries_layout.setSpacing(4)
@@ -350,7 +354,7 @@ class MainWindow(QMainWindow):
 
         self._scroll.setWidget(self._entries_host)
         self._scroll.verticalScrollBar().valueChanged.connect(self._check_scroll_position)
-        root.addWidget(self._scroll, stretch=1)
+        root.addWidget(self._vault_body, stretch=1)
 
         status = QStatusBar()
         self.setStatusBar(status)
