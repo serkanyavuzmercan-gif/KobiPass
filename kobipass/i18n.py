@@ -204,9 +204,42 @@ _STRINGS: dict[str, dict[str, str]] = {
         "help_credits_ver": "Sürüm {version}  ·  Ücretsiz",
         "help_credits_footer": "© 2026 Hidroteknik Yazılım  ·  Güvenliğiniz önceliğimizdir",
         "help_close": "Kapat",
+        "help_window_eyebrow": "KOBIPASS REHBERİ",
+        "help_window_title": "Hızlı ve güvenli başlangıç",
+        "help_window_subtitle": (
+            "Kasanızı oluşturmak, kayıtlarınızı yönetmek ve güvenli erişimi "
+            "paylaşmak için temel adımlar."
+        ),
+        "help_steps_title": "Üç adımda başlayın",
         "about_title": "Güvenlik Protokolü ve Hakkında",
         "about_tab_security": "Güvenlik Protokolü",
         "about_tab_credits": "Açık Kaynak & Lisanslar",
+        "security_window_eyebrow": "KOBIPASS GÜVENLİK MİMARİSİ",
+        "security_window_title": "Veriniz cihazınızda, kontrol sizde",
+        "security_window_subtitle": (
+            "Katmanlı şifreleme, güçlü anahtar türetme ve rol izolasyonu ile "
+            "kasa verileriniz uçtan uca korunur."
+        ),
+        "security_hero_title": "Yerel. Şifreli. Sıfır bilgi.",
+        "security_hero_text": (
+            "KobiPass verilerinizi bir sunucuya göndermez. Kasa yalnızca doğru "
+            "parolayla, bulunduğu cihazda açılır."
+        ),
+        "security_card1_title": "AES-256-GCM",
+        "security_card1_text": "Kasa içeriği kimlik doğrulamalı güçlü şifreleme ile korunur.",
+        "security_card2_title": "Argon2id",
+        "security_card2_text": "Parola tahminlerini bellek ve işlem maliyetiyle zorlaştırır.",
+        "security_card3_title": "Zarf şifreleme",
+        "security_card3_text": "Yönetici ve kullanıcılar veri anahtarını ayrı katmanlarda sarar.",
+        "security_card4_title": "Oturum koruması",
+        "security_card4_text": "Boşta kalınca kilitlenir; pano içeriği otomatik temizlenir.",
+        "security_card5_title": "Rol izolasyonu",
+        "security_card5_text": "Alt kullanıcılar yalnızca kendilerine verilen alan ve işlemlere erişir.",
+        "security_card6_title": "Şifreli değişiklik izi",
+        "security_card6_text": "Kasa işlemleri zaman damgalı ve şifreli olarak kayıt altına alınır.",
+        "security_credits": (
+            "KobiPass v{version}  ·  Hidroteknik Yazılım  ·  © 2026"
+        ),
         "security_badge": "AES-256 ile Korunuyor",
         "security_badge_tip": "Güvenlik Protokolünü ve Lisansları Gör",
         "btn_security": "Güvenlik",
@@ -474,9 +507,42 @@ _STRINGS: dict[str, dict[str, str]] = {
         "help_credits_ver": "Version {version}  ·  Free",
         "help_credits_footer": "© 2026 Hidroteknik Yazılım  ·  Your security is our priority",
         "help_close": "Close",
+        "help_window_eyebrow": "KOBIPASS GUIDE",
+        "help_window_title": "A fast, secure start",
+        "help_window_subtitle": (
+            "The essential steps to create your vault, manage records, "
+            "and share secure access."
+        ),
+        "help_steps_title": "Start in three steps",
         "about_title": "Security Protocol & About",
         "about_tab_security": "Security Protocol",
         "about_tab_credits": "Open Source & Licenses",
+        "security_window_eyebrow": "KOBIPASS SECURITY ARCHITECTURE",
+        "security_window_title": "Your data stays local and under your control",
+        "security_window_subtitle": (
+            "Layered encryption, hardened key derivation, and role isolation "
+            "protect your vault end to end."
+        ),
+        "security_hero_title": "Local. Encrypted. Zero knowledge.",
+        "security_hero_text": (
+            "KobiPass never sends your data to a server. The vault opens only "
+            "with the correct password on the device where it is stored."
+        ),
+        "security_card1_title": "AES-256-GCM",
+        "security_card1_text": "Vault contents use strong authenticated encryption.",
+        "security_card2_title": "Argon2id",
+        "security_card2_text": "Memory and compute cost make password guessing expensive.",
+        "security_card3_title": "Envelope encryption",
+        "security_card3_text": "Admin and user credentials wrap the data key separately.",
+        "security_card4_title": "Session protection",
+        "security_card4_text": "Idle sessions lock and clipboard contents clear automatically.",
+        "security_card5_title": "Role isolation",
+        "security_card5_text": "Sub-users access only the fields and actions granted to them.",
+        "security_card6_title": "Encrypted audit trail",
+        "security_card6_text": "Vault operations are recorded with encrypted timestamps.",
+        "security_credits": (
+            "KobiPass v{version}  ·  Hidroteknik Yazılım  ·  © 2026"
+        ),
         "security_badge": "Protected with AES-256",
         "security_badge_tip": "View security protocol and licenses",
         "btn_security": "Security",

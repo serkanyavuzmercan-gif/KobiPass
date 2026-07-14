@@ -981,6 +981,147 @@ QFrame#landingActions QLabel#landingRecentEmpty {
     padding: 22px 8px;
 }
 
+/* --- Premium Güvenlik / Yardım pencereleri --- */
+QDialog#premiumInfoDialog {
+    background-color: #171a20;
+    color: #e8eaed;
+}
+
+QLabel#premiumInfoLogo {
+    background: transparent;
+}
+
+QLabel#premiumInfoEyebrow {
+    color: #7188ff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+QLabel#premiumInfoTitle {
+    color: #f4f7ff;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+QLabel#premiumInfoSubtitle {
+    color: #929cad;
+    font-size: 12px;
+}
+
+QFrame#premiumInfoHero {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #232c42,
+        stop: 1 #1d222b
+    );
+    border: 1px solid #35415b;
+    border-radius: 18px;
+}
+
+QLabel#premiumInfoHeroIcon {
+    background: transparent;
+}
+
+QLabel#premiumInfoHeroTitle {
+    color: #f1f4ff;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+QLabel#premiumInfoHeroText {
+    color: #a6b0c2;
+    font-size: 12px;
+}
+
+QLabel#premiumInfoChip {
+    color: #b9c5df;
+    background-color: rgba(75, 104, 244, 30);
+    border: 1px solid #405078;
+    border-radius: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QFrame#premiumInfoCard {
+    background-color: #1e2229;
+    border: 1px solid #303744;
+    border-radius: 12px;
+}
+
+QFrame#premiumInfoCard:hover {
+    background-color: #222833;
+    border-color: #465575;
+}
+
+QLabel#premiumInfoCardTitle {
+    color: #e9edf7;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QLabel#premiumInfoCardText {
+    color: #939dac;
+    font-size: 11px;
+}
+
+QFrame#premiumCredits {
+    background-color: #1d222a;
+    border: 1px solid #303744;
+    border-radius: 10px;
+}
+
+QLabel#premiumCreditsText {
+    color: #8792a5;
+    font-size: 10px;
+}
+
+QLabel#premiumCreditsTech {
+    color: #7589df;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+QLabel#premiumWarning {
+    color: #f4c985;
+    background-color: #2d281f;
+    border: 1px solid #5a4930;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 11px;
+}
+
+QLabel#premiumStepBadge {
+    color: #ffffff;
+    background-color: #4b68f4;
+    border: 1px solid #7188ff;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+QLabel#premiumStepText {
+    color: #abb4c4;
+    font-size: 12px;
+}
+
+QPushButton#premiumCloseBtn {
+    min-height: 36px;
+    background-color: #4b68f4;
+    color: #ffffff;
+    border: 1px solid #6079f6;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+QPushButton#premiumCloseBtn:hover {
+    background-color: #5d77f7;
+    border-color: #8093fa;
+}
+
 /* --- Kasa boş durum: filigran + rehber --- */
 QWidget#vaultEmptyState {
     background: transparent;
@@ -2129,6 +2270,147 @@ QFrame#landingActions QLabel#landingRecentEmpty {
     color: #9aa3b2;
     font-size: 12px;
     padding: 22px 8px;
+}
+
+/* --- Premium Güvenlik / Yardım pencereleri (aydınlık) --- */
+QDialog#premiumInfoDialog {
+    background-color: #f3f5fa;
+    color: #1f2937;
+}
+
+QLabel#premiumInfoLogo {
+    background: transparent;
+}
+
+QLabel#premiumInfoEyebrow {
+    color: #4660dd;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+QLabel#premiumInfoTitle {
+    color: #172033;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+QLabel#premiumInfoSubtitle {
+    color: #697488;
+    font-size: 12px;
+}
+
+QFrame#premiumInfoHero {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #edf1ff,
+        stop: 1 #ffffff
+    );
+    border: 1px solid #cfd8ee;
+    border-radius: 18px;
+}
+
+QLabel#premiumInfoHeroIcon {
+    background: transparent;
+}
+
+QLabel#premiumInfoHeroTitle {
+    color: #18233a;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+QLabel#premiumInfoHeroText {
+    color: #5f6b80;
+    font-size: 12px;
+}
+
+QLabel#premiumInfoChip {
+    color: #3e4d70;
+    background-color: #edf1ff;
+    border: 1px solid #c7d1f6;
+    border-radius: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QFrame#premiumInfoCard {
+    background-color: #ffffff;
+    border: 1px solid #dde3ed;
+    border-radius: 12px;
+}
+
+QFrame#premiumInfoCard:hover {
+    background-color: #f8f9fc;
+    border-color: #bbc7dd;
+}
+
+QLabel#premiumInfoCardTitle {
+    color: #1f2a3f;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QLabel#premiumInfoCardText {
+    color: #687386;
+    font-size: 11px;
+}
+
+QFrame#premiumCredits {
+    background-color: #f8f9fc;
+    border: 1px solid #dde3ed;
+    border-radius: 10px;
+}
+
+QLabel#premiumCreditsText {
+    color: #6d788b;
+    font-size: 10px;
+}
+
+QLabel#premiumCreditsTech {
+    color: #4c62c9;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+QLabel#premiumWarning {
+    color: #8b5b16;
+    background-color: #fff8e8;
+    border: 1px solid #ead3a4;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 11px;
+}
+
+QLabel#premiumStepBadge {
+    color: #ffffff;
+    background-color: #4b68f4;
+    border: 1px solid #405de4;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+QLabel#premiumStepText {
+    color: #536077;
+    font-size: 12px;
+}
+
+QPushButton#premiumCloseBtn {
+    min-height: 36px;
+    background-color: #4b68f4;
+    color: #ffffff;
+    border: 1px solid #405de4;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+QPushButton#premiumCloseBtn:hover {
+    background-color: #405de4;
+    border-color: #304dcc;
 }
 
 /* --- Kasa boş durum: filigran + rehber --- */

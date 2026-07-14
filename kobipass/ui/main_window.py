@@ -233,9 +233,8 @@ class MainWindow(QMainWindow):
         self._title_bar = CustomTitleBar(self)
         outer.addWidget(self._title_bar)
 
-        # Hider'daki Info paneli: başlığın altından açılır, gövdeyi aşağı iter.
-        self._help_panel = HelpPanel()
-        outer.addWidget(self._help_panel)
+        # Yardım, Güvenlik Protokolü ile aynı premium pencere dilini kullanır.
+        self._help_panel = HelpPanel(self)
 
         self._stacked_widget = QStackedWidget()
         outer.addWidget(self._stacked_widget, stretch=1)
