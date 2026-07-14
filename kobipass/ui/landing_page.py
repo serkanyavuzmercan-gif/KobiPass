@@ -14,13 +14,12 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QPushButton,
     QSizePolicy,
-    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from kobipass.i18n import i18n, tr
-from kobipass.resources import hero_art_pixmap, hero_left_pixmap, logo_pixmap
+from kobipass.resources import hero_left_pixmap, logo_pixmap
 from kobipass.settings import get_recent_files
 from kobipass.ui.icons import (
     icon_file_new,
@@ -38,40 +37,35 @@ _HERO_RADIUS = 22
 from kobipass.ui.theme import theme_manager
 
 
-class HeroImage(QWidget):
-    """Sol paneli komple kaplayan görsel: "cover" ölçekleme + yuvarlak köşe.
-
-    Görsel, pencere boyutundan bağımsız olarak paneli tamamen doldurur
-    (oran korunur, taşan kısım kırpılır) ve köşeleri karta uyumlu yuvarlanır.
+class HeroPanel(QFrame):
+    """Sol hero paneli: arka plana (kasa+fon) görsel basar, üstüne vektörel
+    yazılar/kartlar çocuk widget olarak gelir. Görsel yoksa QSS degrade fon
+    kullanılır. Görsel "cover" biçiminde ölçeklenip yuvarlak köşeye kırpılır.
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setObjectName("landingHeroImage")
-        self._pm = QPixmap()
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        self.setMinimumSize(320, 340)
+        self._bg = QPixmap()
 
-    def set_pixmap(self, pm: QPixmap) -> None:
-        self._pm = pm
+    def set_background(self, pm: QPixmap) -> None:
+        self._bg = pm
         self.update()
 
-    def has_image(self) -> bool:
-        return not self._pm.isNull()
+    def has_background(self) -> bool:
+        return not self._bg.isNull()
 
     def paintEvent(self, event) -> None:  # noqa: N802
-        if self._pm.isNull():
+        super().paintEvent(event)  # QSS degrade fon + kenarlık (yedek)
+        if self._bg.isNull():
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        rect = self.rect()
+        rect = self.rect().adjusted(1, 1, -1, -1)  # kenarlığı koru
         path = QPainterPath()
-        path.addRoundedRect(QRectF(rect), _HERO_RADIUS, _HERO_RADIUS)
+        path.addRoundedRect(QRectF(rect), _HERO_RADIUS - 1, _HERO_RADIUS - 1)
         painter.setClipPath(path)
-        scaled = self._pm.scaled(
+        scaled = self._bg.scaled(
             rect.size(),
             Qt.AspectRatioMode.KeepAspectRatioByExpanding,
             Qt.TransformationMode.SmoothTransformation,
@@ -130,11 +124,12 @@ class LandingPage(QWidget):
         content.setSpacing(20)
         content.setContentsMargins(0, 0, 0, 0)
 
-        # Sol: ürün anlatısı ve güven sinyalleri.
-        hero = QFrame()
+        # Sol: arka planda kasa+fon görseli, üstünde vektörel anlatı/kartlar.
+        hero = HeroPanel()
         hero.setObjectName("landingHero")
         hero.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         hero.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._hero = hero
         hero_layout = QVBoxLayout(hero)
         hero_layout.setContentsMargins(44, 42, 44, 40)
         hero_layout.setSpacing(14)
@@ -143,45 +138,28 @@ class LandingPage(QWidget):
         logo.setObjectName("landingHeroLogo")
         logo.setPixmap(logo_pixmap(96))
         logo.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        hero_layout.addWidget(logo)
+        hero_layout.addWidget(logo, 0, Qt.AlignmentFlag.AlignLeft)
         hero_layout.addStretch(1)
 
-        # Orta bölüm: solda anlatı, sağda (opsiyonel) kasa görseli.
-        mid = QHBoxLayout()
-        mid.setSpacing(20)
-        text_col = QVBoxLayout()
-        text_col.setSpacing(12)
-
+        # Yazı ve kartlar solda kalsın; sağ tarafı (fondaki kasa) açık bırak.
         self._eyebrow = QLabel()
         self._eyebrow.setObjectName("landingEyebrow")
-        text_col.addWidget(self._eyebrow)
+        hero_layout.addWidget(self._eyebrow)
 
         self._hero_title = QLabel()
         self._hero_title.setObjectName("landingHeroTitle")
         self._hero_title.setWordWrap(True)
-        text_col.addWidget(self._hero_title)
+        hero_layout.addWidget(self._hero_title)
 
         self._hero_subtitle = QLabel()
         self._hero_subtitle.setObjectName("landingHeroSubtitle")
         self._hero_subtitle.setWordWrap(True)
-        self._hero_subtitle.setMaximumWidth(520)
-        text_col.addWidget(self._hero_subtitle)
-        mid.addLayout(text_col, 1)
-        mid.addStretch()
-
-        # Kasa görseli: assets/hero_vault.png eklendiğinde otomatik görünür.
-        self._hero_art = QLabel()
-        self._hero_art.setObjectName("landingHeroArt")
-        self._hero_art.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        art = hero_art_pixmap(320)
-        self._hero_art.setPixmap(art)
-        self._hero_art.setVisible(not art.isNull())
-        mid.addWidget(self._hero_art, 0, Qt.AlignmentFlag.AlignVCenter)
-        hero_layout.addLayout(mid)
+        self._hero_subtitle.setMaximumWidth(430)
+        hero_layout.addWidget(self._hero_subtitle)
 
         hero_layout.addStretch(1)
 
-        # Özellik kartları: ikon + kalın başlık + açıklama.
+        # Özellik kartları: ikon + kalın başlık + açıklama (solda).
         self._feature_cards: list[dict] = []
         feat_row = QHBoxLayout()
         feat_row.setSpacing(12)
@@ -192,12 +170,18 @@ class LandingPage(QWidget):
         ):
             card = self._make_feature_card(icon_fn, tkey, dkey)
             feat_row.addWidget(card["frame"], 1)
-        hero_layout.addLayout(feat_row)
+        feat_wrap = QHBoxLayout()
+        feat_wrap.addLayout(feat_row, 62)
+        feat_wrap.addStretch(38)
+        hero_layout.addLayout(feat_wrap)
 
         wide = self._make_feature_card(
             icon_shield, "feature_trust_title", "feature_trust_desc", wide=True
         )
-        hero_layout.addWidget(wide["frame"])
+        wide_wrap = QHBoxLayout()
+        wide_wrap.addWidget(wide["frame"], 62)
+        wide_wrap.addStretch(38)
+        hero_layout.addLayout(wide_wrap)
         hero_layout.addStretch(1)
 
         # Sağ: birincil kasa işlemleri.
@@ -281,12 +265,7 @@ class LandingPage(QWidget):
         actions_layout.addWidget(self._recent_empty)
         actions_layout.addStretch(1)
 
-        # Sol panel: assets/hero_left.png varsa komple görsel, yoksa kodlu hero.
-        self._left_stack = QStackedWidget()
-        self._left_stack.addWidget(hero)          # 0 — kodlu hero (yedek)
-        self._hero_image = HeroImage()
-        self._left_stack.addWidget(self._hero_image)  # 1 — tam panel görseli
-        content.addWidget(self._left_stack, 5)
+        content.addWidget(hero, 5)
         content.addWidget(actions, 4)
         outer.addLayout(content, 1)
 
@@ -295,10 +274,9 @@ class LandingPage(QWidget):
         self.refresh_recent()
 
     def _apply_hero_image(self) -> None:
-        """Mevcut dile göre sol panel görselini yükler; yoksa kodlu hero'ya düşer."""
+        """Mevcut dile göre hero arka plan görselini (kasa+fon) yükler."""
         pm = hero_left_pixmap(english=not i18n.is_tr())
-        self._hero_image.set_pixmap(pm)
-        self._left_stack.setCurrentIndex(1 if not pm.isNull() else 0)
+        self._hero.set_background(pm)
 
     def _make_feature_card(
         self, icon_fn, title_key: str, desc_key: str, *, wide: bool = False
