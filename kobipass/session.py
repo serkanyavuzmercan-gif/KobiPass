@@ -96,8 +96,7 @@ def admin_permissions() -> UserPermissions:
     """Yönetici için tam yetki (UI kontrolü için)."""
     return UserPermissions(
         name="write",
-        info1="write",
-        info_rest="write",
+        info="write",
         can_add_entry=True,
         can_delete_entry=True,
         can_save=True,

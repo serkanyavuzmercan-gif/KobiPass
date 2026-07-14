@@ -131,13 +131,13 @@ def test_write_updated_preserves_version(tmp_path: Path) -> None:
 
 
 def test_view_only_permissions() -> None:
-    perms = UserPermissions(name="write", info1="write", can_add_entry=True)
+    perms = UserPermissions(name="write", info="write", can_add_entry=True)
     locked = view_only_permissions(perms)
     assert locked.name == "read"
-    assert locked.info1 == "read"
+    assert locked.info == "read"
     assert locked.can_add_entry is False
-    assert can_view(locked.info1)
-    assert not can_edit(locked.info1)
+    assert can_view(locked.info)
+    assert not can_edit(locked.info)
 
 
 def test_audit_masks_sensitive_fields(tmp_path: Path) -> None:
@@ -160,8 +160,7 @@ def test_audit_masks_sensitive_fields(tmp_path: Path) -> None:
     new = [VaultEntry(name="A", info1="newpass", more_infos=["note2"])]
     perms = UserPermissions(
         name="write",
-        info1="write",
-        info_rest="write",
+        info="write",
     )
     logs = diff_entries_for_audit(old, new, session, perms)
     field_logs = [item for item in logs if item.action == "field_edit"]
@@ -311,15 +310,15 @@ def test_variable_user_slots(tmp_path: Path) -> None:
 
 def test_permission_info_rest_backcompat() -> None:
     """Eski info2/3/4 izinleri tek info_rest'e indirilir; yeni model round-trip."""
-    perms = UserPermissions(name="read", info1="write", info_rest="hidden_read")
+    perms = UserPermissions(name="read", info="hidden_read")
     restored = UserPermissions.from_dict(perms.to_dict())
-    assert restored.info_rest == "hidden_read"
-    assert restored.level_for_info_index(2) == "hidden_read"
+    assert restored.info == "hidden_read"
+    assert restored.level_for_info_index(1) == "hidden_read"
     assert restored.level_for_info_index(7) == "hidden_read"
-    assert restored.level_for_info_index(1) == "write"
+    assert restored.field_level("info1") == "hidden_read"
 
-    # Eski kasa (info2/3/4) -> info_rest = info2
+    # Eski kasa (info1 ayrı) -> tek 'info'ya iner
     legacy = UserPermissions.from_dict(
-        {"name": "read", "info1": "write", "info2": "write", "info3": "none"}
+        {"name": "read", "info1": "write", "info_rest": "none"}
     )
-    assert legacy.info_rest == "write"
+    assert legacy.info == "write"

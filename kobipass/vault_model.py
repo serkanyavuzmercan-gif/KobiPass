@@ -11,8 +11,8 @@ from typing import Any, Literal
 
 FieldLevel = Literal["none", "read", "hidden_read", "write"]
 FIELD_NAMES = ("name", "info1", "info2", "info3", "info4")
-# İzin şablonu alanları: 2. bilgi ve sonrası tek 'Bilgiler' (info_rest).
-PERM_FIELDS = ("name", "info1", "info_rest")
+# İzin şablonu alanları: İsim ve tüm bilgi alanları için tek 'Bilgiler'.
+PERM_FIELDS = ("name", "info")
 USER_SLOT_COUNT = 3
 DEFAULT_FIELD_LABELS: dict[str, str] = {
     "name": "",
@@ -101,13 +101,12 @@ class VaultEntry:
 class UserPermissions:
     """Tüm alt kullanıcılar için ortak izin şablonu.
 
-    İsim ve 1. Bilgi (parola) kendi iznine sahiptir; 2. bilgiden itibaren tüm
-    ek bilgi alanları tek bir 'Bilgiler' iznini (info_rest) paylaşır.
+    Yalnızca iki alan izni: 'İsim' ve 'Bilgiler' (1. bilgi dahil tüm bilgi
+    alanları). İkisi de varsayılan olarak Görür.
     """
 
     name: FieldLevel = "read"
-    info1: FieldLevel = "write"
-    info_rest: FieldLevel = "read"  # 2. bilgi ve sonrası — varsayılan Görür
+    info: FieldLevel = "read"  # info1, info2, ... hepsi ortak — varsayılan Görür
     can_add_entry: bool = False
     can_delete_entry: bool = False
     can_save: bool = True
@@ -115,8 +114,7 @@ class UserPermissions:
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
-            "info1": self.info1,
-            "info_rest": self.info_rest,
+            "info": self.info,
             "can_add_entry": self.can_add_entry,
             "can_delete_entry": self.can_delete_entry,
             "can_save": self.can_save,
@@ -130,16 +128,17 @@ class UserPermissions:
                 return value  # type: ignore[return-value]
             return default
 
-        # Geriye uyumluluk: eski kasalar info2/info3/info4 tutar → info_rest'e indir.
-        if "info_rest" in data:
-            info_rest = level("info_rest", "read")
+        # Geriye uyumluluk: eski kasalar info1/info_rest tutar → tek 'info'ya indir.
+        if "info" in data:
+            info = level("info", "read")
+        elif "info1" in data:
+            info = level("info1", "read")
         else:
-            info_rest = level("info2", "read")
+            info = level("info_rest", "read")
 
         return cls(
             name=level("name", "read"),
-            info1=level("info1", "write"),
-            info_rest=info_rest,
+            info=info,
             can_add_entry=bool(data.get("can_add_entry", False)),
             can_delete_entry=bool(data.get("can_delete_entry", False)),
             can_save=bool(data.get("can_save", True)),
@@ -148,18 +147,14 @@ class UserPermissions:
     def field_level(self, field_name: str) -> FieldLevel:
         if field_name == "name":
             return self.name
-        if field_name == "info1":
-            return self.info1
-        if field_name == "info_rest":
-            return self.info_rest
-        if field_name.startswith("info") and field_name[4:].isdigit():
-            return self.info_rest  # info2, info3, ... hepsi ortak
+        if field_name == "info" or (
+            field_name.startswith("info") and field_name[4:].isdigit()
+        ):
+            return self.info
         return "none"
 
     def level_for_info_index(self, info_index: int) -> FieldLevel:
-        if info_index <= 1:
-            return self.info1
-        return self.info_rest
+        return self.info
 
 
 @dataclass

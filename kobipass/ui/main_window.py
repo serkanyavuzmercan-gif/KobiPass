@@ -502,9 +502,21 @@ class MainWindow(QMainWindow):
         is_unlocked = self._session is not None
         is_admin = isinstance(self._session, AdminSession)
 
-        self._btn_users.setVisible(is_admin)
-        self._btn_audit.setVisible(is_admin)
-        self._btn_report.setVisible(is_admin)
+        # Yönetici düğmeleri her zaman görünür; yetki yoksa pasif görünüp
+        # basılınca açıklama verir (gizlemek yerine kısıtlama).
+        for btn in (self._btn_users, self._btn_audit, self._btn_report):
+            btn.setVisible(True)
+            btn.setProperty("restricted", not is_admin)
+            if not is_admin:
+                btn.setToolTip(
+                    tr("admin_needed_new")
+                    if self._session is None
+                    else tr("admin_needed_user")
+                )
+            else:
+                btn.setToolTip("")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
 
         perms = self._row_permissions()
 
@@ -919,9 +931,20 @@ class MainWindow(QMainWindow):
     def _show_help(self) -> None:
         self._help_panel.toggle()
 
+    def _require_admin(self) -> bool:
+        """Yönetici değilse uygun açıklamayı gösterir ve False döner."""
+        if isinstance(self._session, AdminSession) and self._vault is not None:
+            return True
+        if self._session is None:
+            # Yeni / kaydedilmemiş dosya — önce kaydedip izinleri kur.
+            show_info(self, tr("info_title"), tr("admin_needed_new"))
+        else:
+            # Alt kullanıcı oturumu — yetkisi yok.
+            show_error(self, tr("warn_title"), tr("admin_needed_user"))
+        return False
+
     def _manage_users(self) -> None:
-        if not isinstance(self._session, AdminSession) or self._vault is None:
-            show_error(self, tr("warn_title"), tr("warn_locked"))
+        if not self._require_admin():
             return
         enabled = [slot.enabled for slot in self._session.keys.user_slots]  # type: ignore[union-attr]
         dlg = UserAdminDialog(self._vault, enabled, self)
@@ -940,7 +963,6 @@ class MainWindow(QMainWindow):
             self._session.admin_password = data["admin_new"]
 
         self._vault.user_permissions = data["permissions"]
-        self._vault.field_labels = data.get("field_labels", {})
         self._vault.user_slot_labels = data.get(
             "user_slot_labels", self._vault.user_slot_labels
         )
@@ -948,17 +970,17 @@ class MainWindow(QMainWindow):
         self._session.user_passwords = data["user_passwords"]
         self._mark_dirty()
         self._apply_session_ui()
+        if data.get("changed"):
+            show_info(self, tr("users_applied_title"), tr("users_applied_text"))
 
     def _show_audit(self) -> None:
-        if not isinstance(self._session, AdminSession) or self._vault is None:
-            show_error(self, tr("warn_title"), tr("warn_locked"))
+        if not self._require_admin():
             return
         dlg = AuditLogDialog(self._vault, self)
         dlg.exec()
 
     def _show_password_report(self) -> None:
-        if not isinstance(self._session, AdminSession) or self._vault is None:
-            show_error(self, tr("warn_title"), tr("warn_locked"))
+        if not self._require_admin():
             return
         self._sync_vault_entries()
         from kobipass.ui.password_report_dialog import PasswordReportDialog

@@ -654,7 +654,7 @@ class EntryRowWidget(QWidget):
         for field in (self._name, self._info1, *self._extra_fields):
             field.set_view_only(view_only)
         self._name.set_permission(perms.name)
-        self._info1.set_permission(perms.info1)
+        self._info1.set_permission(perms.level_for_info_index(1))
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_permission(perms.level_for_info_index(index))
         self._field_step_column.setVisible(not view_only)

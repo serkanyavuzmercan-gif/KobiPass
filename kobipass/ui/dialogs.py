@@ -112,8 +112,7 @@ class SetupVaultDialog(QDialog):
         self._perm_combos: dict[str, QComboBox] = {}
         defaults: dict[str, FieldLevel] = {
             "name": "read",
-            "info1": "write",
-            "info_rest": "read",
+            "info": "read",
         }
         for row, field_name in enumerate(PERM_FIELDS, start=1):
             perm_layout.addWidget(QLabel(tr(f"field_{field_name}")), row, 0)
@@ -179,7 +178,7 @@ class SetupVaultDialog(QDialog):
         perms = UserPermissions(
             name=self._perm_combos["name"].currentData(),
             info1=self._perm_combos["info1"].currentData(),
-            info_rest=self._perm_combos["info_rest"].currentData(),
+            info=self._perm_combos["info"].currentData(),
         )
         self._result = {
             "admin_password": self._admin1.text(),
