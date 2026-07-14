@@ -318,6 +318,7 @@ QWidget#copyGroup QLineEdit {
     border: none;
     border-radius: 0;
     background-color: transparent;
+    placeholder-text-color: #5f6878;
     padding: 0 8px 0 4px;
     min-height: 0;
     max-height: 32px;
@@ -1842,6 +1843,7 @@ QWidget#copyGroup QLineEdit {
     border: none;
     border-radius: 0;
     background-color: transparent;
+    placeholder-text-color: #9aa3b2;
     padding: 0 8px 0 4px;
     min-height: 0;
     max-height: 32px;

@@ -38,6 +38,8 @@ ROW_LAYOUT_SPACING = 8
 NAME_FIELD_WIDTH = 200
 NAME_FIELD_MAX_WIDTH = 390
 INFO_FIELD_WIDTH = 180
+INFO_FIELD_MAX_WIDTH = 300
+INFO_VISIBLE_COLUMNS = 3
 FIELD_STEP_BTN_WIDTH = 30
 FIELD_STEP_BTN_HEIGHT = 20
 
@@ -107,6 +109,14 @@ def responsive_field_width(
     return max(minimum, min(maximum, desired))
 
 
+def three_column_info_width(viewport_width: int) -> int:
+    """İlk üç değer hücresi viewport'u eşit paylaşır; sonrası aynı genişlikte scroll olur."""
+    spacing_budget = ROW_LAYOUT_SPACING * INFO_VISIBLE_COLUMNS
+    usable = viewport_width - FIELD_STEP_BTN_WIDTH - spacing_budget
+    width = usable // INFO_VISIBLE_COLUMNS
+    return max(INFO_FIELD_WIDTH, min(INFO_FIELD_MAX_WIDTH, width))
+
+
 def _password_strength_color(text: str) -> str:
     from kobipass.password_tools import strength_color
 
@@ -117,11 +127,17 @@ def _password_strength_color(text: str) -> str:
 class EntryFieldsScroll(QScrollArea):
     """Yatay kaydırma — scrollbar gizli, tekerlek ile kayar."""
 
+    viewport_resized = pyqtSignal()
+
     def sizeHint(self) -> QSize:
         return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
 
     def minimumSizeHint(self) -> QSize:
         return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.viewport_resized.emit()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         bar = self.horizontalScrollBar()
@@ -146,6 +162,7 @@ class CompactField(QWidget):
 
     delete_requested = pyqtSignal()
     field_remove_requested = pyqtSignal(object)
+    width_changed = pyqtSignal()
 
     def __init__(
         self,
@@ -313,13 +330,29 @@ class CompactField(QWidget):
             self._base_width,
             self._max_width,
         )
+        if target == self.width():
+            return
+        self._edit.setFixedWidth(target - self._chrome_width)
+        self.setFixedWidth(target)
+        self.width_changed.emit()
+
+    def set_compact_width(self, width: int) -> None:
+        """Bilgi hücresinin toplam genişliğini kontrolleri bozmadan günceller."""
+        target = max(self._chrome_width + 72, width)
+        if target == self.width():
+            return
         self._edit.setFixedWidth(target - self._chrome_width)
         self.setFixedWidth(target)
 
     def retranslate(self) -> None:
         label = self._label_text()
         self._copy_tooltip_base = tr("copy_tooltip", field=label)
-        self._edit.setPlaceholderText(label)
+        placeholder = (
+            self._custom_label
+            if self._custom_label
+            else (tr("field_value_placeholder") if self._info_index is not None else label)
+        )
+        self._edit.setPlaceholderText(placeholder)
         if not self.property("copied"):
             self._copy_btn.setToolTip(self._copy_tooltip_base)
         self._refresh_eye()
@@ -568,6 +601,7 @@ class EntryRowWidget(QWidget):
             primary_field=True,
         )
         self._name.delete_requested.connect(self._confirm_and_remove)
+        self._name.width_changed.connect(self._schedule_info_field_layout)
         row.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
 
         self._scroll = EntryFieldsScroll()
@@ -588,6 +622,7 @@ class EntryRowWidget(QWidget):
         self._scroll.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
+        self._scroll.viewport_resized.connect(self._schedule_info_field_layout)
 
         self._extras_host = QWidget()
         self._extras_host.setObjectName("entryExtrasHost")
@@ -640,6 +675,7 @@ class EntryRowWidget(QWidget):
         self._wire_tab_order()
         self._update_field_step_buttons()
         self._update_info_remove_actions()
+        self._schedule_info_field_layout()
 
     def _confirm_and_remove(self) -> None:
         if self._view_only:
@@ -689,7 +725,29 @@ class EntryRowWidget(QWidget):
         for prev, nxt in zip(edits, edits[1:]):
             QWidget.setTabOrder(prev, nxt)
 
+    def _schedule_info_field_layout(self) -> None:
+        QTimer.singleShot(0, self._layout_info_fields)
+
+    def _layout_info_fields(self) -> None:
+        viewport_width = self._scroll.viewport().width()
+        if viewport_width <= 0:
+            return
+        width = three_column_info_width(viewport_width)
+        fields = [self._info1, *self._extra_fields]
+        for field in fields:
+            field.set_compact_width(width)
+        # Üç kolona kadar viewport dolar; dördüncü hücre yatay scroll'u başlatır.
+        content_width = (
+            len(fields) * width
+            + FIELD_STEP_BTN_WIDTH
+            + len(fields) * ROW_LAYOUT_SPACING
+        )
+        self._extras_host.setMinimumWidth(max(viewport_width, content_width))
+        self._extras_layout.invalidate()
+
     def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
+        self._schedule_info_field_layout()
+
         def update_scroll():
             bar = self._scroll.horizontalScrollBar()
             if scroll_to_end:
