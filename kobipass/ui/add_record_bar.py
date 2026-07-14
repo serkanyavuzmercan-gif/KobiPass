@@ -41,3 +41,9 @@ class AddRecordBar(QWidget):
 
     def set_visible_bar(self, visible: bool) -> None:
         self.setVisible(visible)
+
+    def set_restricted(self, restricted: bool, tooltip: str = "") -> None:
+        self._btn_add.setProperty("restricted", restricted)
+        self._btn_add.setToolTip(tooltip or tr("add_record_tip"))
+        self._btn_add.style().unpolish(self._btn_add)
+        self._btn_add.style().polish(self._btn_add)

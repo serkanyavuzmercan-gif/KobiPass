@@ -285,6 +285,8 @@ def build_vault_file(
             raise VaultCryptoError("crypto.invalid_user_slots")
     elif len(user_passwords) != LEGACY_SLOT_COUNT:
         raise VaultCryptoError("crypto.invalid_user_slots")
+    if not passwords_are_unique(admin_password, user_passwords):
+        raise VaultCryptoError("crypto.duplicate_password")
 
     dek = os.urandom(DEK_SIZE)
     admin_wrap = _wrap_dek(dek, admin_password, version)
@@ -458,3 +460,34 @@ def verify_password_against_keys(keys: VaultFileKeys, password: str) -> bool:
         except WrongPasswordError:
             continue
     return False
+
+
+def passwords_are_unique(
+    admin_password: str,
+    user_passwords: list[tuple[bool, str]],
+) -> bool:
+    """Yönetici ve etkin, açıkça verilen kullanıcı parolaları benzersiz mi?"""
+    passwords = [admin_password]
+    passwords.extend(
+        password
+        for enabled, password in user_passwords
+        if enabled and password
+    )
+    return len(passwords) == len(set(passwords))
+
+
+def password_matches_user_slot(
+    keys: VaultFileKeys,
+    password: str,
+    slot_index: int,
+) -> bool:
+    """Parola, belirtilen mevcut kullanıcı sarmalayıcısını açıyor mu?"""
+    if not password or not 0 <= slot_index < len(keys.user_slots):
+        return False
+    slot = keys.user_slots[slot_index]
+    if not slot.enabled:
+        return False
+    try:
+        return _unwrap_dek(slot.wrap, password, keys.version) == keys.dek
+    except WrongPasswordError:
+        return False

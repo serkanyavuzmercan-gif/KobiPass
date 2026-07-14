@@ -8,9 +8,12 @@ import pytest
 
 from kobipass.crypto import (
     AccessDeniedError,
+    VaultCryptoError,
     VERSION_ARGON2,
     VERSION_PBKDF2,
     build_vault_file,
+    password_matches_user_slot,
+    passwords_are_unique,
     read_vault_file,
     try_unlock_vault,
     update_admin_wrap,
@@ -70,6 +73,7 @@ def test_per_slot_permissions_roundtrip() -> None:
     assert loaded.permissions_for_slot(2).name == "none"
     assert loaded.permissions_for_slot(1).info == "write"
     assert loaded.permissions_for_slot(1).can_save is True
+    assert loaded.permissions_for_slot(2).info == "read"
     # Legacy ortak şablon → slotlara kopyalanır
     legacy = KobiVault.from_dict(
         {
@@ -120,6 +124,78 @@ def test_build_and_unlock_argon2(tmp_path: Path) -> None:
 
     with pytest.raises(AccessDeniedError):
         read_vault_file(path, "wrong")
+
+
+def test_admin_and_user_passwords_must_be_unique() -> None:
+    vault = KobiVault(entries=[VaultEntry(name="Site", info1="pass")])
+    assert passwords_are_unique(
+        "admin-secret",
+        [(True, "user-one"), (True, "user-two")],
+    )
+    assert not passwords_are_unique(
+        "admin-secret",
+        [(True, "admin-secret")],
+    )
+    assert not passwords_are_unique(
+        "admin-secret",
+        [(True, "same-user"), (True, "same-user")],
+    )
+    with pytest.raises(VaultCryptoError, match="crypto.duplicate_password"):
+        build_vault_file(
+            vault,
+            "same-password",
+            [(True, "same-password")],
+        )
+
+    raw = build_vault_file(
+        vault,
+        "admin-secret",
+        [(True, "user-one"), (True, "user-two")],
+    )
+    keys = try_unlock_vault(raw, "admin-secret").keys
+    assert password_matches_user_slot(keys, "user-one", 0)
+    assert not password_matches_user_slot(keys, "user-one", 1)
+
+
+def test_add_record_requires_permission_and_a_writable_field() -> None:
+    from kobipass.ui.main_window import MainWindow
+
+    assert MainWindow._can_add_record(None)
+    assert MainWindow._can_add_record(
+        UserPermissions(name="write", info="read", can_add_entry=True)
+    )
+    assert MainWindow._can_add_record(
+        UserPermissions(name="read", info="write", can_add_entry=True)
+    )
+    assert not MainWindow._can_add_record(
+        UserPermissions(name="read", info="read", can_add_entry=True)
+    )
+    assert not MainWindow._can_add_record(
+        UserPermissions(name="write", info="write", can_add_entry=False)
+    )
+
+
+def test_primary_field_responsive_width_is_bounded() -> None:
+    from kobipass.ui.entry_row import (
+        INFO_FIELD_MAX_WIDTH,
+        INFO_FIELD_WIDTH,
+        _menu_text,
+        four_column_default_width,
+        responsive_field_width,
+        three_column_info_width,
+    )
+    from PyQt6.QtGui import QKeySequence
+
+    assert responsive_field_width(20, 70, 200, 390) == 200
+    assert responsive_field_width(220, 70, 200, 390) == 318
+    assert responsive_field_width(800, 70, 200, 390) == 390
+    assert responsive_field_width(800, 70, 200, None) == 898
+    assert three_column_info_width(780) == 242
+    assert three_column_info_width(300) == INFO_FIELD_WIDTH
+    assert three_column_info_width(1200) == INFO_FIELD_MAX_WIDTH
+    assert four_column_default_width(1088) == 256
+    assert four_column_default_width(600) == 200
+    assert "Ctrl+G" in _menu_text("Parola üret", QKeySequence("Ctrl+G"))
 
 
 def test_legacy_pbkdf2_roundtrip(tmp_path: Path) -> None:

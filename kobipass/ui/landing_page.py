@@ -1,16 +1,12 @@
-"""
-KobiPass karşılama ekranı — ekranı ikiye bölen "Dosya Aç" / "Yeni Dosya Oluştur".
-"""
+"""KobiPass premium karşılama ekranı — marka alanı + kasa işlem paneli."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QMouseEvent
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
-    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -22,6 +18,7 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.i18n import tr
+from kobipass.resources import logo_pixmap
 from kobipass.settings import get_recent_files
 from kobipass.ui.icons import (
     icon_file_new,
@@ -34,46 +31,26 @@ from kobipass.ui.icons import (
 from kobipass.ui.theme import theme_manager
 
 
-class _ActionPanel(QFrame):
-    """Ekranın yarısını kaplayan, tamamı tıklanabilir büyük panel."""
-
-    clicked = pyqtSignal()
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setObjectName("landingPanel")
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if (
-            event.button() == Qt.MouseButton.LeftButton
-            and self.rect().contains(event.pos())
-        ):
-            self.clicked.emit()
-        super().mouseReleaseEvent(event)
-
-
 class LandingPage(QWidget):
     recent_file_chosen = pyqtSignal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("landingPage")
-        self._glow_anims: list[QPropertyAnimation] = []
+        self._latest_path = ""
 
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 12, 16, 16)
-        main_layout.setSpacing(12)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(22, 12, 22, 22)
+        outer.setSpacing(14)
 
-        # ── Üst bar: tema · güvenlik · yardım ────────────────────────────────
-        top_layout = QHBoxLayout()
-        top_layout.addStretch()
+        # Üstte yalnız yardımcı işlemler; ana hiyerarşiye rakip olmaz.
+        top = QHBoxLayout()
+        top.setSpacing(8)
+        top.addStretch()
 
         self.btn_theme = QPushButton()
         self.btn_theme.setObjectName("themeBtn")
-        self.btn_theme.setFixedWidth(56)
+        self.btn_theme.setFixedWidth(44)
         self.btn_theme.setCursor(Qt.CursorShape.PointingHandCursor)
         self._update_theme_icon()
         theme_manager.theme_changed.connect(self._update_theme_icon)
@@ -88,119 +65,155 @@ class LandingPage(QWidget):
         self.btn_help.setIcon(icon_help())
         self.btn_help.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        top_layout.addWidget(self.btn_theme)
-        top_layout.addWidget(self.btn_security)
-        top_layout.addWidget(self.btn_help)
-        main_layout.addLayout(top_layout)
+        top.addWidget(self.btn_theme)
+        top.addWidget(self.btn_security)
+        top.addWidget(self.btn_help)
+        outer.addLayout(top)
 
-        # ── İki panel: sol "Dosya Aç", sağ "Yeni Dosya Oluştur" ──────────────
-        split = QHBoxLayout()
-        split.setSpacing(16)
+        content = QHBoxLayout()
+        content.setSpacing(20)
+        content.setContentsMargins(0, 0, 0, 0)
 
-        self.btn_open_file, self._open_title, self._open_sub = self._make_panel(
-            icon_folder_open()
-        )
-        self.btn_create_file, self._create_title, self._create_sub = self._make_panel(
-            icon_file_new()
-        )
+        # Sol: ürün anlatısı ve güven sinyalleri.
+        hero = QFrame()
+        hero.setObjectName("landingHero")
+        hero.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        hero.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        hero_layout = QVBoxLayout(hero)
+        hero_layout.setContentsMargins(44, 42, 44, 40)
+        hero_layout.setSpacing(14)
 
-        split.addWidget(self.btn_open_file, 1)
-        split.addWidget(self.btn_create_file, 1)
-        main_layout.addLayout(split, 1)
+        logo = QLabel()
+        logo.setObjectName("landingHeroLogo")
+        logo.setPixmap(logo_pixmap(112))
+        logo.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        hero_layout.addWidget(logo)
+        hero_layout.addStretch(1)
 
-        # ── Son açılanlar — "Dosya Aç" panelinin İÇİNDE, kaydırılabilir liste ──
-        # En son işlem gören dosya en üstte; liste uzadıkça kaydırma çubuğu çıkar.
-        open_layout = self.btn_open_file.layout()
+        self._eyebrow = QLabel()
+        self._eyebrow.setObjectName("landingEyebrow")
+        hero_layout.addWidget(self._eyebrow)
+
+        self._hero_title = QLabel()
+        self._hero_title.setObjectName("landingHeroTitle")
+        self._hero_title.setWordWrap(True)
+        hero_layout.addWidget(self._hero_title)
+
+        self._hero_subtitle = QLabel()
+        self._hero_subtitle.setObjectName("landingHeroSubtitle")
+        self._hero_subtitle.setWordWrap(True)
+        self._hero_subtitle.setMaximumWidth(520)
+        hero_layout.addWidget(self._hero_subtitle)
+
+        trust = QHBoxLayout()
+        trust.setSpacing(8)
+        self._trust_labels: list[QLabel] = []
+        for _ in range(3):
+            chip = QLabel()
+            chip.setObjectName("landingTrustChip")
+            chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            trust.addWidget(chip)
+            self._trust_labels.append(chip)
+        trust.addStretch()
+        hero_layout.addLayout(trust)
+        hero_layout.addStretch(2)
+
+        # Sağ: birincil kasa işlemleri.
+        actions = QFrame()
+        actions.setObjectName("landingActions")
+        actions.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        actions.setMinimumWidth(380)
+        actions.setMaximumWidth(500)
+        actions_layout = QVBoxLayout(actions)
+        actions_layout.setContentsMargins(28, 28, 28, 28)
+        actions_layout.setSpacing(12)
+
+        self._actions_title = QLabel()
+        self._actions_title.setObjectName("landingActionsTitle")
+        actions_layout.addWidget(self._actions_title)
+
+        self._actions_subtitle = QLabel()
+        self._actions_subtitle.setObjectName("landingActionsSubtitle")
+        self._actions_subtitle.setWordWrap(True)
+        actions_layout.addWidget(self._actions_subtitle)
+
+        self._latest_card = QFrame()
+        self._latest_card.setObjectName("landingLatestCard")
+        self._latest_card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        latest_layout = QVBoxLayout(self._latest_card)
+        latest_layout.setContentsMargins(18, 16, 18, 16)
+        latest_layout.setSpacing(6)
+
+        self._latest_kicker = QLabel()
+        self._latest_kicker.setObjectName("landingLatestKicker")
+        latest_layout.addWidget(self._latest_kicker)
+
+        self._latest_name = QLabel()
+        self._latest_name.setObjectName("landingLatestName")
+        self._latest_name.setWordWrap(True)
+        latest_layout.addWidget(self._latest_name)
+
+        self._latest_path_label = QLabel()
+        self._latest_path_label.setObjectName("landingLatestPath")
+        self._latest_path_label.setWordWrap(True)
+        latest_layout.addWidget(self._latest_path_label)
+
+        self._open_latest = QPushButton()
+        self._open_latest.setObjectName("landingPrimaryBtn")
+        self._open_latest.setIcon(icon_folder_open(size=20))
+        self._open_latest.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._open_latest.clicked.connect(self._open_latest_path)
+        latest_layout.addWidget(self._open_latest)
+        actions_layout.addWidget(self._latest_card)
+
+        self.btn_open_file = QPushButton()
+        self.btn_open_file.setObjectName("landingSecondaryBtn")
+        self.btn_open_file.setIcon(icon_folder_open(size=20))
+        self.btn_open_file.setCursor(Qt.CursorShape.PointingHandCursor)
+        actions_layout.addWidget(self.btn_open_file)
+
+        self.btn_create_file = QPushButton()
+        self.btn_create_file.setObjectName("landingCreateBtn")
+        self.btn_create_file.setIcon(icon_file_new(size=22))
+        self.btn_create_file.setCursor(Qt.CursorShape.PointingHandCursor)
+        actions_layout.addWidget(self.btn_create_file)
 
         self._recent_title = QLabel()
-        self._recent_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._recent_title.setObjectName("landingRecentTitle")
-        self._recent_title.setAttribute(
-            Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
-        )
-        open_layout.addWidget(self._recent_title)
+        actions_layout.addWidget(self._recent_title)
 
         self._recent_list = QListWidget()
         self._recent_list.setObjectName("landingRecentList")
         self._recent_list.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._recent_list.setMaximumWidth(420)
+        self._recent_list.setMaximumHeight(150)
         self._recent_list.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self._recent_list.itemActivated.connect(self._on_recent_activated)
         self._recent_list.itemClicked.connect(self._on_recent_activated)
+        actions_layout.addWidget(self._recent_list, 1)
 
-        recent_wrap = QHBoxLayout()
-        recent_wrap.addStretch()
-        recent_wrap.addWidget(self._recent_list)
-        recent_wrap.addStretch()
-        open_layout.addLayout(recent_wrap, 2)
+        self._recent_empty = QLabel()
+        self._recent_empty.setObjectName("landingRecentEmpty")
+        self._recent_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        actions_layout.addWidget(self._recent_empty)
+        actions_layout.addStretch(1)
 
-        # Liste görünürken alt stretch'i küçült ki liste alana yayılsın.
-        open_layout.addStretch(1)
+        content.addWidget(hero, 5)
+        content.addWidget(actions, 4)
+        outer.addLayout(content, 1)
 
         self.retranslate()
         self.refresh_recent()
 
-    def _make_panel(self, icon) -> tuple[_ActionPanel, QLabel, QLabel]:
-        panel = _ActionPanel()
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(28, 28, 28, 28)
-        layout.setSpacing(10)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        layout.addStretch(1)
-
-        icon_lbl = QLabel()
-        icon_lbl.setObjectName("landingPanelIcon")
-        icon_lbl.setPixmap(icon.pixmap(48, 48))
-        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        layout.addWidget(icon_lbl)
-
-        title = QLabel()
-        title.setObjectName("landingPanelTitle")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        layout.addWidget(title)
-
-        subtitle = QLabel()
-        subtitle.setObjectName("landingPanelSubtitle")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setWordWrap(True)
-        subtitle.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        layout.addWidget(subtitle)
-
-        layout.addStretch(1)
-
-        self._attach_glow(panel, offset=len(self._glow_anims))
-        return panel, title, subtitle
-
-    def _attach_glow(self, widget: QWidget, offset: int) -> None:
-        """Hider'ın nefes alan kenarlığının karşılığı: yumuşak indigo parıltı."""
-        glow = QGraphicsDropShadowEffect(widget)
-        glow.setColor(QColor(75, 104, 244, 150))  # #4b68f4
-        glow.setOffset(0, 0)
-        glow.setBlurRadius(12)
-        widget.setGraphicsEffect(glow)
-
-        anim = QPropertyAnimation(glow, b"blurRadius", self)
-        anim.setDuration(3200)
-        anim.setStartValue(12)
-        anim.setKeyValueAt(0.5, 40)
-        anim.setEndValue(12)
-        anim.setEasingCurve(QEasingCurve.Type.InOutSine)
-        anim.setLoopCount(-1)
-        anim.start()
-        if offset:  # iki panel senkron nefes almasın
-            anim.setCurrentTime(1600)
-        self._glow_anims.append(anim)
-
     def _update_theme_icon(self) -> None:
-        """Basınca geçilecek modu göster: koyu→güneş, aydınlık→ay."""
         self.btn_theme.setIcon(
             icon_sun() if theme_manager.is_dark() else icon_theme()
         )
+
+    def _open_latest_path(self) -> None:
+        if self._latest_path:
+            self.recent_file_chosen.emit(self._latest_path)
 
     def _on_recent_activated(self, item: QListWidgetItem) -> None:
         path = item.data(Qt.ItemDataRole.UserRole)
@@ -208,12 +221,20 @@ class LandingPage(QWidget):
             self.recent_file_chosen.emit(str(path))
 
     def refresh_recent(self) -> None:
-        """En son işlem gören dosya en üstte; boşsa bölüm tamamen gizlenir."""
         self._recent_list.clear()
         recent = [p for p in get_recent_files() if Path(p).exists()]
-        self._recent_title.setVisible(bool(recent))
+        self._latest_path = recent[0] if recent else ""
+        self._latest_card.setVisible(bool(recent))
         self._recent_list.setVisible(bool(recent))
-        for path in recent:
+        self._recent_title.setVisible(bool(recent))
+        self._recent_empty.setVisible(not recent)
+
+        if recent:
+            latest = Path(recent[0])
+            self._latest_name.setText(latest.name)
+            self._latest_path_label.setText(str(latest.parent))
+            self._latest_path_label.setToolTip(str(latest))
+        for path in recent[:5]:
             item = QListWidgetItem(Path(path).name)
             item.setToolTip(path)
             item.setData(Qt.ItemDataRole.UserRole, path)
@@ -225,8 +246,22 @@ class LandingPage(QWidget):
         self.btn_security.setToolTip(tr("security_badge_tip"))
         self.btn_help.setText(tr("landing_help"))
         self.btn_help.setToolTip(tr("btn_help_tip"))
-        self._open_title.setText(tr("landing_open_title"))
-        self._open_sub.setText(tr("landing_open_sub"))
-        self._create_title.setText(tr("landing_create_title"))
-        self._create_sub.setText(tr("landing_create_sub"))
+
+        self._eyebrow.setText(tr("landing_eyebrow"))
+        self._hero_title.setText(tr("landing_hero_title"))
+        self._hero_subtitle.setText(tr("landing_hero_subtitle"))
+        for label, key in zip(
+            self._trust_labels,
+            ("landing_trust_aes", "landing_trust_argon", "landing_trust_local"),
+        ):
+            label.setText(tr(key))
+
+        self._actions_title.setText(tr("landing_actions_title"))
+        self._actions_subtitle.setText(tr("landing_actions_subtitle"))
+        self._latest_kicker.setText(tr("landing_latest_kicker"))
+        self._open_latest.setText(tr("landing_open_latest"))
+        self.btn_open_file.setText(tr("landing_open_other"))
+        self.btn_create_file.setText(tr("landing_create_title"))
+        self.btn_create_file.setToolTip(tr("landing_create_sub"))
         self._recent_title.setText(tr("landing_recent"))
+        self._recent_empty.setText(tr("landing_recent_empty"))

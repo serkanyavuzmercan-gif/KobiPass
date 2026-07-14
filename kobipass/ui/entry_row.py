@@ -6,7 +6,7 @@ Tek vault kaydı satırı — İsim sabit; 1. Bilgi ve ek alanlar yatay scroll i
 from __future__ import annotations
 
 from PyQt6.QtCore import QMimeData, QPoint, QTimer, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QDrag, QMouseEvent, QWheelEvent
+from PyQt6.QtGui import QDrag, QKeySequence, QMouseEvent, QShortcut, QWheelEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
@@ -36,7 +36,10 @@ ROW_MARGINS = (0, 4, 12, 4)
 ROW_LAYOUT_SPACING = 8
 
 NAME_FIELD_WIDTH = 200
+NAME_FIELD_MAX_WIDTH = 390
 INFO_FIELD_WIDTH = 180
+INFO_FIELD_MAX_WIDTH = 300
+INFO_VISIBLE_COLUMNS = 3
 FIELD_STEP_BTN_WIDTH = 30
 FIELD_STEP_BTN_HEIGHT = 20
 
@@ -47,6 +50,8 @@ _MENU_ICON_SIZE = QSize(16, 16)
 _ROW_ALIGN = Qt.AlignmentFlag.AlignVCenter
 _ICON_SIZE = QSize(20, 20)
 _COPY_FLASH_MS = 900
+_GENERATE_SHORTCUT = QKeySequence("Ctrl+G")
+_DELETE_SHORTCUT = QKeySequence("Ctrl+Shift+Delete")
 
 _active_copy_field: "CompactField | None" = None
 
@@ -89,10 +94,43 @@ def _restyle(widget: QWidget) -> None:
     widget.update()
 
 
+def _menu_text(label: str, shortcut: QKeySequence) -> str:
+    key_text = shortcut.toString(QKeySequence.SequenceFormat.NativeText)
+    return f"{label}\t{key_text}"
+
+
 def _default_info_label(info_index: int) -> str:
     if info_index <= 4:
         return tr(f"field_info{info_index}")
     return tr("field_info_n", n=info_index)
+
+
+def responsive_field_width(
+    text_width: int,
+    chrome_width: int,
+    minimum: int,
+    maximum: int | None,
+) -> int:
+    """Metne göre hücre genişliği; maximum=None ise metin kadar sınırsız büyür."""
+    desired = chrome_width + max(82, text_width + 28)
+    if maximum is None:
+        return max(minimum, desired)
+    return max(minimum, min(maximum, desired))
+
+
+def three_column_info_width(viewport_width: int) -> int:
+    """İlk üç değer hücresi viewport'u eşit paylaşır; sonrası aynı genişlikte scroll olur."""
+    spacing_budget = ROW_LAYOUT_SPACING * INFO_VISIBLE_COLUMNS
+    usable = viewport_width - FIELD_STEP_BTN_WIDTH - spacing_budget
+    width = usable // INFO_VISIBLE_COLUMNS
+    return max(INFO_FIELD_WIDTH, min(INFO_FIELD_MAX_WIDTH, width))
+
+
+def four_column_default_width(row_content_width: int) -> int:
+    """İsim + üç değer + alan düğmeleri için eşit başlangıç kolon genişliği."""
+    spacing_budget = ROW_LAYOUT_SPACING * 4
+    usable = row_content_width - FIELD_STEP_BTN_WIDTH - spacing_budget
+    return max(NAME_FIELD_WIDTH, min(NAME_FIELD_MAX_WIDTH, usable // 4))
 
 
 def _password_strength_color(text: str) -> str:
@@ -105,11 +143,17 @@ def _password_strength_color(text: str) -> str:
 class EntryFieldsScroll(QScrollArea):
     """Yatay kaydırma — scrollbar gizli, tekerlek ile kayar."""
 
+    viewport_resized = pyqtSignal()
+
     def sizeHint(self) -> QSize:
         return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
 
     def minimumSizeHint(self) -> QSize:
         return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.viewport_resized.emit()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         bar = self.horizontalScrollBar()
@@ -134,6 +178,7 @@ class CompactField(QWidget):
 
     delete_requested = pyqtSignal()
     field_remove_requested = pyqtSignal(object)
+    width_changed = pyqtSignal()
 
     def __init__(
         self,
@@ -143,6 +188,9 @@ class CompactField(QWidget):
         fixed_width: int = INFO_FIELD_WIDTH,
         sensitive: bool = False,
         with_delete_menu: bool = False,
+        responsive_width: bool = False,
+        max_width: int | None = None,
+        primary_field: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -156,6 +204,7 @@ class CompactField(QWidget):
         self._always_show = False
         self._view_only = False
         self._can_delete = True
+        self._can_reorder = True
         self._can_remove_field = True
         self._custom_label = ""
         self._eye_btn: QToolButton | None = None
@@ -163,7 +212,15 @@ class CompactField(QWidget):
         self._gen_action = None
         self._delete_action = None
         self._field_remove_action = None
+        self._generate_shortcut: QShortcut | None = None
+        self._field_remove_shortcut: QShortcut | None = None
+        self._delete_shortcut: QShortcut | None = None
         self._strength_meter: QFrame | None = None
+        self._base_width = fixed_width
+        self._responsive_width = responsive_width
+        self._max_width = max_width
+        self._primary_field = primary_field
+        self.setProperty("primaryField", primary_field)
         self.setFixedWidth(fixed_width)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
@@ -205,6 +262,7 @@ class CompactField(QWidget):
             - COPY_GROUP_INSET[2]
             - 4 * gap_count
         )
+        self._chrome_width = fixed_width - max(72, edit_width)
         self._edit = QLineEdit()
         self._edit.setFixedWidth(max(72, edit_width))
         self._edit.setFixedHeight(inner_h)
@@ -250,12 +308,34 @@ class CompactField(QWidget):
             layout.addWidget(self._menu_btn, 0, _ROW_ALIGN)
 
         if sensitive:
+            self._generate_shortcut = QShortcut(_GENERATE_SHORTCUT, self)
+            self._generate_shortcut.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+            self._generate_shortcut.activated.connect(self._on_generate)
+            self._field_remove_shortcut = QShortcut(_DELETE_SHORTCUT, self)
+            self._field_remove_shortcut.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+            self._field_remove_shortcut.activated.connect(
+                self._request_field_remove
+            )
+        elif with_delete_menu:
+            self._delete_shortcut = QShortcut(_DELETE_SHORTCUT, self)
+            self._delete_shortcut.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+            self._delete_shortcut.activated.connect(self.delete_requested.emit)
+
+        if sensitive:
             outer.addWidget(row_host)
             self._strength_meter = QFrame(self)
             self._strength_meter.setFixedHeight(3)
             self._strength_meter.setStyleSheet("background-color: transparent;")
             outer.addWidget(self._strength_meter, 0, Qt.AlignmentFlag.AlignBottom)
             self._edit.textChanged.connect(self._update_strength)
+        if responsive_width:
+            self._edit.textChanged.connect(self._update_responsive_width)
 
         self.setFocusProxy(self._edit)
         self._sync_echo()
@@ -278,21 +358,64 @@ class CompactField(QWidget):
         self._custom_label = label.strip()
         self.retranslate()
 
+    def _update_responsive_width(self, text: str = "") -> None:
+        if not self._responsive_width:
+            return
+        sample = text or self._edit.placeholderText() or self._label_text()
+        text_width = self._edit.fontMetrics().horizontalAdvance(sample)
+        target = responsive_field_width(
+            text_width,
+            self._chrome_width,
+            self._base_width,
+            self._max_width,
+        )
+        if target == self.width():
+            return
+        self._edit.setFixedWidth(target - self._chrome_width)
+        self.setFixedWidth(target)
+        self.width_changed.emit()
+
+    def set_compact_width(self, width: int) -> None:
+        """Bilgi hücresinin toplam genişliğini kontrolleri bozmadan günceller."""
+        target = max(self._chrome_width + 72, width)
+        if target == self.width():
+            return
+        self._edit.setFixedWidth(target - self._chrome_width)
+        self.setFixedWidth(target)
+
+    def set_responsive_base_width(self, width: int) -> None:
+        if not self._responsive_width:
+            return
+        self._base_width = width
+        self._update_responsive_width(self._edit.text())
+
     def retranslate(self) -> None:
         label = self._label_text()
         self._copy_tooltip_base = tr("copy_tooltip", field=label)
-        self._edit.setPlaceholderText(label)
+        placeholder = (
+            self._custom_label
+            if self._custom_label
+            else (tr("field_value_placeholder") if self._info_index is not None else label)
+        )
+        self._edit.setPlaceholderText(placeholder)
         if not self.property("copied"):
             self._copy_btn.setToolTip(self._copy_tooltip_base)
         self._refresh_eye()
         if self._menu_btn is not None:
             self._menu_btn.setToolTip(tr("row_menu_tip"))
         if self._gen_action is not None:
-            self._gen_action.setText(tr("gen_password_menu"))
+            self._gen_action.setText(
+                _menu_text(tr("gen_password_menu"), _GENERATE_SHORTCUT)
+            )
         if self._field_remove_action is not None:
-            self._field_remove_action.setText(tr("btn_delete"))
+            self._field_remove_action.setText(
+                _menu_text(tr("btn_delete"), _DELETE_SHORTCUT)
+            )
         if self._delete_action is not None:
-            self._delete_action.setText(tr("btn_delete"))
+            self._delete_action.setText(
+                _menu_text(tr("btn_delete"), _DELETE_SHORTCUT)
+            )
+        self._update_responsive_width(self._edit.text())
 
     def _refresh_eye(self) -> None:
         if self._eye_btn is None:
@@ -340,6 +463,14 @@ class CompactField(QWidget):
                 return
         self.set_generated(generate_password())
 
+    def _request_field_remove(self) -> None:
+        if (
+            self._can_remove_field
+            and not self._view_only
+            and self.is_editable()
+        ):
+            self.field_remove_requested.emit(self)
+
     def set_can_delete(self, allowed: bool) -> None:
         self._can_delete = allowed
         self._refresh_menu()
@@ -360,16 +491,26 @@ class CompactField(QWidget):
             gen_ok = self.is_editable()
             self._gen_action.setVisible(gen_ok)
             self._gen_action.setEnabled(gen_ok)
+            if self._generate_shortcut is not None:
+                self._generate_shortcut.setEnabled(gen_ok)
             show = show or gen_ok
         if self._field_remove_action is not None:
-            rem_ok = self._can_remove_field and not self._view_only and self.is_editable()
+            rem_ok = (
+                self._can_remove_field
+                and not self._view_only
+                and self.is_editable()
+            )
             self._field_remove_action.setVisible(rem_ok)
             self._field_remove_action.setEnabled(rem_ok)
+            if self._field_remove_shortcut is not None:
+                self._field_remove_shortcut.setEnabled(rem_ok)
             show = show or rem_ok
         if self._delete_action is not None:
             del_ok = self._can_delete and not self._view_only
             self._delete_action.setVisible(del_ok)
             self._delete_action.setEnabled(del_ok)
+            if self._delete_shortcut is not None:
+                self._delete_shortcut.setEnabled(del_ok)
             show = show or del_ok
         self._menu_btn.setVisible(show)
 
@@ -379,14 +520,6 @@ class CompactField(QWidget):
     def set_permission(self, level: FieldLevel) -> None:
         self._permission = level
         effective = level
-        if (
-            self._always_show
-            and not self._view_only
-            and (level == "none" or not can_edit(level))
-        ):
-            effective = "write"
-        elif level == "none":
-            effective = "read"
         visible = can_view(effective)
         self.setVisible(visible)
         if not visible:
@@ -408,6 +541,8 @@ class CompactField(QWidget):
             self._edit.clearFocus()
             self._edit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             self._edit.setProperty("readOnlyPerm", "true")
+            self._edit.setToolTip(tr("restricted_field_edit"))
+            self.setToolTip(tr("restricted_field_edit"))
         _restyle(self._edit)
         self._copy_btn.setEnabled(can_copy(effective) and not self._view_only)
         if self._copy_btn is not None:
@@ -505,6 +640,7 @@ class EntryRowWidget(QWidget):
 
     changed = pyqtSignal()
     remove_requested = pyqtSignal(object)
+    restricted_action = pyqtSignal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -529,8 +665,12 @@ class EntryRowWidget(QWidget):
             fixed_width=NAME_FIELD_WIDTH,
             sensitive=False,
             with_delete_menu=True,
+            responsive_width=True,
+            max_width=None,
+            primary_field=True,
         )
         self._name.delete_requested.connect(self._confirm_and_remove)
+        self._name.width_changed.connect(self._schedule_info_field_layout)
         row.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
 
         self._scroll = EntryFieldsScroll()
@@ -551,6 +691,7 @@ class EntryRowWidget(QWidget):
         self._scroll.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
+        self._scroll.viewport_resized.connect(self._schedule_info_field_layout)
 
         self._extras_host = QWidget()
         self._extras_host.setObjectName("entryExtrasHost")
@@ -603,9 +744,13 @@ class EntryRowWidget(QWidget):
         self._wire_tab_order()
         self._update_field_step_buttons()
         self._update_info_remove_actions()
+        self._schedule_info_field_layout()
 
     def _confirm_and_remove(self) -> None:
-        if not self._can_delete or self._view_only:
+        if self._view_only:
+            return
+        if not self._can_delete:
+            self.restricted_action.emit("restricted_delete_record")
             return
         # Boş kayıtta onay sorma; en az bir alan doluysa sor.
         if not self.to_entry().has_content():
@@ -649,7 +794,37 @@ class EntryRowWidget(QWidget):
         for prev, nxt in zip(edits, edits[1:]):
             QWidget.setTabOrder(prev, nxt)
 
+    def _schedule_info_field_layout(self) -> None:
+        QTimer.singleShot(0, self._layout_info_fields)
+
+    def _layout_info_fields(self) -> None:
+        row_content_width = (
+            self.width() - ROW_MARGINS[0] - ROW_MARGINS[2]
+        )
+        if row_content_width <= 0:
+            return
+        default_width = four_column_default_width(row_content_width)
+        self._name.set_responsive_base_width(default_width)
+
+        scroll_width = (
+            row_content_width - self._name.width() - ROW_LAYOUT_SPACING
+        )
+        width = three_column_info_width(scroll_width)
+        fields = [self._info1, *self._extra_fields]
+        for field in fields:
+            field.set_compact_width(width)
+        # Üç kolona kadar viewport dolar; dördüncü hücre yatay scroll'u başlatır.
+        content_width = (
+            len(fields) * width
+            + FIELD_STEP_BTN_WIDTH
+            + len(fields) * ROW_LAYOUT_SPACING
+        )
+        self._extras_host.setMinimumWidth(max(scroll_width, content_width))
+        self._extras_layout.invalidate()
+
     def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
+        self._schedule_info_field_layout()
+
         def update_scroll():
             bar = self._scroll.horizontalScrollBar()
             if scroll_to_end:
@@ -660,6 +835,13 @@ class EntryRowWidget(QWidget):
         QTimer.singleShot(0, update_scroll)
 
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
+        if (
+            not block_signals
+            and not self._view_only
+            and self._permissions.info != "write"
+        ):
+            self.restricted_action.emit("restricted_edit_fields")
+            return
         info_index = len(self._extra_fields) + 2
         field = CompactField(
             info_index=info_index,
@@ -737,6 +919,9 @@ class EntryRowWidget(QWidget):
     def _remove_last_extra_field(self) -> None:
         if self._view_only:
             return
+        if self._permissions.info != "write":
+            self.restricted_action.emit("restricted_edit_fields")
+            return
         if not self._extra_fields:
             return
         field = self._extra_fields.pop()
@@ -769,8 +954,26 @@ class EntryRowWidget(QWidget):
         self._info1.set_permission(perms.level_for_info_index(1))
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_permission(perms.level_for_info_index(index))
-        self._field_step_column.setVisible(not view_only)
-        self._name.set_can_delete(self._can_delete and not view_only)
+        self.setVisible(perms.name != "none" or perms.info != "none")
+        self._field_step_column.setVisible(
+            not view_only and perms.info != "none"
+        )
+        # Menü görünür kalır; yetki yoksa tıklama açıklayıcı bildirim üretir.
+        self._name.set_can_delete(not view_only)
+        fields_restricted = perms.info != "write"
+        for button in (self._add_field_btn, self._remove_field_btn):
+            button.setProperty("restricted", fields_restricted)
+            button.setToolTip(
+                tr("restricted_edit_fields")
+                if fields_restricted
+                else (
+                    tr("add_field_tip")
+                    if button is self._add_field_btn
+                    else tr("remove_field_tip")
+                )
+            )
+            button.style().unpolish(button)
+            button.style().polish(button)
         self._update_info_remove_actions()
         if view_only:
             self._add_field_btn.setEnabled(False)
@@ -788,7 +991,11 @@ class EntryRowWidget(QWidget):
             field.set_custom_label(labels.get(f"info{index}", ""))
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
-        if event.button() == Qt.MouseButton.LeftButton and not self._view_only:
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and not self._view_only
+            and self._can_reorder
+        ):
             self._drag_start = event.position().toPoint()
         super().mousePressEvent(event)
 
@@ -797,6 +1004,7 @@ class EntryRowWidget(QWidget):
             self._drag_start is not None
             and event.buttons() & Qt.MouseButton.LeftButton
             and not self._view_only
+            and self._can_reorder
             and self.vault_index is not None
         ):
             if (event.position().toPoint() - self._drag_start).manhattanLength() >= 8:
@@ -825,7 +1033,13 @@ class EntryRowWidget(QWidget):
 
     def set_can_delete(self, allowed: bool) -> None:
         self._can_delete = allowed
-        self._name.set_can_delete(allowed and not self._view_only)
+        self._name.set_can_delete(not self._view_only)
+
+    def set_can_reorder(self, allowed: bool) -> None:
+        self._can_reorder = allowed
+        self.setToolTip(
+            tr("drag_row_tip") if allowed else tr("restricted_reorder")
+        )
 
     def retranslate(self) -> None:
         self._name.retranslate()

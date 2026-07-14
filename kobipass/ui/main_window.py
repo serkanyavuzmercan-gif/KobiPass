@@ -12,6 +12,7 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QKeySequence, QScreen, QSho
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -56,6 +57,7 @@ from kobipass.ui.dialogs import (
     UnlockDialog,
     show_error,
     show_info,
+    show_restriction as show_restriction_dialog,
 )
 from kobipass.ui.entry_row import ROW_MIME, EntryRowWidget
 from kobipass.ui.help_panel import HelpPanel
@@ -71,6 +73,7 @@ from kobipass.ui.icons import icon_home, icon_sun, icon_theme
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
+from kobipass.ui.vault_settings_dialog import VaultSettingsDialog
 from kobipass.ui.vault_empty_state import (
     VaultBody,
     VaultEmptyState,
@@ -233,9 +236,8 @@ class MainWindow(QMainWindow):
         self._title_bar = CustomTitleBar(self)
         outer.addWidget(self._title_bar)
 
-        # Hider'daki Info paneli: başlığın altından açılır, gövdeyi aşağı iter.
-        self._help_panel = HelpPanel()
-        outer.addWidget(self._help_panel)
+        # Yardım, Güvenlik Protokolü ile aynı premium pencere dilini kullanır.
+        self._help_panel = HelpPanel(self)
 
         self._stacked_widget = QStackedWidget()
         outer.addWidget(self._stacked_widget, stretch=1)
@@ -250,6 +252,13 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(10, 8, 16, 10)
         root.setSpacing(8)
         self._stacked_widget.addWidget(self._vault_view)
+
+        self._command_surface = QFrame()
+        self._command_surface.setObjectName("vaultCommandSurface")
+        self._command_surface.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        command_layout = QVBoxLayout(self._command_surface)
+        command_layout.setContentsMargins(8, 8, 8, 7)
+        command_layout.setSpacing(7)
 
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
@@ -272,6 +281,10 @@ class MainWindow(QMainWindow):
         self._btn_users = QPushButton()
         self._btn_users.clicked.connect(self._manage_users)
         toolbar.addWidget(self._btn_users, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        self._btn_settings = QPushButton()
+        self._btn_settings.setObjectName("vaultSettingsBtn")
+        self._btn_settings.clicked.connect(self._manage_vault_settings)
 
         self._btn_audit = QPushButton()
         self._btn_audit.clicked.connect(self._show_audit)
@@ -311,7 +324,7 @@ class MainWindow(QMainWindow):
         self._btn_lang.clicked.connect(i18n.toggle)
         toolbar.addWidget(self._btn_lang, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        root.addLayout(toolbar)
+        command_layout.addLayout(toolbar)
 
         self.security_badge = QPushButton()
         self.security_badge.setObjectName("securityBadge")
@@ -319,10 +332,17 @@ class MainWindow(QMainWindow):
         self.security_badge.clicked.connect(self._open_security_dialog)
 
         badge_layout = QHBoxLayout()
+        badge_layout.setSpacing(8)
         badge_layout.addWidget(self.security_badge)
+        self._workspace_hint = QLabel()
+        self._workspace_hint.setObjectName("vaultWorkspaceHint")
+        badge_layout.addWidget(self._workspace_hint)
         badge_layout.addStretch()
-        badge_layout.setContentsMargins(0, 5, 0, 10)
-        root.addLayout(badge_layout)
+        badge_layout.addWidget(self._btn_settings)
+        badge_layout.setContentsMargins(0, 0, 0, 0)
+        command_layout.addLayout(badge_layout)
+
+        root.addWidget(self._command_surface)
 
         self._vault_body = VaultBody()
         self._scroll = self._vault_body.scroll
@@ -345,7 +365,7 @@ class MainWindow(QMainWindow):
         self._entries_layout.setSpacing(4)
         self._entries_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        self._add_bar = AddRecordBar(self._add_row)
+        self._add_bar = AddRecordBar(self._request_add_row)
         self._entries_layout.addWidget(self._add_bar)
 
         self._empty_state = VaultEmptyState()
@@ -357,12 +377,16 @@ class MainWindow(QMainWindow):
         root.addWidget(self._vault_body, stretch=1)
 
         status = QStatusBar()
+        status.setObjectName("vaultStatusBar")
         self.setStatusBar(status)
         self._status_left = QLabel()
+        self._status_left.setObjectName("statusCount")
         status.addWidget(self._status_left, 1)
         self._status_role = QLabel("")
+        self._status_role.setObjectName("statusRole")
         status.addPermanentWidget(self._status_role)
         self._status_right = QLabel("")
+        self._status_right.setObjectName("statusFile")
         status.addPermanentWidget(self._status_right)
         self._refresh_empty_state()
 
@@ -403,14 +427,28 @@ class MainWindow(QMainWindow):
             self._search_bar.setFocus()
             self._search_bar.selectAll()
 
-    def _on_empty_state_add(self) -> None:
+    @staticmethod
+    def _can_add_record(perms: UserPermissions | None) -> bool:
+        if perms is None:
+            return True
+        has_writable_field = perms.name == "write" or perms.info == "write"
+        return perms.can_add_entry and has_writable_field
+
+    def _show_restriction(self, message_key: str) -> None:
+        show_restriction_dialog(self, tr(message_key))
+
+    def _request_add_row(self) -> None:
         if self._kilitli_mi:
             return
-        perms = self._row_permissions()
-        if perms is not None and not perms.can_add_entry:
+        if not self._can_add_record(self._row_permissions()):
+            self._show_restriction("restricted_add_record")
             return
         self._add_row()
-        if self._row_widgets:
+
+    def _on_empty_state_add(self) -> None:
+        before = len(self._row_widgets)
+        self._request_add_row()
+        if len(self._row_widgets) > before:
             edits = self._row_widgets[-1].focus_edits()
             if edits:
                 edits[0].setFocus()
@@ -418,6 +456,9 @@ class MainWindow(QMainWindow):
     def _refresh_empty_state(self) -> None:
         show = should_show_empty_state(len(self._row_widgets)) and not self._kilitli_mi
         self._empty_state.setVisible(show)
+        perms = self._row_permissions()
+        add_allowed = self._can_add_record(perms)
+        self._empty_state.set_restricted(not add_allowed)
         # Stretch yalnızca boş durumda — kayıt varken aralıkları sıkıştırmaz.
         self._entries_layout.setStretchFactor(self._empty_state, 1 if show else 0)
         if show:
@@ -430,9 +471,11 @@ class MainWindow(QMainWindow):
             )
         has_rows = len(self._row_widgets) > 0
         if has_rows:
-            perms = self._row_permissions()
-            can_add = perms.can_add_entry if perms else True
-            self._add_bar.setVisible(can_add and not self._kilitli_mi)
+            self._add_bar.setVisible(not self._kilitli_mi)
+            self._add_bar.set_restricted(
+                not add_allowed,
+                tr("restricted_add_record") if not add_allowed else "",
+            )
         else:
             self._add_bar.setVisible(False)
 
@@ -442,8 +485,7 @@ class MainWindow(QMainWindow):
         if len(self._row_widgets) == 0:
             self._on_empty_state_add()
             return
-        if self._add_bar.isVisible():
-            self._add_row()
+        self._request_add_row()
 
     def _shortcut_lock(self) -> None:
         if self._session is not None and not self._kilitli_mi:
@@ -598,7 +640,12 @@ class MainWindow(QMainWindow):
 
         # Yönetici düğmeleri her zaman görünür; yetki yoksa pasif görünüp
         # basılınca açıklama verir (gizlemek yerine kısıtlama).
-        for btn in (self._btn_users, self._btn_audit, self._btn_report):
+        for btn in (
+            self._btn_users,
+            self._btn_settings,
+            self._btn_audit,
+            self._btn_report,
+        ):
             btn.setVisible(True)
             btn.setProperty("restricted", not is_admin)
             if not is_admin:
@@ -614,15 +661,22 @@ class MainWindow(QMainWindow):
 
         perms = self._row_permissions()
 
-        can_add = perms.can_add_entry if perms else self._session is None
         can_delete = perms.can_delete_entry if perms else True
         can_save = perms.can_save if perms else True
 
-        self._btn_save.setEnabled((can_save if is_unlocked else True) and not self._kilitli_mi)
+        save_restricted = isinstance(self._session, UserSession) and not can_save
+        self._btn_save.setEnabled(not self._kilitli_mi)
+        self._btn_save.setProperty("restricted", save_restricted)
+        self._btn_save.setToolTip(
+            tr("restricted_save") if save_restricted else tr("btn_save")
+        )
+        self._btn_save.style().unpolish(self._btn_save)
+        self._btn_save.style().polish(self._btn_save)
 
         self._apply_row_permissions()
         for row in self._row_widgets:
             row.set_can_delete(can_delete and not self._kilitli_mi)
+            row.set_can_reorder(is_admin and not self._kilitli_mi)
 
         self._update_tab_order()
 
@@ -630,6 +684,11 @@ class MainWindow(QMainWindow):
         if is_unlocked:
             title = f"{title} — {self._role_label()}"
         self.setWindowTitle(title)
+        self._workspace_hint.setText(
+            tr("user_workspace_hint")
+            if isinstance(self._session, UserSession)
+            else tr("vault_workspace_hint")
+        )
         self._update_status()
         self._refresh_empty_state()
 
@@ -806,6 +865,7 @@ class MainWindow(QMainWindow):
         self._btn_home.setToolTip(tr("btn_home_tip"))
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
+        self._btn_settings.setText(tr("btn_vault_settings"))
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_report.setText(tr("btn_report"))
         self._btn_report.setToolTip(tr("btn_report_tip"))
@@ -815,6 +875,7 @@ class MainWindow(QMainWindow):
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))
+        self._workspace_hint.setText(tr("vault_workspace_hint"))
         self._title_bar.retranslate()
         self._landing_page.retranslate()
         self._add_bar.retranslate()
@@ -868,8 +929,9 @@ class MainWindow(QMainWindow):
             else:
                 self._status_left.setText(tr("status_records", count=filled_count))
 
-        path_txt = (
-            str(self._current_path) if self._current_path else tr("status_unsaved")
+        path_txt = self._current_path.name if self._current_path else tr("status_unsaved")
+        self._status_right.setToolTip(
+            str(self._current_path) if self._current_path else ""
         )
         dirty_txt = tr("status_dirty") if self._dirty else ""
         self._status_right.setText(tr("status_file", path=f"{path_txt}{dirty_txt}"))
@@ -878,6 +940,7 @@ class MainWindow(QMainWindow):
         self._status_role.setText(
             tr("status_role", role=role_txt) if role_txt else ""
         )
+        self._status_role.setVisible(bool(role_txt))
 
     def _mark_dirty(self) -> None:
         self._dirty = True
@@ -951,6 +1014,7 @@ class MainWindow(QMainWindow):
         row.vault_index = vault_index
         row.changed.connect(self._mark_dirty)
         row.remove_requested.connect(self._remove_row)
+        row.restricted_action.connect(self._show_restriction)
         if entry:
             row.block_change_signals(True)
             row.load_entry(entry)
@@ -1021,7 +1085,7 @@ class MainWindow(QMainWindow):
     def _show_help(self) -> None:
         self._help_panel.toggle()
 
-    def _require_admin(self) -> bool:
+    def _require_admin(self, restriction_key: str = "restricted_admin_feature") -> bool:
         """Yönetici değilse uygun açıklamayı gösterir ve False döner."""
         if isinstance(self._session, AdminSession) and self._vault is not None:
             return True
@@ -1029,28 +1093,25 @@ class MainWindow(QMainWindow):
             # Yeni / kaydedilmemiş dosya — önce kaydedip izinleri kur.
             show_info(self, tr("info_title"), tr("admin_needed_new"))
         else:
-            # Alt kullanıcı oturumu — yetkisi yok.
-            show_error(self, tr("warn_title"), tr("admin_needed_user"))
+            self._show_restriction(restriction_key)
         return False
 
     def _manage_users(self) -> None:
-        if not self._require_admin():
+        if not self._require_admin("restricted_manage_users"):
             return
         enabled = [slot.enabled for slot in self._session.keys.user_slots]  # type: ignore[union-attr]
-        dlg = UserAdminDialog(self._vault, enabled, self)
+        dlg = UserAdminDialog(
+            self._vault,
+            enabled,
+            self,
+            admin_password=self._session.admin_password,
+            keys=self._session.keys,
+        )
         if dlg.exec() != dlg.DialogCode.Accepted:
             return
         data = dlg.result_data()
         if not data:
             return
-
-        if data.get("admin_new"):
-            current = data.get("admin_current") or ""
-            if current != self._session.admin_password:
-                show_error(self, tr("warn_title"), tr("admin_pwd_wrong"))
-                return
-            self._pending_admin_password = data["admin_new"]
-            self._session.admin_password = data["admin_new"]
 
         self._vault.user_permissions = data["permissions"]
         if data.get("slot_permissions") is not None:
@@ -1065,14 +1126,44 @@ class MainWindow(QMainWindow):
         if data.get("changed"):
             show_info(self, tr("users_applied_title"), tr("users_applied_text"))
 
+    def _manage_vault_settings(self) -> None:
+        if not self._require_admin("restricted_vault_settings"):
+            return
+        if not isinstance(self._session, AdminSession) or self._session.keys is None:
+            return
+        effective_users = (
+            self._pending_user_passwords
+            if self._pending_user_passwords is not None
+            else self._session.user_passwords
+        )
+        dlg = VaultSettingsDialog(
+            self._session.admin_password,
+            self._session.keys,
+            effective_users,
+            self,
+        )
+        if dlg.exec() != dlg.DialogCode.Accepted:
+            return
+        data = dlg.result_data()
+        if not data:
+            return
+        self._pending_admin_password = data["admin_new"]
+        self._session.admin_password = data["admin_new"]
+        self._mark_dirty()
+        show_info(
+            self,
+            tr("settings_applied_title"),
+            tr("settings_applied_text"),
+        )
+
     def _show_audit(self) -> None:
-        if not self._require_admin():
+        if not self._require_admin("restricted_audit"):
             return
         dlg = AuditLogDialog(self._vault, self)
         dlg.exec()
 
     def _show_password_report(self) -> None:
-        if not self._require_admin():
+        if not self._require_admin("restricted_report"):
             return
         self._sync_vault_entries()
         from kobipass.ui.password_report_dialog import PasswordReportDialog
@@ -1160,6 +1251,11 @@ class MainWindow(QMainWindow):
             self._kilit_ekranini_goster()
             if self._kilitli_mi:
                 return
+        if isinstance(self._session, UserSession):
+            slot_perms = self._row_permissions()
+            if slot_perms is not None and not slot_perms.can_save:
+                self._show_restriction("restricted_save")
+                return
         entries = self._collect_entries()
         if not entries:
             show_error(
@@ -1178,6 +1274,7 @@ class MainWindow(QMainWindow):
                 return
             slot_perms = self._vault.permissions_for_slot(self._session.user_slot)
             if not slot_perms.can_save:
+                self._show_restriction("restricted_save")
                 return
             self._sync_vault_entries()
             new_entries = self._collect_entries()

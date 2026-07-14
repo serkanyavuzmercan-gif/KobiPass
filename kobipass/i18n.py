@@ -18,7 +18,8 @@ _STRINGS: dict[str, dict[str, str]] = {
         "btn_home_tip": "Ana sayfaya dön",
         "btn_save": "Kaydet",
         "btn_clear": "Temizle",
-        "btn_users": "Kullanıcı İzinleri",
+        "btn_users": "Kullanıcılar ve Yetkiler",
+        "btn_vault_settings": "Kasa Ayarları",
         "btn_audit": "Değişiklik Geçmişi",
         "btn_report": "Parola Raporu",
         "btn_report_tip": "Tüm parolaların sağlık raporunu görüntüle",
@@ -30,18 +31,19 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Kaydet ile .enc dosyası oluşturulur: 1 yönetici + en fazla 3 kullanıcı parolası "
             "belirlenir. Dosya Aç ile parolanızı girin; rol otomatik belirlenir."
         ),
-        "status_no_records": "Kayıt yok",
-        "status_records": "Kayıt: {count}",
-        "status_unsaved": "Kaydedilmemiş",
-        "status_file": "Dosya: {path}",
-        "status_dirty": " • Değişiklik var",
-        "status_role": "Oturum: {role}",
+        "status_no_records": "Hazır · İlk kaydı bekliyor",
+        "status_records": "{count} kayıt",
+        "status_unsaved": "Yeni kasa",
+        "status_file": "{path}",
+        "status_dirty": "  ·  Kaydedilmedi",
+        "status_role": "{role}",
         "field_name": "İsim",
         "field_info1": "1. Bilgi",
         "field_info2": "2. Bilgi",
         "field_info3": "3. Bilgi",
         "field_info4": "4. Bilgi",
         "field_info_n": "{n}. Bilgi",
+        "field_value_placeholder": "Değer girin",
         "add_field_tip": "Yeni bilgi alanı ekle",
         "remove_field_tip": "Son eklenen bilgi alanını kaldır",
         "copy_tooltip": "{field} — panoya kopyala",
@@ -69,11 +71,20 @@ _STRINGS: dict[str, dict[str, str]] = {
         "confirm_delete_title": "Kaydı sil",
         "confirm_delete_text": "Emin misiniz? Bu kayıt silinecek.",
         "btn_add_record": "+ Kayıt Ekle",
-        "empty_state_title": "İlk kaydınızı ekleyin",
-        "empty_state_tip1": "1. Kayıt Ekle ile satırı oluşturun, isim ve bilgileri yazın",
-        "empty_state_tip2": "2. Kaydet ile şifreli kasa dosyanızı oluşturun",
-        "empty_state_tip3": "3. İsterseniz Alt Kullanıcılar ile yetki paylaşın",
-        "empty_state_cta": "+ Kayıt Ekle",
+        "empty_state_eyebrow": "YENİ KASA ÇALIŞMA ALANI",
+        "empty_state_title": "İlk kaydınızı güvenle oluşturun",
+        "empty_state_subtitle": (
+            "Hesap adını ve parolanızı ekleyerek şifreli kasanızı oluşturmaya başlayın."
+        ),
+        "empty_state_steps_title": "Kasanız üç adımda hazır",
+        "empty_state_steps_subtitle": "Verileriniz kaydettiğiniz ana kadar yalnızca bu oturumda tutulur.",
+        "empty_state_tip1": "Kayıt satırını oluşturun; isim ve bilgi alanlarını doldurun.",
+        "empty_state_tip2": "Kaydet ile AES-256 şifreli kasa dosyanızı oluşturun.",
+        "empty_state_tip3": "Gerekirse alt kullanıcı ekleyip erişim izinlerini belirleyin.",
+        "empty_state_cta": "İlk kaydı oluştur",
+        "empty_state_shortcut": "Klavye kısayolu: Ctrl + N",
+        "empty_state_security": "✓ Yerel  ·  ✓ Şifreli  ·  ✓ Sıfır bilgi",
+        "vault_workspace_hint": "Yerel ve şifreli kasa çalışma alanı",
         "add_record_tip": "Yeni kayıt satırı ekle",
         "title_minimize": "Küçült",
         "title_maximize": "Büyüt",
@@ -105,19 +116,46 @@ _STRINGS: dict[str, dict[str, str]] = {
         "info_title": "Bilgi",
         "admin_needed_user": "Bu işlem için yönetici yetkisi gerekir. Alt kullanıcı olarak bu yetkiniz yok.",
         "admin_needed_new": "Bu bölümü kullanmak için lütfen önce dosyanızı kaydedip alt kullanıcı izinlerini oluşturun.",
+        "restricted_notice_title": "Yetki kısıtlaması",
+        "restricted_add_record": (
+            "Alt kullanıcı olarak yeni kayıt ekleme yetkiniz bulunmuyor. "
+            "Lütfen yöneticinize danışın."
+        ),
+        "restricted_save": (
+            "Bu kasadaki değişiklikleri kaydetme yetkiniz bulunmuyor. "
+            "Lütfen yöneticinize danışın."
+        ),
+        "restricted_delete_record": (
+            "Kayıt silme yetkiniz bulunmuyor. Lütfen yöneticinize danışın."
+        ),
+        "restricted_edit_fields": (
+            "Bilgi alanı ekleme veya kaldırma yetkiniz bulunmuyor. "
+            "Lütfen yöneticinize danışın."
+        ),
+        "restricted_field_edit": "Bu alan yalnızca görüntülenebilir; düzenleme yetkiniz yok.",
+        "restricted_manage_users": "Alt kullanıcılar ve izinleri yalnızca yönetici düzenleyebilir.",
+        "restricted_audit": "Değişiklik geçmişini yalnızca yönetici görüntüleyebilir.",
+        "restricted_report": "Parola sağlık raporunu yalnızca yönetici görüntüleyebilir.",
+        "restricted_admin_feature": "Bu özellik yalnızca yönetici tarafından kullanılabilir.",
+        "restricted_reorder": "Kayıt sıralamasını yalnızca yönetici değiştirebilir.",
+        "user_workspace_hint": "Alt kullanıcı oturumu · Yetkileriniz yönetici tarafından belirlenir",
         "opened_text": "{count} kayıt yüklendi.",
         "setup_pwd_title": "Kasa Kurulumu",
         "setup_pwd_info": (
             "Yönetici parolası sağda zorunludur (min. {min_len} karakter).\n"
-            "Soldan alt kullanıcı ekleyin; her kartta isim, parola ve genel yetkiler kişiye özeldir. "
-            "İsim / Bilgiler izinleri sağda tüm kullanıcılar için ortaktır."
+            "Her alt kullanıcı kartında parola, alan erişimi ve işlem yetkilerini ayrı ayrı belirleyin."
         ),
         "admin_setup_section": "Yönetici",
         "admin_pwd_label": "Yönetici parolası:",
         "admin_pwd_repeat": "Yönetici tekrar:",
         "max_users_reached": "En fazla {max} alt kullanıcı eklenebilir.",
         "user_pwd_label": "Alt Kullanıcı {n} parolası:",
+        "user_card_title": "Alt Kullanıcı {n}",
         "user_default_label": "Alt Kullanıcı {n}",
+        "user_name_label": "Kullanıcı adı:",
+        "new_user_password_label": "Alt kullanıcı parolası:",
+        "change_user_password": "Alt kullanıcı parolasını değiştir",
+        "cancel_password_change": "Parola değişikliğini iptal et",
         "users_section": "Alt Kullanıcılar",
         "add_user_btn": "+ Alt Kullanıcı Ekle",
         "remove_user_tip": "Bu alt kullanıcıyı kaldır",
@@ -126,16 +164,24 @@ _STRINGS: dict[str, dict[str, str]] = {
         "users_applied_title": "Değişiklikler uygulandı",
         "users_applied_text": "Alt kullanıcı ve izin değişiklikleri uygulandı. Değişiklikleri kaydet butonuna basarak kaydediniz.",
         "user_pwd_repeat": "Kullanıcı {n} tekrar:",
-        "perm_section": "İzinler (Kullanıcılar için ortak)",
+        "perm_section": "Kullanıcı yetkileri",
         "perm_none": "Göremez",
-        "perm_read": "Görür",
-        "perm_hidden_read": "Maskeli görür",
-        "perm_write": "Düzenler",
-        "perm_can_add": "Kayıt ekleyebilir",
-        "perm_can_delete": "Kayıt silebilir",
-        "perm_can_save": "Kaydedebilir",
-        "perm_can_save_hint": "Düzenleme, ekleme veya silme yetkisi verildiğinde otomatik açılır.",
-        "perm_flags_section": "Genel yetkiler",
+        "perm_read": "Görüntüleyebilir",
+        "perm_hidden_read": "Maskeli görüntüleyebilir",
+        "perm_write": "Görüntüleyebilir ve düzenleyebilir",
+        "perm_fields_section": "Alan erişimi",
+        "perm_actions_section": "İşlem yetkileri",
+        "perm_name_label": "Kayıt adları",
+        "perm_name_desc": "Kayıtların ana isim alanını görme ve düzenleme seviyesini belirler.",
+        "perm_info_label": "Değer alanları",
+        "perm_info_desc": "Kayıtlara bağlı tüm değer hücrelerinin erişim seviyesini belirler.",
+        "perm_can_add": "Yeni kayıt oluşturabilir",
+        "perm_can_add_desc": "Yeni bir kayıt satırı oluşturabilir; en az bir alan için düzenleme izni de gerekir.",
+        "perm_can_delete": "Kayıtları silebilir",
+        "perm_can_delete_desc": "Bir kaydı ve ona bağlı tüm değer hücrelerini tamamen silebilir.",
+        "perm_can_save": "Değişiklikleri kasaya kaydedebilir",
+        "perm_can_save_desc": "Yaptığı değişiklikleri şifreli kasa dosyasına kalıcı olarak yazabilir.",
+        "perm_flags_section": "Yetkiler",
         "pwd_label": "Parola:",
         "pwd_repeat_label": "Tekrar:",
         "pwd_placeholder": "Parola",
@@ -144,11 +190,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "hide": "Gizle",
         "pwd_too_short": "Parola en az {min_len} karakter olmalıdır.",
         "pwd_mismatch": "Parolalar eşleşmiyor.",
+        "pwd_not_available": "Bu parola kullanılamaz. Farklı bir parola seçin.",
         "pwd_admin_required": "Yönetici parolası zorunludur.",
         "open_pwd_title": "Kasa Parolası",
         "open_pwd_label": "Dosya: {file}\nYönetici veya kullanıcı parolanızı girin:",
-        "users_title": "Alt Kullanıcı İzinleri",
-        "users_info": "Alt kullanıcı kartlarında parola ve genel yetkiler kişiye özeldir. İsim / Bilgiler izinleri sağda tüm kullanıcılar için ortaktır. Düzenleme, ekleme veya silme yetkisi verildiğinde kaydetme otomatik açılır.",
+        "users_title": "Kullanıcılar ve Yetkiler",
+        "users_info": "Her alt kullanıcının alan erişimi ve işlem yetkileri kendi kartında yönetilir. Parola alanı yalnızca değiştirmek istediğinizde açılır.",
         "audit_title": "Değişiklik Geçmişi",
         "report_title": "Parola Sağlık Raporu",
         "report_empty": "Raporda gösterilecek parola yok.",
@@ -205,9 +252,42 @@ _STRINGS: dict[str, dict[str, str]] = {
         "help_credits_ver": "Sürüm {version}  ·  Ücretsiz",
         "help_credits_footer": "© 2026 Hidroteknik Yazılım  ·  Güvenliğiniz önceliğimizdir",
         "help_close": "Kapat",
+        "help_window_eyebrow": "KOBIPASS REHBERİ",
+        "help_window_title": "Hızlı ve güvenli başlangıç",
+        "help_window_subtitle": (
+            "Kasanızı oluşturmak, kayıtlarınızı yönetmek ve güvenli erişimi "
+            "paylaşmak için temel adımlar."
+        ),
+        "help_steps_title": "Üç adımda başlayın",
         "about_title": "Güvenlik Protokolü ve Hakkında",
         "about_tab_security": "Güvenlik Protokolü",
         "about_tab_credits": "Açık Kaynak & Lisanslar",
+        "security_window_eyebrow": "KOBIPASS GÜVENLİK MİMARİSİ",
+        "security_window_title": "Veriniz cihazınızda, kontrol sizde",
+        "security_window_subtitle": (
+            "Katmanlı şifreleme, güçlü anahtar türetme ve rol izolasyonu ile "
+            "kasa verileriniz uçtan uca korunur."
+        ),
+        "security_hero_title": "Yerel. Şifreli. Sıfır bilgi.",
+        "security_hero_text": (
+            "KobiPass verilerinizi bir sunucuya göndermez. Kasa yalnızca doğru "
+            "parolayla, bulunduğu cihazda açılır."
+        ),
+        "security_card1_title": "AES-256-GCM",
+        "security_card1_text": "Kasa içeriği kimlik doğrulamalı güçlü şifreleme ile korunur.",
+        "security_card2_title": "Argon2id",
+        "security_card2_text": "Parola tahminlerini bellek ve işlem maliyetiyle zorlaştırır.",
+        "security_card3_title": "Zarf şifreleme",
+        "security_card3_text": "Yönetici ve kullanıcılar veri anahtarını ayrı katmanlarda sarar.",
+        "security_card4_title": "Oturum koruması",
+        "security_card4_text": "Boşta kalınca kilitlenir; pano içeriği otomatik temizlenir.",
+        "security_card5_title": "Rol izolasyonu",
+        "security_card5_text": "Alt kullanıcılar yalnızca kendilerine verilen alan ve işlemlere erişir.",
+        "security_card6_title": "Şifreli değişiklik izi",
+        "security_card6_text": "Kasa işlemleri zaman damgalı ve şifreli olarak kayıt altına alınır.",
+        "security_credits": (
+            "KobiPass v{version}  ·  Hidroteknik Yazılım  ·  © 2026"
+        ),
         "security_badge": "AES-256 ile Korunuyor",
         "security_badge_tip": "Güvenlik Protokolünü ve Lisansları Gör",
         "btn_security": "Güvenlik",
@@ -221,6 +301,22 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_create_sub": "Sıfırdan yeni bir parola kasası oluşturun",
         "landing_recent": "Son açılanlar",
         "landing_recent_empty": "Henüz son dosya yok",
+        "landing_eyebrow": "KOBİLER İÇİN GÜVENLİ PAROLA KASASI",
+        "landing_hero_title": "Parolalarınız.\nKontrolünüz altında.",
+        "landing_hero_subtitle": (
+            "Kritik hesaplarınızı yerel, şifreli ve rol tabanlı tek bir kasada "
+            "güvenle yönetin."
+        ),
+        "landing_trust_aes": "✓ AES-256-GCM",
+        "landing_trust_argon": "✓ Argon2id",
+        "landing_trust_local": "✓ Yerel depolama",
+        "landing_actions_title": "Kasanıza erişin",
+        "landing_actions_subtitle": (
+            "Son kasanızla devam edin, başka bir dosya seçin veya yeni bir kasa oluşturun."
+        ),
+        "landing_latest_kicker": "SON KASANIZ",
+        "landing_open_latest": "Son kasayı aç",
+        "landing_open_other": "Başka dosya seç",
         "backup_missing_title": "Kasa dosyası bulunamadı",
         "backup_missing_text": (
             "Kasa dosyası silinmiş veya taşınmış:\n{path}\n\n"
@@ -239,6 +335,13 @@ _STRINGS: dict[str, dict[str, str]] = {
         "admin_pwd_new": "Yeni yönetici parolası:",
         "admin_pwd_new_repeat": "Yeni yönetici tekrar:",
         "admin_pwd_wrong": "Mevcut yönetici parolası hatalı.",
+        "vault_settings_title": "Kasa Ayarları",
+        "vault_settings_heading": "Kasa güvenlik ayarları",
+        "vault_settings_info": "Yönetici parolası tüm kasa yetkilerini açar. Bu değişiklik kullanıcı izinlerinden ayrı yönetilir ve Kaydet ile dosyaya yazılır.",
+        "settings_applied_title": "Kasa ayarları uygulandı",
+        "settings_applied_text": "Yönetici parolası değişikliği hazırlandı. Kalıcı olması için Kaydet düğmesine basın.",
+        "apply": "Uygula",
+        "restricted_vault_settings": "Kasa güvenlik ayarlarını yalnızca yönetici değiştirebilir.",
         "lock_title": "Kasa kilitli",
         "lock_text": "Devam etmek için oturum parolanızı girin:",
         "lock_unlock": "Kilidi Aç",
@@ -263,6 +366,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "crypto.wrap_failed": "Sarmalayıcı oluşturulamadı",
         "crypto.invalid_dek": "Geçersiz veri anahtarı",
         "crypto.invalid_user_slots": "Geçersiz kullanıcı slot sayısı",
+        "crypto.duplicate_password": "Yönetici ve kullanıcı parolaları farklı olmalıdır",
     },
     "en": {
         "app_name": "KobiPass",
@@ -273,7 +377,8 @@ _STRINGS: dict[str, dict[str, str]] = {
         "btn_home_tip": "Return to home page",
         "btn_save": "Save",
         "btn_clear": "Clear",
-        "btn_users": "User Permissions",
+        "btn_users": "Users & Permissions",
+        "btn_vault_settings": "Vault Settings",
         "btn_audit": "Change History",
         "btn_report": "Password Report",
         "btn_report_tip": "Show full password health report",
@@ -285,18 +390,19 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Save creates a .enc file with 1 admin and up to 3 user passwords. "
             "Open File unlocks the vault; your role is detected automatically."
         ),
-        "status_no_records": "No records",
-        "status_records": "Records: {count}",
-        "status_unsaved": "Unsaved",
-        "status_file": "File: {path}",
-        "status_dirty": " • Unsaved changes",
-        "status_role": "Session: {role}",
+        "status_no_records": "Ready · Waiting for first record",
+        "status_records": "{count} records",
+        "status_unsaved": "New vault",
+        "status_file": "{path}",
+        "status_dirty": "  ·  Not saved",
+        "status_role": "{role}",
         "field_name": "Name",
         "field_info1": "Info 1",
         "field_info2": "Info 2",
         "field_info3": "Info 3",
         "field_info4": "Info 4",
         "field_info_n": "Info {n}",
+        "field_value_placeholder": "Enter value",
         "add_field_tip": "Add another info field",
         "remove_field_tip": "Remove the last added info field",
         "copy_tooltip": "{field} — copy to clipboard",
@@ -324,11 +430,20 @@ _STRINGS: dict[str, dict[str, str]] = {
         "confirm_delete_title": "Delete record",
         "confirm_delete_text": "Are you sure? This record will be deleted.",
         "btn_add_record": "+ Add Record",
-        "empty_state_title": "Add your first record",
-        "empty_state_tip1": "1. Press Add Record, then enter a name and info fields",
-        "empty_state_tip2": "2. Press Save to create your encrypted vault file",
-        "empty_state_tip3": "3. Optionally share access under Sub-users",
-        "empty_state_cta": "+ Add Record",
+        "empty_state_eyebrow": "NEW VAULT WORKSPACE",
+        "empty_state_title": "Create your first record securely",
+        "empty_state_subtitle": (
+            "Start building your encrypted vault by adding an account name and password."
+        ),
+        "empty_state_steps_title": "Your vault in three steps",
+        "empty_state_steps_subtitle": "Your data stays in this session until you save it.",
+        "empty_state_tip1": "Create a record row and fill in its name and info fields.",
+        "empty_state_tip2": "Press Save to create your AES-256 encrypted vault file.",
+        "empty_state_tip3": "Optionally add sub-users and configure their permissions.",
+        "empty_state_cta": "Create first record",
+        "empty_state_shortcut": "Keyboard shortcut: Ctrl + N",
+        "empty_state_security": "✓ Local  ·  ✓ Encrypted  ·  ✓ Zero knowledge",
+        "vault_workspace_hint": "Local encrypted vault workspace",
         "add_record_tip": "Add a new record row",
         "title_minimize": "Minimize",
         "title_maximize": "Maximize",
@@ -360,19 +475,46 @@ _STRINGS: dict[str, dict[str, str]] = {
         "info_title": "Info",
         "admin_needed_user": "This action requires administrator rights. As a sub-user you do not have this permission.",
         "admin_needed_new": "To use this section, please save your file first and set up sub-user permissions.",
+        "restricted_notice_title": "Permission restricted",
+        "restricted_add_record": (
+            "You do not have permission to add a new record as a sub-user. "
+            "Please contact your administrator."
+        ),
+        "restricted_save": (
+            "You do not have permission to save changes to this vault. "
+            "Please contact your administrator."
+        ),
+        "restricted_delete_record": (
+            "You do not have permission to delete records. Please contact your administrator."
+        ),
+        "restricted_edit_fields": (
+            "You do not have permission to add or remove info fields. "
+            "Please contact your administrator."
+        ),
+        "restricted_field_edit": "This field is view-only; you do not have edit permission.",
+        "restricted_manage_users": "Only an administrator can manage sub-users and permissions.",
+        "restricted_audit": "Only an administrator can view the change history.",
+        "restricted_report": "Only an administrator can view the password health report.",
+        "restricted_admin_feature": "This feature is available only to administrators.",
+        "restricted_reorder": "Only an administrator can reorder records.",
+        "user_workspace_hint": "Sub-user session · Permissions are managed by your administrator",
         "opened_text": "{count} record(s) loaded.",
         "setup_pwd_title": "Vault Setup",
         "setup_pwd_info": (
             "Admin password is required on the right (min. {min_len} characters).\n"
-            "Add sub-users on the left; each card has its own name, password, and general rights. "
-            "Name / Info field permissions on the right are shared by all sub-users."
+            "Configure each sub-user's password, field access, and action permissions in its own card."
         ),
         "admin_setup_section": "Administrator",
         "admin_pwd_label": "Admin password:",
         "admin_pwd_repeat": "Admin repeat:",
         "max_users_reached": "You can add at most {max} sub-users.",
         "user_pwd_label": "Sub-user {n} password:",
+        "user_card_title": "Sub-user {n}",
         "user_default_label": "Sub-user {n}",
+        "user_name_label": "User name:",
+        "new_user_password_label": "Sub-user password:",
+        "change_user_password": "Change sub-user password",
+        "cancel_password_change": "Cancel password change",
         "users_section": "Sub-users",
         "add_user_btn": "+ Add Sub-user",
         "remove_user_tip": "Remove this sub-user",
@@ -381,16 +523,24 @@ _STRINGS: dict[str, dict[str, str]] = {
         "users_applied_title": "Changes applied",
         "users_applied_text": "Sub-user and permission changes were applied. Save the changes by pressing the Save button.",
         "user_pwd_repeat": "User {n} repeat:",
-        "perm_section": "Permissions (shared for users)",
+        "perm_section": "User permissions",
         "perm_none": "Hidden",
-        "perm_read": "View",
-        "perm_hidden_read": "Masked view",
-        "perm_write": "Edit",
-        "perm_can_add": "Can add records",
+        "perm_read": "Can view",
+        "perm_hidden_read": "Can view masked",
+        "perm_write": "Can view and edit",
+        "perm_fields_section": "Field access",
+        "perm_actions_section": "Action permissions",
+        "perm_name_label": "Record names",
+        "perm_name_desc": "Controls access to each record's primary name field.",
+        "perm_info_label": "Value fields",
+        "perm_info_desc": "Controls access to all value cells attached to records.",
+        "perm_can_add": "Can create new records",
+        "perm_can_add_desc": "Can create a new record row; at least one field must also be editable.",
         "perm_can_delete": "Can delete records",
-        "perm_can_save": "Can save",
-        "perm_can_save_hint": "Enabled automatically when edit, add, or delete rights are granted.",
-        "perm_flags_section": "General rights",
+        "perm_can_delete_desc": "Can permanently delete a record and every value cell attached to it.",
+        "perm_can_save": "Can save changes to the vault",
+        "perm_can_save_desc": "Can write changes permanently to the encrypted vault file.",
+        "perm_flags_section": "Permissions",
         "pwd_label": "Password:",
         "pwd_repeat_label": "Repeat:",
         "pwd_placeholder": "Password",
@@ -399,11 +549,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "hide": "Hide",
         "pwd_too_short": "Password must be at least {min_len} characters.",
         "pwd_mismatch": "Passwords do not match.",
+        "pwd_not_available": "This password cannot be used. Choose a different password.",
         "pwd_admin_required": "Admin password is required.",
         "open_pwd_title": "Vault Password",
         "open_pwd_label": "File: {file}\nEnter your admin or user password:",
-        "users_title": "Sub-user Permissions",
-        "users_info": "Each sub-user card has its own password and general rights. Name / Info field permissions on the right are shared by all sub-users. Save is enabled automatically when edit, add, or delete rights are granted.",
+        "users_title": "Users & Permissions",
+        "users_info": "Each sub-user's field access and action permissions are managed in their own card. Password fields open only when you choose to change one.",
         "audit_title": "Change History",
         "report_title": "Password Health Report",
         "report_empty": "No passwords to report.",
@@ -460,9 +611,42 @@ _STRINGS: dict[str, dict[str, str]] = {
         "help_credits_ver": "Version {version}  ·  Free",
         "help_credits_footer": "© 2026 Hidroteknik Yazılım  ·  Your security is our priority",
         "help_close": "Close",
+        "help_window_eyebrow": "KOBIPASS GUIDE",
+        "help_window_title": "A fast, secure start",
+        "help_window_subtitle": (
+            "The essential steps to create your vault, manage records, "
+            "and share secure access."
+        ),
+        "help_steps_title": "Start in three steps",
         "about_title": "Security Protocol & About",
         "about_tab_security": "Security Protocol",
         "about_tab_credits": "Open Source & Licenses",
+        "security_window_eyebrow": "KOBIPASS SECURITY ARCHITECTURE",
+        "security_window_title": "Your data stays local and under your control",
+        "security_window_subtitle": (
+            "Layered encryption, hardened key derivation, and role isolation "
+            "protect your vault end to end."
+        ),
+        "security_hero_title": "Local. Encrypted. Zero knowledge.",
+        "security_hero_text": (
+            "KobiPass never sends your data to a server. The vault opens only "
+            "with the correct password on the device where it is stored."
+        ),
+        "security_card1_title": "AES-256-GCM",
+        "security_card1_text": "Vault contents use strong authenticated encryption.",
+        "security_card2_title": "Argon2id",
+        "security_card2_text": "Memory and compute cost make password guessing expensive.",
+        "security_card3_title": "Envelope encryption",
+        "security_card3_text": "Admin and user credentials wrap the data key separately.",
+        "security_card4_title": "Session protection",
+        "security_card4_text": "Idle sessions lock and clipboard contents clear automatically.",
+        "security_card5_title": "Role isolation",
+        "security_card5_text": "Sub-users access only the fields and actions granted to them.",
+        "security_card6_title": "Encrypted audit trail",
+        "security_card6_text": "Vault operations are recorded with encrypted timestamps.",
+        "security_credits": (
+            "KobiPass v{version}  ·  Hidroteknik Yazılım  ·  © 2026"
+        ),
         "security_badge": "Protected with AES-256",
         "security_badge_tip": "View security protocol and licenses",
         "btn_security": "Security",
@@ -476,6 +660,22 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_create_sub": "Start a brand-new password vault",
         "landing_recent": "Recent files",
         "landing_recent_empty": "No recent files yet",
+        "landing_eyebrow": "SECURE PASSWORD VAULT FOR SMALL BUSINESSES",
+        "landing_hero_title": "Your passwords.\nUnder your control.",
+        "landing_hero_subtitle": (
+            "Manage critical accounts safely in one local, encrypted, "
+            "role-based vault."
+        ),
+        "landing_trust_aes": "✓ AES-256-GCM",
+        "landing_trust_argon": "✓ Argon2id",
+        "landing_trust_local": "✓ Local storage",
+        "landing_actions_title": "Access your vault",
+        "landing_actions_subtitle": (
+            "Continue with your latest vault, choose another file, or create a new one."
+        ),
+        "landing_latest_kicker": "YOUR LATEST VAULT",
+        "landing_open_latest": "Open latest vault",
+        "landing_open_other": "Choose another file",
         "backup_missing_title": "Vault file not found",
         "backup_missing_text": (
             "The vault file was deleted or moved:\n{path}\n\n"
@@ -494,6 +694,13 @@ _STRINGS: dict[str, dict[str, str]] = {
         "admin_pwd_new": "New admin password:",
         "admin_pwd_new_repeat": "Repeat new admin password:",
         "admin_pwd_wrong": "Current admin password is incorrect.",
+        "vault_settings_title": "Vault Settings",
+        "vault_settings_heading": "Vault security settings",
+        "vault_settings_info": "The admin password unlocks every vault permission. It is managed separately from user permissions and written to the file when you press Save.",
+        "settings_applied_title": "Vault settings applied",
+        "settings_applied_text": "The admin password change is ready. Press Save to make it permanent.",
+        "apply": "Apply",
+        "restricted_vault_settings": "Only an administrator can change vault security settings.",
         "lock_title": "Vault locked",
         "lock_text": "Enter your session password to continue:",
         "lock_unlock": "Unlock",
@@ -518,6 +725,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "crypto.wrap_failed": "Failed to create key wrap",
         "crypto.invalid_dek": "Invalid data encryption key",
         "crypto.invalid_user_slots": "Invalid user slot count",
+        "crypto.duplicate_password": "Admin and user passwords must be different",
     },
 }
 

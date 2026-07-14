@@ -56,6 +56,7 @@ Start-Sleep -Seconds 1
     --icon $IconAscii `
     --version-file $VersionFile `
     --add-data "assets\logo.png;assets" `
+    --add-data "assets\logo2.png;assets" `
     --add-data "assets\icon.ico;assets" `
     --clean `
     main.py
