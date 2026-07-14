@@ -804,6 +804,183 @@ QListWidget#landingRecentList::item:selected {
     background-color: #2d3340;
 }
 
+/* --- Premium karşılama ekranı --- */
+QWidget#landingPage {
+    background-color: #171a20;
+}
+
+QFrame#landingHero {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #202738,
+        stop: 0.55 #1d222c,
+        stop: 1 #191d24
+    );
+    border: 1px solid #30394b;
+    border-radius: 22px;
+}
+
+QLabel#landingHeroLogo {
+    background: transparent;
+}
+
+QLabel#landingEyebrow {
+    color: #7188ff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+QLabel#landingHeroTitle {
+    color: #f4f7ff;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+QLabel#landingHeroSubtitle {
+    color: #a9b2c3;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+QLabel#landingTrustChip {
+    color: #b9c5df;
+    background-color: rgba(75, 104, 244, 28);
+    border: 1px solid #394665;
+    border-radius: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QFrame#landingActions {
+    background-color: #1e2229;
+    border: 1px solid #303744;
+    border-radius: 22px;
+}
+
+QLabel#landingActionsTitle {
+    color: #f1f4fa;
+    font-size: 23px;
+    font-weight: 700;
+}
+
+QLabel#landingActionsSubtitle {
+    color: #8f99aa;
+    font-size: 12px;
+    padding-bottom: 8px;
+}
+
+QFrame#landingLatestCard {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #27324d,
+        stop: 1 #222938
+    );
+    border: 1px solid #465b9d;
+    border-radius: 14px;
+}
+
+QLabel#landingLatestKicker {
+    color: #8da0ff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+QLabel#landingLatestName {
+    color: #f5f7ff;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+QLabel#landingLatestPath {
+    color: #9da7b8;
+    font-size: 11px;
+    padding-bottom: 6px;
+}
+
+QPushButton#landingPrimaryBtn,
+QPushButton#landingCreateBtn,
+QPushButton#landingSecondaryBtn {
+    min-height: 40px;
+    border-radius: 9px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+}
+
+QPushButton#landingPrimaryBtn {
+    background-color: #4b68f4;
+    color: #ffffff;
+    border: 1px solid #5f78f7;
+}
+
+QPushButton#landingPrimaryBtn:hover {
+    background-color: #5d77f7;
+    border-color: #7890ff;
+}
+
+QPushButton#landingSecondaryBtn {
+    background-color: #252a33;
+    color: #d9deea;
+    border: 1px solid #3c4554;
+}
+
+QPushButton#landingSecondaryBtn:hover {
+    background-color: #2c3340;
+    border-color: #59667b;
+}
+
+QPushButton#landingCreateBtn {
+    background-color: transparent;
+    color: #9db0ff;
+    border: 1px solid #43568e;
+}
+
+QPushButton#landingCreateBtn:hover {
+    background-color: rgba(75, 104, 244, 26);
+    border-color: #6078cc;
+    color: #c6d0ff;
+}
+
+QFrame#landingActions QLabel#landingRecentTitle {
+    color: #8f99aa;
+    font-size: 11px;
+    font-weight: 700;
+    padding-top: 7px;
+}
+
+QFrame#landingActions QListWidget#landingRecentList {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    color: #d7dce6;
+    padding: 0;
+}
+
+QFrame#landingActions QListWidget#landingRecentList::item {
+    background-color: #242932;
+    border: 1px solid #323a47;
+    border-radius: 7px;
+    padding: 7px 10px;
+    margin: 2px 0;
+}
+
+QFrame#landingActions QListWidget#landingRecentList::item:hover,
+QFrame#landingActions QListWidget#landingRecentList::item:selected {
+    background-color: #2c3443;
+    border-color: #4b68f4;
+}
+
+QFrame#landingActions QLabel#landingRecentEmpty {
+    color: #6f7887;
+    font-size: 12px;
+    padding: 22px 8px;
+}
+
 /* --- Kasa boş durum: filigran + rehber --- */
 QWidget#vaultEmptyState {
     background: transparent;
@@ -1778,6 +1955,180 @@ QListWidget#landingRecentList::item {
 QListWidget#landingRecentList::item:hover,
 QListWidget#landingRecentList::item:selected {
     background-color: #eff6ff;
+}
+
+/* --- Premium karşılama ekranı (aydınlık) --- */
+QWidget#landingPage {
+    background-color: #f3f5fa;
+}
+
+QFrame#landingHero {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #eef2ff,
+        stop: 0.58 #f7f8fc,
+        stop: 1 #ffffff
+    );
+    border: 1px solid #d9e0ef;
+    border-radius: 22px;
+}
+
+QLabel#landingHeroLogo {
+    background: transparent;
+}
+
+QLabel#landingEyebrow {
+    color: #4660dd;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+QLabel#landingHeroTitle {
+    color: #172033;
+    font-size: 34px;
+    font-weight: 700;
+}
+
+QLabel#landingHeroSubtitle {
+    color: #5d687b;
+    font-size: 14px;
+}
+
+QLabel#landingTrustChip {
+    color: #3e4d70;
+    background-color: #edf1ff;
+    border: 1px solid #cfd8fa;
+    border-radius: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QFrame#landingActions {
+    background-color: #ffffff;
+    border: 1px solid #dce2ec;
+    border-radius: 22px;
+}
+
+QLabel#landingActionsTitle {
+    color: #182235;
+    font-size: 23px;
+    font-weight: 700;
+}
+
+QLabel#landingActionsSubtitle {
+    color: #697488;
+    font-size: 12px;
+    padding-bottom: 8px;
+}
+
+QFrame#landingLatestCard {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #edf1ff,
+        stop: 1 #f7f8ff
+    );
+    border: 1px solid #bfcafa;
+    border-radius: 14px;
+}
+
+QLabel#landingLatestKicker {
+    color: #4b62d2;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+QLabel#landingLatestName {
+    color: #16213a;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+QLabel#landingLatestPath {
+    color: #68748b;
+    font-size: 11px;
+    padding-bottom: 6px;
+}
+
+QPushButton#landingPrimaryBtn,
+QPushButton#landingCreateBtn,
+QPushButton#landingSecondaryBtn {
+    min-height: 40px;
+    border-radius: 9px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+}
+
+QPushButton#landingPrimaryBtn {
+    background-color: #4b68f4;
+    color: #ffffff;
+    border: 1px solid #405de4;
+}
+
+QPushButton#landingPrimaryBtn:hover {
+    background-color: #405de4;
+    border-color: #304dcc;
+}
+
+QPushButton#landingSecondaryBtn {
+    background-color: #f7f8fb;
+    color: #334155;
+    border: 1px solid #d9dfeb;
+}
+
+QPushButton#landingSecondaryBtn:hover {
+    background-color: #eef1f7;
+    border-color: #bcc7da;
+}
+
+QPushButton#landingCreateBtn {
+    background-color: #f5f7ff;
+    color: #4058c9;
+    border: 1px solid #c4cff5;
+}
+
+QPushButton#landingCreateBtn:hover {
+    background-color: #e9edff;
+    border-color: #879aeb;
+}
+
+QFrame#landingActions QLabel#landingRecentTitle {
+    color: #647087;
+    font-size: 11px;
+    font-weight: 700;
+    padding-top: 7px;
+}
+
+QFrame#landingActions QListWidget#landingRecentList {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    color: #263247;
+    padding: 0;
+}
+
+QFrame#landingActions QListWidget#landingRecentList::item {
+    background-color: #f7f8fb;
+    border: 1px solid #e0e5ee;
+    border-radius: 7px;
+    padding: 7px 10px;
+    margin: 2px 0;
+}
+
+QFrame#landingActions QListWidget#landingRecentList::item:hover,
+QFrame#landingActions QListWidget#landingRecentList::item:selected {
+    background-color: #edf1ff;
+    border-color: #8094ea;
+}
+
+QFrame#landingActions QLabel#landingRecentEmpty {
+    color: #9aa3b2;
+    font-size: 12px;
+    padding: 22px 8px;
 }
 
 /* --- Kasa boş durum: filigran + rehber --- */

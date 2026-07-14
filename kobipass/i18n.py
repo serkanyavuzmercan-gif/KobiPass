@@ -220,6 +220,22 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_create_sub": "Sıfırdan yeni bir parola kasası oluşturun",
         "landing_recent": "Son açılanlar",
         "landing_recent_empty": "Henüz son dosya yok",
+        "landing_eyebrow": "KOBİLER İÇİN GÜVENLİ PAROLA KASASI",
+        "landing_hero_title": "Parolalarınız.\nKontrolünüz altında.",
+        "landing_hero_subtitle": (
+            "Kritik hesaplarınızı yerel, şifreli ve rol tabanlı tek bir kasada "
+            "güvenle yönetin."
+        ),
+        "landing_trust_aes": "✓ AES-256-GCM",
+        "landing_trust_argon": "✓ Argon2id",
+        "landing_trust_local": "✓ Yerel depolama",
+        "landing_actions_title": "Kasanıza erişin",
+        "landing_actions_subtitle": (
+            "Son kasanızla devam edin, başka bir dosya seçin veya yeni bir kasa oluşturun."
+        ),
+        "landing_latest_kicker": "SON KASANIZ",
+        "landing_open_latest": "Son kasayı aç",
+        "landing_open_other": "Başka dosya seç",
         "backup_missing_title": "Kasa dosyası bulunamadı",
         "backup_missing_text": (
             "Kasa dosyası silinmiş veya taşınmış:\n{path}\n\n"
@@ -474,6 +490,22 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_create_sub": "Start a brand-new password vault",
         "landing_recent": "Recent files",
         "landing_recent_empty": "No recent files yet",
+        "landing_eyebrow": "SECURE PASSWORD VAULT FOR SMALL BUSINESSES",
+        "landing_hero_title": "Your passwords.\nUnder your control.",
+        "landing_hero_subtitle": (
+            "Manage critical accounts safely in one local, encrypted, "
+            "role-based vault."
+        ),
+        "landing_trust_aes": "✓ AES-256-GCM",
+        "landing_trust_argon": "✓ Argon2id",
+        "landing_trust_local": "✓ Local storage",
+        "landing_actions_title": "Access your vault",
+        "landing_actions_subtitle": (
+            "Continue with your latest vault, choose another file, or create a new one."
+        ),
+        "landing_latest_kicker": "YOUR LATEST VAULT",
+        "landing_open_latest": "Open latest vault",
+        "landing_open_other": "Choose another file",
         "backup_missing_title": "Vault file not found",
         "backup_missing_text": (
             "The vault file was deleted or moved:\n{path}\n\n"
