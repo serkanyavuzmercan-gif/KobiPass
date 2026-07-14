@@ -215,17 +215,18 @@ def icon_theme(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
 
 
 def icon_key(color: QColor = ACCENT_COLOR, size: int = 18) -> QIcon:
-    """Anahtar — parola üret."""
+    """Anahtar — parola üret. 24'lük kutuya ortalı, kenarlardan taşmaz."""
     def draw(p: QPainter) -> None:
         s = size / 24.0
         p.setPen(_line_pen(color, 2.0 * s))
         p.setBrush(Qt.BrushStyle.NoBrush)
-        # halka (anahtarın başı)
-        p.drawEllipse(_pt(5 * s, 6 * s), 5.5 * s, 5.5 * s)
-        # sap ve dişler
-        p.drawLine(_pt(11.5 * s, 12 * s), _pt(20 * s, 20.5 * s))
-        p.drawLine(_pt(17 * s, 17.5 * s), _pt(19.5 * s, 15 * s))
-        p.drawLine(_pt(14.5 * s, 15 * s), _pt(17 * s, 12.5 * s))
+        # halka (anahtarın başı) — sol üstte, kutu içinde
+        p.drawEllipse(_pt(8 * s, 8 * s), 4.2 * s, 4.2 * s)
+        # sap
+        p.drawLine(_pt(11 * s, 11 * s), _pt(19.5 * s, 19.5 * s))
+        # dişler
+        p.drawLine(_pt(17.6 * s, 17 * s), _pt(19.6 * s, 15 * s))
+        p.drawLine(_pt(15 * s, 14.4 * s), _pt(16.6 * s, 12.8 * s))
 
     return _scaled_icon(f"key:{color.name()}:{size}", draw, size)
 

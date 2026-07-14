@@ -626,8 +626,12 @@ QMenu {
 }
 
 QMenu::item {
-    padding: 6px 22px 6px 8px;
+    padding: 6px 24px 6px 12px;
     border-radius: 4px;
+}
+
+QMenu::icon {
+    padding-left: 6px;
 }
 
 QMenu::item:selected {
@@ -1479,8 +1483,12 @@ QMenu {
 }
 
 QMenu::item {
-    padding: 6px 22px 6px 8px;
+    padding: 6px 24px 6px 12px;
     border-radius: 4px;
+}
+
+QMenu::icon {
+    padding-left: 6px;
 }
 
 QMenu::item:selected {

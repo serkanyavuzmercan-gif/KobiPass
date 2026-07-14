@@ -23,6 +23,32 @@ from kobipass.resources import app_icon
 from kobipass.vault_model import AuditEntry, KobiVault
 
 
+def _audit_summary_display(entry: AuditEntry, vault: KobiVault) -> str:
+    """Özeti kayıt anında saklanan metinden değil, mevcut dile göre üretir."""
+    if entry.action == "vault_save":
+        return tr("audit_vault_saved")
+    if entry.action == "field_edit":
+        if is_sensitive_audit_field(entry.field):
+            return tr("audit_password_updated")
+        return tr("audit_field_updated", field=field_label(entry.field, vault))
+    return entry.summary
+
+
+def _audit_user_display(entry: AuditEntry, vault: KobiVault) -> str:
+    """Kullanıcı adını çevirir: varsayılan 'Kullanıcı N' dile göre çevrilir,
+    yöneticinin verdiği özel etiket ise aynen gösterilir."""
+    slot = entry.user_slot
+    if not slot:
+        return entry.user_label
+    labels = getattr(vault, "user_slot_labels", []) or []
+    if 1 <= slot <= len(labels):
+        label = str(labels[slot - 1]).strip()
+        # Sabit Türkçe varsayılan (vault_model) — özel değilse dile göre çevir.
+        if label and label != f"Kullanıcı {slot}":
+            return label
+    return tr("role_user", slot=slot)
+
+
 def _audit_value_display(entry: AuditEntry, which: str) -> str:
     if entry.action != "field_edit":
         return ""
@@ -125,7 +151,9 @@ class AuditLogDialog(QDialog):
                 field_label(entry.field, self._vault) if entry.field else ""
             )
             self._table.setItem(row, 0, QTableWidgetItem(entry.at))
-            self._table.setItem(row, 1, QTableWidgetItem(entry.user_label))
+            self._table.setItem(
+                row, 1, QTableWidgetItem(_audit_user_display(entry, self._vault))
+            )
             self._table.setItem(row, 2, QTableWidgetItem(entry.entry_name))
             self._table.setItem(row, 3, QTableWidgetItem(field_display))
             self._table.setItem(
@@ -134,4 +162,6 @@ class AuditLogDialog(QDialog):
             self._table.setItem(
                 row, 5, QTableWidgetItem(_audit_value_display(entry, "new"))
             )
-            self._table.setItem(row, 6, QTableWidgetItem(entry.summary))
+            self._table.setItem(
+                row, 6, QTableWidgetItem(_audit_summary_display(entry, self._vault))
+            )

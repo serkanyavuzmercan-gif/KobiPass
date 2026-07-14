@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass import __version__
-from kobipass.i18n import tr
+from kobipass.i18n import i18n, tr
 
 
 class AboutDialog(QDialog):
@@ -80,6 +80,19 @@ class AboutDialog(QDialog):
         self.close_btn.setText(tr("help_close"))
 
     def _get_security_html(self) -> str:
+        if not i18n.is_tr():
+            return """
+        <h3 style="color: #4b68f4; margin-bottom: 5px;">KobiPass Security Architecture</h3>
+        <p style="margin-top: 0;">Your data is protected with industry-standard cryptographic algorithms.</p>
+        <ul style="line-height: 1.6;">
+            <li><b>Zero-Knowledge:</b> Your vault files (.enc) are locked entirely on this device. No data is sent to the internet or any server.</li>
+            <li><b>Military-Grade Encryption:</b> Your data is encrypted with <strong>AES-256-GCM</strong>, an international security standard.</li>
+            <li><b>Hardened Password Protection:</b> New vaults derive keys with <strong>Argon2id</strong>; legacy files keep opening with <strong>PBKDF2-HMAC-SHA256</strong> (100,000 iterations).</li>
+            <li><b>Session Protection:</b> Sensitive fields lock when idle or minimized; copied text is automatically cleared from the clipboard.</li>
+            <li><b>Envelope Encryption:</b> Admin and user passwords each wrap the data key (DEK) separately, maximizing privilege isolation.</li>
+            <li><b>Audit Log:</b> Every change to the vault is recorded, encrypted and time-stamped.</li>
+        </ul>
+        """
         return """
         <h3 style="color: #4b68f4; margin-bottom: 5px;">KobiPass Güvenlik Mimarisi</h3>
         <p style="margin-top: 0;">Verileriniz endüstri standartlarında kriptografik algoritmalarla korunmaktadır.</p>
@@ -94,6 +107,24 @@ class AboutDialog(QDialog):
         """
 
     def _get_credits_html(self) -> str:
+        if not i18n.is_tr():
+            return f"""
+        <h3 style="color: #4b68f4; margin-bottom: 5px;">KobiPass v{__version__}</h3>
+        <p style="margin-top: 0; color: gray;">Secure, role-based password vault for SMBs.</p>
+        <hr style="border: 1px solid #808698;">
+        <h4 style="margin-bottom: 2px;">Developer</h4>
+        <p style="margin-top: 0;">All Rights Reserved &copy; 2026</p>
+
+        <h4 style="margin-bottom: 2px; margin-top: 15px;">Open Source Infrastructure (Credits)</h4>
+        <p style="margin-top: 0;">This software is built with the following open-source technologies:</p>
+        <ul style="line-height: 1.6;">
+            <li><b>PyQt6:</b> Desktop UI engine (GPLv3).</li>
+            <li><b>Python Cryptography:</b> AES-GCM and PBKDF2.</li>
+            <li><b>argon2-cffi:</b> Argon2id key derivation.</li>
+        </ul>
+        <br>
+        <p><i>Your security is our priority.</i></p>
+        """
         return f"""
         <h3 style="color: #4b68f4; margin-bottom: 5px;">KobiPass v{__version__}</h3>
         <p style="margin-top: 0; color: gray;">KOBİ'ler için güvenli, rol tabanlı parola kasası.</p>

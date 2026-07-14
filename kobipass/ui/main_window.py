@@ -389,6 +389,8 @@ class MainWindow(QMainWindow):
         self._landing_page.refresh_recent()
 
     def _show_vault_view(self) -> None:
+        # Karşılama ekranında açık kalan yardım paneli kasaya geçince kapansın.
+        self._help_panel.setVisible(False)
         self._stacked_widget.setCurrentWidget(self._vault_view)
         self.statusBar().show()
 
