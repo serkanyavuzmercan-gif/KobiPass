@@ -20,11 +20,11 @@ from kobipass.resources import logo_pixmap
 
 _WATERMARK_OPACITY = 0.08
 _WATERMARK_HEIGHT = 168
-_EMPTY_STATE_ROW_LIMIT = 3
 
 
 def should_show_empty_state(row_count: int) -> bool:
-    return row_count < _EMPTY_STATE_ROW_LIMIT
+    """Yalnızca hiç kayıt satırı yokken boş durum gösterilir."""
+    return row_count == 0
 
 
 class VaultEmptyState(QWidget):

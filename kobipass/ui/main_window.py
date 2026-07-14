@@ -360,7 +360,6 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(self._status_role)
         self._status_right = QLabel("")
         status.addPermanentWidget(self._status_right)
-        self._add_row()
         self._refresh_empty_state()
 
         self.landing_page.btn_open_file.clicked.connect(self._mevcut_dosyayi_ac)
@@ -401,17 +400,45 @@ class MainWindow(QMainWindow):
             self._search_bar.selectAll()
 
     def _on_empty_state_add(self) -> None:
-        if self._add_bar.isVisible() and not self._kilitli_mi:
-            self._add_row()
-            if self._row_widgets:
-                self._row_widgets[-1].focus_edits()[0].setFocus()
+        if self._kilitli_mi:
+            return
+        perms = self._row_permissions()
+        if perms is not None and not perms.can_add_entry:
+            return
+        self._add_row()
+        if self._row_widgets:
+            edits = self._row_widgets[-1].focus_edits()
+            if edits:
+                edits[0].setFocus()
 
     def _refresh_empty_state(self) -> None:
         show = should_show_empty_state(len(self._row_widgets)) and not self._kilitli_mi
         self._empty_state.setVisible(show)
+        # Stretch yalnızca boş durumda — kayıt varken aralıkları sıkıştırmaz.
+        self._entries_layout.setStretchFactor(self._empty_state, 1 if show else 0)
+        if show:
+            self._empty_state.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+            )
+        else:
+            self._empty_state.setSizePolicy(
+                QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored
+            )
+        has_rows = len(self._row_widgets) > 0
+        if has_rows:
+            perms = self._row_permissions()
+            can_add = perms.can_add_entry if perms else True
+            self._add_bar.setVisible(can_add and not self._kilitli_mi)
+        else:
+            self._add_bar.setVisible(False)
 
     def _shortcut_add_row(self) -> None:
-        if self._add_bar.isVisible() and not self._kilitli_mi:
+        if self._kilitli_mi:
+            return
+        if len(self._row_widgets) == 0:
+            self._on_empty_state_add()
+            return
+        if self._add_bar.isVisible():
             self._add_row()
 
     def _shortcut_lock(self) -> None:
@@ -587,7 +614,6 @@ class MainWindow(QMainWindow):
         can_delete = perms.can_delete_entry if perms else True
         can_save = perms.can_save if perms else True
 
-        self._add_bar.setVisible(can_add and not self._kilitli_mi)
         self._btn_save.setEnabled((can_save if is_unlocked else True) and not self._kilitli_mi)
 
         self._apply_row_permissions()
@@ -639,10 +665,9 @@ class MainWindow(QMainWindow):
                 vault_index=self._vault_entry_index(entry, 0),
                 refresh_session=False,
             )
-        if not self._row_widgets:
-            self._add_row(refresh_session=False)
         self._apply_session_ui()
         self._update_tab_order()
+        self._refresh_empty_state()
 
     def _check_scroll_position(self, value: int) -> None:
         bar = self._scroll.verticalScrollBar()
@@ -770,9 +795,8 @@ class MainWindow(QMainWindow):
                 vault_index=self._vault_entry_index(entry, 0),
                 refresh_session=False,
             )
-        if not self._row_widgets:
-            self._add_row(refresh_session=False)
         self._apply_session_ui()
+        self._refresh_empty_state()
 
     def _retranslate_ui(self) -> None:
         self._btn_home.setToolTip(tr("btn_home_tip"))
@@ -942,9 +966,6 @@ class MainWindow(QMainWindow):
             return
         if row not in self._row_widgets:
             return
-        if len(self._row_widgets) <= 1:
-            show_error(self, tr("warn_title"), tr("warn_min_row"))
-            return
         removed_index = row.vault_index
         self._row_widgets.remove(row)
         self._entries_layout.removeWidget(row)
@@ -976,11 +997,8 @@ class MainWindow(QMainWindow):
         self._search_bar.blockSignals(False)
         self._clear_all_rows()
         visible_entries = vault.entries[:_FILTER_PAGE_SIZE]
-        if not visible_entries:
-            self._add_row(refresh_session=False)
-        else:
-            for index, entry in enumerate(visible_entries):
-                self._add_row(entry, vault_index=index, refresh_session=False)
+        for index, entry in enumerate(visible_entries):
+            self._add_row(entry, vault_index=index, refresh_session=False)
         self._snapshot_entries = copy.deepcopy(vault.entries)
         self._clear_dirty()
         for row in self._row_widgets:
