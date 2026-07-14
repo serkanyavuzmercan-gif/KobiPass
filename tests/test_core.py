@@ -161,6 +161,7 @@ def test_primary_field_responsive_width_is_bounded() -> None:
         INFO_FIELD_MAX_WIDTH,
         INFO_FIELD_WIDTH,
         _menu_text,
+        four_column_default_width,
         responsive_field_width,
         three_column_info_width,
     )
@@ -172,6 +173,8 @@ def test_primary_field_responsive_width_is_bounded() -> None:
     assert three_column_info_width(780) == 242
     assert three_column_info_width(300) == INFO_FIELD_WIDTH
     assert three_column_info_width(1200) == INFO_FIELD_MAX_WIDTH
+    assert four_column_default_width(1088) == 256
+    assert four_column_default_width(600) == 200
     assert "Ctrl+G" in _menu_text("Parola üret", QKeySequence("Ctrl+G"))
 
 

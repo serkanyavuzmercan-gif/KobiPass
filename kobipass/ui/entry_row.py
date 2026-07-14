@@ -124,6 +124,13 @@ def three_column_info_width(viewport_width: int) -> int:
     return max(INFO_FIELD_WIDTH, min(INFO_FIELD_MAX_WIDTH, width))
 
 
+def four_column_default_width(row_content_width: int) -> int:
+    """İsim + üç değer + alan düğmeleri için eşit başlangıç kolon genişliği."""
+    spacing_budget = ROW_LAYOUT_SPACING * 4
+    usable = row_content_width - FIELD_STEP_BTN_WIDTH - spacing_budget
+    return max(NAME_FIELD_WIDTH, min(NAME_FIELD_MAX_WIDTH, usable // 4))
+
+
 def _password_strength_color(text: str) -> str:
     from kobipass.password_tools import strength_color
 
@@ -373,6 +380,13 @@ class CompactField(QWidget):
             return
         self._edit.setFixedWidth(target - self._chrome_width)
         self.setFixedWidth(target)
+
+    def set_responsive_base_width(self, width: int) -> None:
+        if not self._responsive_width:
+            return
+        self._base_width = width
+        self._max_width = max(NAME_FIELD_MAX_WIDTH, width)
+        self._update_responsive_width(self._edit.text())
 
     def retranslate(self) -> None:
         label = self._label_text()
@@ -783,10 +797,18 @@ class EntryRowWidget(QWidget):
         QTimer.singleShot(0, self._layout_info_fields)
 
     def _layout_info_fields(self) -> None:
-        viewport_width = self._scroll.viewport().width()
-        if viewport_width <= 0:
+        row_content_width = (
+            self.width() - ROW_MARGINS[0] - ROW_MARGINS[2]
+        )
+        if row_content_width <= 0:
             return
-        width = three_column_info_width(viewport_width)
+        default_width = four_column_default_width(row_content_width)
+        self._name.set_responsive_base_width(default_width)
+
+        scroll_width = (
+            row_content_width - self._name.width() - ROW_LAYOUT_SPACING
+        )
+        width = three_column_info_width(scroll_width)
         fields = [self._info1, *self._extra_fields]
         for field in fields:
             field.set_compact_width(width)
@@ -796,7 +818,7 @@ class EntryRowWidget(QWidget):
             + FIELD_STEP_BTN_WIDTH
             + len(fields) * ROW_LAYOUT_SPACING
         )
-        self._extras_host.setMinimumWidth(max(viewport_width, content_width))
+        self._extras_host.setMinimumWidth(max(scroll_width, content_width))
         self._extras_layout.invalidate()
 
     def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
