@@ -369,12 +369,16 @@ class MainWindow(QMainWindow):
         root.addWidget(self._vault_body, stretch=1)
 
         status = QStatusBar()
+        status.setObjectName("vaultStatusBar")
         self.setStatusBar(status)
         self._status_left = QLabel()
+        self._status_left.setObjectName("statusCount")
         status.addWidget(self._status_left, 1)
         self._status_role = QLabel("")
+        self._status_role.setObjectName("statusRole")
         status.addPermanentWidget(self._status_role)
         self._status_right = QLabel("")
+        self._status_right.setObjectName("statusFile")
         status.addPermanentWidget(self._status_right)
         self._refresh_empty_state()
 
@@ -881,8 +885,9 @@ class MainWindow(QMainWindow):
             else:
                 self._status_left.setText(tr("status_records", count=filled_count))
 
-        path_txt = (
-            str(self._current_path) if self._current_path else tr("status_unsaved")
+        path_txt = self._current_path.name if self._current_path else tr("status_unsaved")
+        self._status_right.setToolTip(
+            str(self._current_path) if self._current_path else ""
         )
         dirty_txt = tr("status_dirty") if self._dirty else ""
         self._status_right.setText(tr("status_file", path=f"{path_txt}{dirty_txt}"))

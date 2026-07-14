@@ -693,10 +693,40 @@ QMenu::item:selected {
     color: #ffffff;
 }
 
-QStatusBar {
-    background-color: #1e293b;
-    color: #9aa0a8;
-    border-top: 1px solid #2d3340;
+QStatusBar#vaultStatusBar {
+    background-color: #171b22;
+    color: #8e98a9;
+    border-top: 1px solid #2c3340;
+    min-height: 27px;
+    padding: 2px 8px;
+}
+
+QStatusBar#vaultStatusBar::item {
+    border: none;
+}
+
+QStatusBar#vaultStatusBar QLabel#statusCount {
+    color: #8e98a9;
+    font-size: 10px;
+    padding: 3px 8px;
+}
+
+QStatusBar#vaultStatusBar QLabel#statusRole {
+    color: #9aabef;
+    background-color: #222a3e;
+    border: 1px solid #344467;
+    border-radius: 10px;
+    font-size: 10px;
+    padding: 3px 9px;
+}
+
+QStatusBar#vaultStatusBar QLabel#statusFile {
+    color: #abb4c3;
+    background-color: #20252e;
+    border: 1px solid #303845;
+    border-radius: 10px;
+    font-size: 10px;
+    padding: 3px 9px;
 }
 
 QMessageBox {
@@ -2089,10 +2119,40 @@ QMenu::item:selected {
     color: #1f2937;
 }
 
-QStatusBar {
-    background-color: #1e293b;
-    color: #94a3b8;
-    border-top: 1px solid #0f172a;
+QStatusBar#vaultStatusBar {
+    background-color: #f8f9fc;
+    color: #687386;
+    border-top: 1px solid #dce2ec;
+    min-height: 27px;
+    padding: 2px 8px;
+}
+
+QStatusBar#vaultStatusBar::item {
+    border: none;
+}
+
+QStatusBar#vaultStatusBar QLabel#statusCount {
+    color: #687386;
+    font-size: 10px;
+    padding: 3px 8px;
+}
+
+QStatusBar#vaultStatusBar QLabel#statusRole {
+    color: #4058c9;
+    background-color: #edf1ff;
+    border: 1px solid #cbd5f8;
+    border-radius: 10px;
+    font-size: 10px;
+    padding: 3px 9px;
+}
+
+QStatusBar#vaultStatusBar QLabel#statusFile {
+    color: #536077;
+    background-color: #ffffff;
+    border: 1px solid #dce2ec;
+    border-radius: 10px;
+    font-size: 10px;
+    padding: 3px 9px;
 }
 
 QMessageBox {
