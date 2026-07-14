@@ -329,6 +329,14 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_trust_aes": "✓ AES-256-GCM",
         "landing_trust_argon": "✓ Argon2id",
         "landing_trust_local": "✓ Yerel depolama",
+        "feature_aes_title": "AES-256-GCM",
+        "feature_aes_desc": "Askeri seviye şifreleme",
+        "feature_argon_title": "Argon2id",
+        "feature_argon_desc": "Güçlü anahtar türetme",
+        "feature_local_title": "Yerel depolama",
+        "feature_local_desc": "Veriler cihazınızda kalır",
+        "feature_trust_title": "Güvenli. Şeffaf. Yerel.",
+        "feature_trust_desc": "KobiPass verilerinizi buluta göndermez.",
         "landing_actions_title": "Kasanıza erişin",
         "landing_actions_subtitle": (
             "Son kasanızla devam edin, başka bir dosya seçin veya yeni bir kasa oluşturun."
@@ -708,6 +716,14 @@ _STRINGS: dict[str, dict[str, str]] = {
         "landing_trust_aes": "✓ AES-256-GCM",
         "landing_trust_argon": "✓ Argon2id",
         "landing_trust_local": "✓ Local storage",
+        "feature_aes_title": "AES-256-GCM",
+        "feature_aes_desc": "Military-grade encryption",
+        "feature_argon_title": "Argon2id",
+        "feature_argon_desc": "Strong key derivation",
+        "feature_local_title": "Local storage",
+        "feature_local_desc": "Data stays on your device",
+        "feature_trust_title": "Secure. Transparent. Local.",
+        "feature_trust_desc": "KobiPass never sends your data to the cloud.",
         "landing_actions_title": "Access your vault",
         "landing_actions_subtitle": (
             "Continue with your latest vault, choose another file, or create a new one."

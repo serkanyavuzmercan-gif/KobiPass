@@ -61,6 +61,22 @@ def logo_pixmap(height: int = 40) -> QPixmap:
     return pm.scaledToHeight(height, Qt.TransformationMode.SmoothTransformation)
 
 
+def hero_art_pixmap(height: int = 360) -> QPixmap:
+    """Karşılama ekranı hero görseli (opsiyonel).
+
+    ``assets/hero_vault.png`` varsa oranı korunarak ölçeklenir; yoksa boş
+    QPixmap döner (arayüz görseli göstermez). Böylece tasarım PNG'si sonradan
+    eklendiğinde otomatik devreye girer.
+    """
+    path = asset_path("hero_vault.png")
+    if not path.is_file():
+        return QPixmap()
+    pm = QPixmap(str(path))
+    if pm.isNull():
+        return QPixmap()
+    return pm.scaledToHeight(height, Qt.TransformationMode.SmoothTransformation)
+
+
 def watermark_mask_pixmap(height: int = 512) -> QPixmap:
     """Yüksek çözünürlüklü logo2'den arka plansız, tek renk filigran maskesi."""
     path = asset_path("logo2.png")

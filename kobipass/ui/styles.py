@@ -1011,6 +1011,37 @@ QLabel#landingTrustChip {
     font-weight: 600;
 }
 
+QLabel#landingHeroArt {
+    background: transparent;
+}
+
+QFrame#landingFeatureCard, QFrame#landingFeatureCardWide {
+    background-color: rgba(38, 46, 66, 0.72);
+    border: 1px solid #333d54;
+    border-radius: 14px;
+}
+
+QFrame#landingFeatureCard:hover, QFrame#landingFeatureCardWide:hover {
+    border-color: #4b68f4;
+}
+
+QLabel#landingFeatureIcon {
+    background-color: rgba(75, 104, 244, 0.16);
+    border: 1px solid #3a4568;
+    border-radius: 10px;
+}
+
+QLabel#landingFeatureTitle {
+    color: #eef2fb;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QLabel#landingFeatureDesc {
+    color: #93a0ba;
+    font-size: 11px;
+}
+
 QFrame#landingActions {
     background-color: #1e2229;
     border: 1px solid #303744;
@@ -2607,6 +2638,37 @@ QLabel#landingTrustChip {
     padding: 6px 10px;
     font-size: 11px;
     font-weight: 600;
+}
+
+QLabel#landingHeroArt {
+    background: transparent;
+}
+
+QFrame#landingFeatureCard, QFrame#landingFeatureCardWide {
+    background-color: #ffffff;
+    border: 1px solid #d8e0f2;
+    border-radius: 14px;
+}
+
+QFrame#landingFeatureCard:hover, QFrame#landingFeatureCardWide:hover {
+    border-color: #4b68f4;
+}
+
+QLabel#landingFeatureIcon {
+    background-color: #eaefff;
+    border: 1px solid #d3ddf7;
+    border-radius: 10px;
+}
+
+QLabel#landingFeatureTitle {
+    color: #1b2740;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QLabel#landingFeatureDesc {
+    color: #5f6d86;
+    font-size: 11px;
 }
 
 QFrame#landingActions {

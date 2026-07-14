@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -18,16 +19,20 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.i18n import tr
-from kobipass.resources import logo_pixmap
+from kobipass.resources import hero_art_pixmap, logo_pixmap
 from kobipass.settings import get_recent_files
 from kobipass.ui.icons import (
     icon_file_new,
     icon_folder_open,
+    icon_home,
     icon_info,
+    icon_key,
     icon_shield,
     icon_sun,
     icon_theme,
 )
+
+_FEATURE_ACCENT = QColor("#8296ff")
 from kobipass.ui.theme import theme_manager
 
 
@@ -91,38 +96,64 @@ class LandingPage(QWidget):
 
         logo = QLabel()
         logo.setObjectName("landingHeroLogo")
-        logo.setPixmap(logo_pixmap(112))
+        logo.setPixmap(logo_pixmap(96))
         logo.setAlignment(Qt.AlignmentFlag.AlignLeft)
         hero_layout.addWidget(logo)
         hero_layout.addStretch(1)
 
+        # Orta bölüm: solda anlatı, sağda (opsiyonel) kasa görseli.
+        mid = QHBoxLayout()
+        mid.setSpacing(20)
+        text_col = QVBoxLayout()
+        text_col.setSpacing(12)
+
         self._eyebrow = QLabel()
         self._eyebrow.setObjectName("landingEyebrow")
-        hero_layout.addWidget(self._eyebrow)
+        text_col.addWidget(self._eyebrow)
 
         self._hero_title = QLabel()
         self._hero_title.setObjectName("landingHeroTitle")
         self._hero_title.setWordWrap(True)
-        hero_layout.addWidget(self._hero_title)
+        text_col.addWidget(self._hero_title)
 
         self._hero_subtitle = QLabel()
         self._hero_subtitle.setObjectName("landingHeroSubtitle")
         self._hero_subtitle.setWordWrap(True)
         self._hero_subtitle.setMaximumWidth(520)
-        hero_layout.addWidget(self._hero_subtitle)
+        text_col.addWidget(self._hero_subtitle)
+        mid.addLayout(text_col, 1)
+        mid.addStretch()
 
-        trust = QHBoxLayout()
-        trust.setSpacing(8)
-        self._trust_labels: list[QLabel] = []
-        for _ in range(3):
-            chip = QLabel()
-            chip.setObjectName("landingTrustChip")
-            chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            trust.addWidget(chip)
-            self._trust_labels.append(chip)
-        trust.addStretch()
-        hero_layout.addLayout(trust)
-        hero_layout.addStretch(2)
+        # Kasa görseli: assets/hero_vault.png eklendiğinde otomatik görünür.
+        self._hero_art = QLabel()
+        self._hero_art.setObjectName("landingHeroArt")
+        self._hero_art.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        art = hero_art_pixmap(320)
+        self._hero_art.setPixmap(art)
+        self._hero_art.setVisible(not art.isNull())
+        mid.addWidget(self._hero_art, 0, Qt.AlignmentFlag.AlignVCenter)
+        hero_layout.addLayout(mid)
+
+        hero_layout.addStretch(1)
+
+        # Özellik kartları: ikon + kalın başlık + açıklama.
+        self._feature_cards: list[dict] = []
+        feat_row = QHBoxLayout()
+        feat_row.setSpacing(12)
+        for icon_fn, tkey, dkey in (
+            (icon_shield, "feature_aes_title", "feature_aes_desc"),
+            (icon_key, "feature_argon_title", "feature_argon_desc"),
+            (icon_home, "feature_local_title", "feature_local_desc"),
+        ):
+            card = self._make_feature_card(icon_fn, tkey, dkey)
+            feat_row.addWidget(card["frame"], 1)
+        hero_layout.addLayout(feat_row)
+
+        wide = self._make_feature_card(
+            icon_shield, "feature_trust_title", "feature_trust_desc", wide=True
+        )
+        hero_layout.addWidget(wide["frame"])
+        hero_layout.addStretch(1)
 
         # Sağ: birincil kasa işlemleri.
         actions = QFrame()
@@ -212,6 +243,41 @@ class LandingPage(QWidget):
         self.retranslate()
         self.refresh_recent()
 
+    def _make_feature_card(
+        self, icon_fn, title_key: str, desc_key: str, *, wide: bool = False
+    ) -> dict:
+        frame = QFrame()
+        frame.setObjectName(
+            "landingFeatureCardWide" if wide else "landingFeatureCard"
+        )
+        frame.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        lay = QHBoxLayout(frame)
+        lay.setContentsMargins(14, 12, 14, 12)
+        lay.setSpacing(12)
+
+        icon_lbl = QLabel()
+        icon_lbl.setObjectName("landingFeatureIcon")
+        icon_lbl.setPixmap(icon_fn(_FEATURE_ACCENT, size=24).pixmap(24, 24))
+        icon_lbl.setFixedSize(38, 38)
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(icon_lbl, 0)
+
+        text = QVBoxLayout()
+        text.setSpacing(2)
+        title = QLabel()
+        title.setObjectName("landingFeatureTitle")
+        desc = QLabel()
+        desc.setObjectName("landingFeatureDesc")
+        desc.setWordWrap(True)
+        text.addWidget(title)
+        text.addWidget(desc)
+        lay.addLayout(text, 1)
+
+        card = {"frame": frame, "title": title, "desc": desc,
+                "tkey": title_key, "dkey": desc_key}
+        self._feature_cards.append(card)
+        return card
+
     def _update_theme_icon(self) -> None:
         self.btn_theme.setIcon(
             icon_sun() if theme_manager.is_dark() else icon_theme()
@@ -257,11 +323,9 @@ class LandingPage(QWidget):
         self._eyebrow.setText(tr("landing_eyebrow"))
         self._hero_title.setText(tr("landing_hero_title"))
         self._hero_subtitle.setText(tr("landing_hero_subtitle"))
-        for label, key in zip(
-            self._trust_labels,
-            ("landing_trust_aes", "landing_trust_argon", "landing_trust_local"),
-        ):
-            label.setText(tr(key))
+        for card in self._feature_cards:
+            card["title"].setText(tr(card["tkey"]))
+            card["desc"].setText(tr(card["dkey"]))
 
         self._actions_title.setText(tr("landing_actions_title"))
         self._actions_subtitle.setText(tr("landing_actions_subtitle"))
