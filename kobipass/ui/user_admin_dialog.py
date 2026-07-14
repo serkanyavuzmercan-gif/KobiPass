@@ -113,6 +113,7 @@ class UserAdminDialog(QDialog):
         users_group_layout.setSpacing(8)
 
         self._slots_host = QWidget()
+        self._slots_host.setObjectName("slotsHost")
         self._slots_layout = QVBoxLayout(self._slots_host)
         self._slots_layout.setContentsMargins(0, 0, 0, 0)
         self._slots_layout.setSpacing(10)
@@ -123,6 +124,12 @@ class UserAdminDialog(QDialog):
         slots_scroll.setFrameShape(QFrame.Shape.NoFrame)
         slots_scroll.setWidget(self._slots_host)
         slots_scroll.setMinimumHeight(340)  # ~3 kart; fazlası kaydırılır
+        # Viewport'un varsayılan beyaz zeminini kaldır (Windows'ta görünüyordu).
+        slots_scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget > QWidget { background: transparent; }"
+        )
+        slots_scroll.viewport().setStyleSheet("background: transparent;")
         users_group_layout.addWidget(slots_scroll, 1)
 
         self._add_user_btn = QPushButton(tr("add_user_btn"))
@@ -135,17 +142,19 @@ class UserAdminDialog(QDialog):
         left.addWidget(users_group, 1)
         columns.addLayout(left, 1)
 
-        # Mevcut slotları kur (en az 3, kayıtlı slot sayısı kadar).
+        # Başta yalnızca MEVCUT (etkin) alt kullanıcılar görünür; hiç yoksa
+        # sadece "Alt Kullanıcı Ekle" butonu kalır. Devre dışı slotlar gizli.
         self._slot_cards: list[dict] = []
-        initial = max(len(self._enabled_flags), len(vault.user_slot_labels), 1)
-        for n in range(initial):
-            enabled = self._enabled_flags[n] if n < len(self._enabled_flags) else False
+        self._original_count = len(self._enabled_flags)
+        for n in range(self._original_count):
+            if not self._enabled_flags[n]:
+                continue
             label = (
                 vault.user_slot_labels[n]
                 if n < len(vault.user_slot_labels)
                 else ""
             )
-            self._add_slot_card(enabled=enabled, label=label)
+            self._add_slot_card(orig_index=n, enabled=True, label=label)
 
         # ── Sağ sütun: izin tablosu + genel yetkiler + alan etiketleri ───────
         right = QVBoxLayout()
@@ -222,27 +231,42 @@ class UserAdminDialog(QDialog):
         if cancel_btn:
             cancel_btn.setText(tr("cancel"))
 
-    def _add_slot_card(self, *, enabled: bool = True, label: str = "") -> None:
-        """Yeni bir 'Alt Kullanıcı' kartı ekler (ekle butonu + ilk kurulum)."""
-        n = len(self._slot_cards)
+    def _add_slot_card(
+        self, *, orig_index: int | None = None, enabled: bool = True, label: str = ""
+    ) -> None:
+        """Bir 'Alt Kullanıcı' kartı ekler. orig_index: mevcut slotun konumu
+        (None = yeni kullanıcı, kaydederken sona eklenir)."""
+        n = len(self._slot_cards) + 1  # görünen sıra numarası
         card = QFrame()
         card.setObjectName("userSlotCard")
         card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        form = QFormLayout(card)
-        form.setContentsMargins(12, 12, 12, 12)
-        form.setVerticalSpacing(6)
+        outer = QVBoxLayout(card)
+        outer.setContentsMargins(12, 10, 12, 12)
+        outer.setSpacing(6)
 
-        enabled_box = QCheckBox(tr("user_pwd_label", n=n + 1))
+        header = QHBoxLayout()
+        enabled_box = QCheckBox(tr("user_pwd_label", n=n))
         enabled_box.setChecked(enabled)
-        form.addRow(enabled_box)
+        header.addWidget(enabled_box)
+        header.addStretch()
+        remove_btn = QPushButton("×")
+        remove_btn.setObjectName("slotRemoveBtn")
+        remove_btn.setFixedSize(26, 26)
+        remove_btn.setToolTip(tr("remove_user_tip"))
+        header.addWidget(remove_btn)
+        outer.addLayout(header)
 
+        form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setVerticalSpacing(6)
         label_edit = QLineEdit()
-        label_edit.setText(label or tr("user_default_label", n=n + 1))
+        label_edit.setText(label or tr("user_default_label", n=n))
         p1 = _password_edit(tr("pwd_placeholder"))
         p2 = _password_edit(tr("pwd_repeat_placeholder"))
         form.addRow(tr("field_name"), label_edit)
         form.addRow(tr("pwd_label"), p1)
         form.addRow(tr("pwd_repeat_label"), p2)
+        outer.addLayout(form)
 
         def apply(checked: bool) -> None:
             for w in (label_edit, p1, p2):
@@ -251,10 +275,29 @@ class UserAdminDialog(QDialog):
         enabled_box.toggled.connect(apply)
         apply(enabled_box.isChecked())
 
+        entry = {
+            "orig_index": orig_index,
+            "enabled": enabled_box,
+            "label": label_edit,
+            "p1": p1,
+            "p2": p2,
+            "card": card,
+        }
+        remove_btn.clicked.connect(lambda: self._remove_slot_card(entry))
+
         self._slots_layout.addWidget(card)
-        self._slot_cards.append(
-            {"enabled": enabled_box, "label": label_edit, "p1": p1, "p2": p2}
-        )
+        self._slot_cards.append(entry)
+
+    def _remove_slot_card(self, entry: dict) -> None:
+        """Kartı kaldırır; mevcut alt kullanıcıysa kaydederken devre dışı kalır."""
+        if entry not in self._slot_cards:
+            return
+        self._slot_cards.remove(entry)
+        entry["card"].setParent(None)
+        entry["card"].deleteLater()
+        # Kalan kartların başlık numaralarını güncelle.
+        for pos, card in enumerate(self._slot_cards, start=1):
+            card["enabled"].setText(tr("user_pwd_label", n=pos))
 
     def _on_accept(self) -> None:
         from kobipass.vault_model import UserPermissions
@@ -273,27 +316,55 @@ class UserAdminDialog(QDialog):
                 self._error.setText(tr("pwd_mismatch"))
                 return
 
-        user_passwords: list[tuple[bool, str]] = []
-        for card in self._slot_cards:
+        # Mevcut slot indekslerini koru: boş parola = eski sarmalayıcı korunur.
+        # Taban liste (tüm eski slotlar devre dışı); kartlar yerlerine yazılır.
+        total = self._original_count
+        user_passwords: list[tuple[bool, str]] = [(False, "")] * total
+        slot_labels: list[str] = [
+            (
+                self._vault.user_slot_labels[i]
+                if i < len(self._vault.user_slot_labels)
+                else tr("user_default_label", n=i + 1)
+            )
+            for i in range(total)
+        ]
+        new_passwords: list[tuple[bool, str]] = []
+        new_labels: list[str] = []
+
+        for pos, card in enumerate(self._slot_cards, start=1):
             enabled = card["enabled"].isChecked()
             pwd1 = card["p1"].text()
             pwd2 = card["p2"].text()
-            if enabled:
-                if pwd1 or pwd2:
-                    if len(pwd1) < MIN_PASSWORD_LENGTH:
-                        self._error.setText(
-                            tr("pwd_too_short", min_len=MIN_PASSWORD_LENGTH)
-                        )
-                        return
-                    if pwd1 != pwd2:
-                        self._error.setText(tr("pwd_mismatch"))
-                        return
-                    user_passwords.append((True, pwd1))
-                    self._passwords_changed = True
-                else:
-                    user_passwords.append((True, ""))
+            label = card["label"].text().strip() or tr("user_default_label", n=pos)
+            if enabled and (pwd1 or pwd2):
+                if len(pwd1) < MIN_PASSWORD_LENGTH:
+                    self._error.setText(
+                        tr("pwd_too_short", min_len=MIN_PASSWORD_LENGTH)
+                    )
+                    return
+                if pwd1 != pwd2:
+                    self._error.setText(tr("pwd_mismatch"))
+                    return
+                entry_pw = (True, pwd1)
+                self._passwords_changed = True
+            elif enabled:
+                entry_pw = (True, "")
             else:
-                user_passwords.append((False, ""))
+                entry_pw = (False, "")
+
+            oi = card["orig_index"]
+            if oi is not None and 0 <= oi < total:
+                user_passwords[oi] = entry_pw
+                slot_labels[oi] = label
+            else:
+                # Yeni kart: parola girilmediyse boş slot oluşturma.
+                if not (pwd1 or pwd2):
+                    continue
+                new_passwords.append(entry_pw)
+                new_labels.append(label)
+
+        user_passwords.extend(new_passwords)
+        slot_labels.extend(new_labels)
 
         perms = UserPermissions(
             name=self._perm_combos["name"].currentData(),
@@ -308,10 +379,6 @@ class UserAdminDialog(QDialog):
             for key, edit in self._field_label_edits.items()
             if edit.text().strip()
         }
-        slot_labels = [
-            card["label"].text().strip() or tr("user_default_label", n=index + 1)
-            for index, card in enumerate(self._slot_cards)
-        ]
         self._result = {
             "user_passwords": user_passwords,
             "permissions": perms,

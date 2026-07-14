@@ -865,6 +865,21 @@ QFrame#userSlotCard {
     border-radius: 8px;
     background-color: #1e2229;
 }
+
+QPushButton#slotRemoveBtn {
+    background: transparent;
+    border: none;
+    color: #9aa0a8;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 0;
+}
+
+QPushButton#slotRemoveBtn:hover {
+    background-color: #c42b1c;
+    color: #ffffff;
+    border-radius: 4px;
+}
 """
 
 LIGHT_STYLESHEET = """
@@ -1723,5 +1738,20 @@ QFrame#userSlotCard {
     border: 1px solid #dde3f0;
     border-radius: 8px;
     background-color: #ffffff;
+}
+
+QPushButton#slotRemoveBtn {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 0;
+}
+
+QPushButton#slotRemoveBtn:hover {
+    background-color: #dc2626;
+    color: #ffffff;
+    border-radius: 4px;
 }
 """
