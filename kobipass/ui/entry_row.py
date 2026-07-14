@@ -6,7 +6,7 @@ Tek vault kaydı satırı — İsim sabit; 1. Bilgi ve ek alanlar yatay scroll i
 from __future__ import annotations
 
 from PyQt6.QtCore import QMimeData, QPoint, QTimer, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QDrag, QMouseEvent, QWheelEvent
+from PyQt6.QtGui import QDrag, QKeySequence, QMouseEvent, QShortcut, QWheelEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
@@ -50,6 +50,8 @@ _MENU_ICON_SIZE = QSize(16, 16)
 _ROW_ALIGN = Qt.AlignmentFlag.AlignVCenter
 _ICON_SIZE = QSize(20, 20)
 _COPY_FLASH_MS = 900
+_GENERATE_SHORTCUT = QKeySequence("Ctrl+G")
+_DELETE_SHORTCUT = QKeySequence("Ctrl+Shift+Delete")
 
 _active_copy_field: "CompactField | None" = None
 
@@ -90,6 +92,11 @@ def _restyle(widget: QWidget) -> None:
     style.unpolish(widget)
     style.polish(widget)
     widget.update()
+
+
+def _menu_text(label: str, shortcut: QKeySequence) -> str:
+    key_text = shortcut.toString(QKeySequence.SequenceFormat.NativeText)
+    return f"{label}\t{key_text}"
 
 
 def _default_info_label(info_index: int) -> str:
@@ -196,6 +203,9 @@ class CompactField(QWidget):
         self._gen_action = None
         self._delete_action = None
         self._field_remove_action = None
+        self._generate_shortcut: QShortcut | None = None
+        self._field_remove_shortcut: QShortcut | None = None
+        self._delete_shortcut: QShortcut | None = None
         self._strength_meter: QFrame | None = None
         self._base_width = fixed_width
         self._responsive_width = responsive_width
@@ -289,6 +299,26 @@ class CompactField(QWidget):
             layout.addWidget(self._menu_btn, 0, _ROW_ALIGN)
 
         if sensitive:
+            self._generate_shortcut = QShortcut(_GENERATE_SHORTCUT, self)
+            self._generate_shortcut.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+            self._generate_shortcut.activated.connect(self._on_generate)
+            self._field_remove_shortcut = QShortcut(_DELETE_SHORTCUT, self)
+            self._field_remove_shortcut.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+            self._field_remove_shortcut.activated.connect(
+                self._request_field_remove
+            )
+        elif with_delete_menu:
+            self._delete_shortcut = QShortcut(_DELETE_SHORTCUT, self)
+            self._delete_shortcut.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+            self._delete_shortcut.activated.connect(self.delete_requested.emit)
+
+        if sensitive:
             outer.addWidget(row_host)
             self._strength_meter = QFrame(self)
             self._strength_meter.setFixedHeight(3)
@@ -359,11 +389,17 @@ class CompactField(QWidget):
         if self._menu_btn is not None:
             self._menu_btn.setToolTip(tr("row_menu_tip"))
         if self._gen_action is not None:
-            self._gen_action.setText(tr("gen_password_menu"))
+            self._gen_action.setText(
+                _menu_text(tr("gen_password_menu"), _GENERATE_SHORTCUT)
+            )
         if self._field_remove_action is not None:
-            self._field_remove_action.setText(tr("btn_delete"))
+            self._field_remove_action.setText(
+                _menu_text(tr("btn_delete"), _DELETE_SHORTCUT)
+            )
         if self._delete_action is not None:
-            self._delete_action.setText(tr("btn_delete"))
+            self._delete_action.setText(
+                _menu_text(tr("btn_delete"), _DELETE_SHORTCUT)
+            )
         self._update_responsive_width(self._edit.text())
 
     def _refresh_eye(self) -> None:
@@ -412,6 +448,14 @@ class CompactField(QWidget):
                 return
         self.set_generated(generate_password())
 
+    def _request_field_remove(self) -> None:
+        if (
+            self._can_remove_field
+            and not self._view_only
+            and self.is_editable()
+        ):
+            self.field_remove_requested.emit(self)
+
     def set_can_delete(self, allowed: bool) -> None:
         self._can_delete = allowed
         self._refresh_menu()
@@ -432,16 +476,26 @@ class CompactField(QWidget):
             gen_ok = self.is_editable()
             self._gen_action.setVisible(gen_ok)
             self._gen_action.setEnabled(gen_ok)
+            if self._generate_shortcut is not None:
+                self._generate_shortcut.setEnabled(gen_ok)
             show = show or gen_ok
         if self._field_remove_action is not None:
-            rem_ok = self._can_remove_field and not self._view_only and self.is_editable()
+            rem_ok = (
+                self._can_remove_field
+                and not self._view_only
+                and self.is_editable()
+            )
             self._field_remove_action.setVisible(rem_ok)
             self._field_remove_action.setEnabled(rem_ok)
+            if self._field_remove_shortcut is not None:
+                self._field_remove_shortcut.setEnabled(rem_ok)
             show = show or rem_ok
         if self._delete_action is not None:
             del_ok = self._can_delete and not self._view_only
             self._delete_action.setVisible(del_ok)
             self._delete_action.setEnabled(del_ok)
+            if self._delete_shortcut is not None:
+                self._delete_shortcut.setEnabled(del_ok)
             show = show or del_ok
         self._menu_btn.setVisible(show)
 
