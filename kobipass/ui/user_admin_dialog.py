@@ -1,8 +1,8 @@
 """
-Yönetici: alt kullanıcı kartları — her kartta kendi İsim/Bilgiler + genel yetkiler.
+Yönetici: alt kullanıcı kartları + ortak alan izinleri.
 
-Sol: eklemeli alt kullanıcı kartları (scroll).
-Sağ: yalnızca yönetici parola değişimi (scroll/ekle dışı).
+Sol: eklemeli alt kullanıcı kartları (isim/parola + kişiye özel genel yetkiler).
+Sağ: yönetici parola değişimi + ortak İsim/Bilgiler izinleri (scroll/ekle dışı).
 """
 
 from __future__ import annotations
@@ -15,12 +15,14 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
     QFrame,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -86,8 +88,8 @@ class UserAdminDialog(QDialog):
         self.setWindowIcon(app_icon())
         self.setModal(True)
         self.setObjectName("userAdminDialog")
-        self.setMinimumSize(900, 600)
-        self.resize(940, 640)
+        self.setMinimumSize(900, 560)
+        self.resize(920, 600)
         self._vault = vault
         self._enabled_flags = list(enabled_flags)
         self._passwords_changed = False
@@ -95,6 +97,7 @@ class UserAdminDialog(QDialog):
         self._result: dict | None = None
 
         outer = QVBoxLayout(self)
+        outer.setContentsMargins(14, 12, 14, 12)
         outer.setSpacing(10)
 
         info = QLabel(tr("users_info"))
@@ -104,9 +107,9 @@ class UserAdminDialog(QDialog):
         columns = QHBoxLayout()
         columns.setSpacing(14)
 
-        # ── SOL: Alt kullanıcı kartları (kişiye özel izinler kartın içinde) ──
+        # ── SOL: Alt kullanıcı kartları ─────────────────────────────────────
         left = QVBoxLayout()
-        left.setSpacing(10)
+        left.setSpacing(8)
 
         users_group = QGroupBox(tr("users_section"))
         users_group_layout = QVBoxLayout(users_group)
@@ -124,7 +127,7 @@ class UserAdminDialog(QDialog):
         slots_scroll.setWidgetResizable(True)
         slots_scroll.setFrameShape(QFrame.Shape.NoFrame)
         slots_scroll.setWidget(self._slots_host)
-        slots_scroll.setMinimumHeight(300)
+        slots_scroll.setMinimumHeight(280)
         slots_scroll.setStyleSheet(
             "QScrollArea { background: transparent; border: none; }"
             "QScrollArea > QWidget > QWidget { background: transparent; }"
@@ -141,6 +144,7 @@ class UserAdminDialog(QDialog):
         left.addWidget(users_group, 1)
         columns.addLayout(left, 3)
 
+        shared = vault.user_permissions
         self._slot_cards: list[dict] = []
         self._original_count = len(self._enabled_flags)
         for n in range(self._original_count):
@@ -154,12 +158,18 @@ class UserAdminDialog(QDialog):
             perms = vault.permissions_for_slot(n + 1)
             self._add_slot_card(orig_index=n, enabled=True, label=label, permissions=perms)
 
-        # ── SAĞ: yalnızca yönetici (scroll / ekle dışı) ──────────────────────
+        # ── SAĞ: yönetici + ortak İsim/Bilgiler (kırmızı alan) ───────────────
         right = QVBoxLayout()
         right.setSpacing(10)
+        right.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         admin_group = QGroupBox(tr("admin_change_section"))
+        admin_group.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum
+        )
         admin_form = QFormLayout(admin_group)
+        admin_form.setContentsMargins(10, 8, 10, 10)
+        admin_form.setVerticalSpacing(6)
         admin_info = QLabel(tr("admin_change_info"))
         admin_info.setWordWrap(True)
         admin_form.addRow(admin_info)
@@ -171,7 +181,25 @@ class UserAdminDialog(QDialog):
         admin_form.addRow("", attach_strength_label(self._admin_new))
         admin_form.addRow(tr("admin_pwd_new_repeat"), self._admin_new_repeat)
         right.addWidget(admin_group)
-        right.addStretch()
+
+        # Ortak alan izinleri — kullanıcıya özel değil
+        perm_group = QGroupBox(tr("perm_section"))
+        perm_group.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum
+        )
+        perm_layout = QGridLayout(perm_group)
+        perm_layout.setContentsMargins(10, 8, 10, 10)
+        perm_layout.setHorizontalSpacing(10)
+        perm_layout.setVerticalSpacing(8)
+        perm_layout.setColumnStretch(1, 1)
+        self._perm_combos: dict[str, QComboBox] = {}
+        for row, field_name in enumerate(PERM_FIELDS):
+            perm_layout.addWidget(QLabel(tr(f"field_{field_name}")), row, 0)
+            combo = _perm_combo(shared.field_level(field_name))
+            self._perm_combos[field_name] = combo
+            perm_layout.addWidget(combo, row, 1)
+        right.addWidget(perm_group)
+        right.addStretch(1)
         columns.addLayout(right, 2)
         outer.addLayout(columns, 1)
 
@@ -196,7 +224,7 @@ class UserAdminDialog(QDialog):
         label: str = "",
         permissions: UserPermissions | None = None,
     ) -> None:
-        """Bir alt kullanıcı kartı — parola + İsim/Bilgiler + genel yetkiler."""
+        """Kart: isim/parola + kişiye özel genel yetkiler (İsim/Bilgiler yok)."""
         n = len(self._slot_cards) + 1
         perms = permissions.copy() if permissions else UserPermissions()
 
@@ -205,7 +233,7 @@ class UserAdminDialog(QDialog):
         card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         outer = QVBoxLayout(card)
         outer.setContentsMargins(12, 10, 12, 12)
-        outer.setSpacing(8)
+        outer.setSpacing(6)
 
         header = QHBoxLayout()
         enabled_box = QCheckBox(tr("user_pwd_label", n=n))
@@ -231,26 +259,7 @@ class UserAdminDialog(QDialog):
         form.addRow(tr("pwd_repeat_label"), p2)
         outer.addLayout(form)
 
-        # İsim / Bilgiler — yan yana, bu kullanıcıya özel
-        field_row = QHBoxLayout()
-        field_row.setSpacing(12)
-        name_col = QVBoxLayout()
-        name_col.setSpacing(4)
-        name_label = QLabel(tr("field_name"))
-        name_combo = _perm_combo(perms.name)
-        name_col.addWidget(name_label)
-        name_col.addWidget(name_combo)
-        info_col = QVBoxLayout()
-        info_col.setSpacing(4)
-        info_label = QLabel(tr("field_info"))
-        info_combo = _perm_combo(perms.info)
-        info_col.addWidget(info_label)
-        info_col.addWidget(info_combo)
-        field_row.addLayout(name_col, 1)
-        field_row.addLayout(info_col, 1)
-        outer.addLayout(field_row)
-
-        # Genel yetkiler — bu kullanıcıya özel, kartın içinde yan yana
+        # Genel yetkiler — bu kullanıcıya özel
         flags_title = QLabel(tr("perm_flags_section"))
         flags_title.setObjectName("cardFlagsTitle")
         outer.addWidget(flags_title)
@@ -271,8 +280,6 @@ class UserAdminDialog(QDialog):
             label_edit,
             p1,
             p2,
-            name_combo,
-            info_combo,
             can_add_box,
             can_delete_box,
             can_save_box,
@@ -291,8 +298,6 @@ class UserAdminDialog(QDialog):
             "label": label_edit,
             "p1": p1,
             "p2": p2,
-            "name_combo": name_combo,
-            "info_combo": info_combo,
             "can_add": can_add_box,
             "can_delete": can_delete_box,
             "can_save": can_save_box,
@@ -317,10 +322,17 @@ class UserAdminDialog(QDialog):
 
         show_error(self, tr("warn_title"), message)
 
+    def _shared_field_levels(self) -> tuple[FieldLevel, FieldLevel]:
+        return (
+            self._perm_combos["name"].currentData(),
+            self._perm_combos["info"].currentData(),
+        )
+
     def _collect_card_permissions(self, card: dict) -> UserPermissions:
+        name_level, info_level = self._shared_field_levels()
         return UserPermissions(
-            name=card["name_combo"].currentData(),
-            info=card["info_combo"].currentData(),
+            name=name_level,
+            info=info_level,
             can_add_entry=card["can_add"].isChecked(),
             can_delete_entry=card["can_delete"].isChecked(),
             can_save=card["can_save"].isChecked(),
@@ -341,6 +353,7 @@ class UserAdminDialog(QDialog):
                 self._warn(tr("pwd_mismatch"))
                 return
 
+        name_level, info_level = self._shared_field_levels()
         total = self._original_count
         user_passwords: list[tuple[bool, str]] = [(False, "")] * total
         slot_labels: list[str] = [
@@ -352,12 +365,9 @@ class UserAdminDialog(QDialog):
             for i in range(total)
         ]
         slot_permissions: list[UserPermissions] = [
-            self._vault.permissions_for_slot(i + 1).copy() for i in range(total)
+            UserPermissions(name=name_level, info=info_level)
+            for _ in range(total)
         ]
-        # Devre dışı bırakılan eski slotlar için boş/kapalı izin
-        for i in range(total):
-            if not self._enabled_flags[i]:
-                slot_permissions[i] = UserPermissions()
 
         new_passwords: list[tuple[bool, str]] = []
         new_labels: list[str] = []
@@ -399,19 +409,32 @@ class UserAdminDialog(QDialog):
         slot_labels.extend(new_labels)
         slot_permissions.extend(new_permissions)
 
-        # Aktif olmayan eski slotları sonuçtan temizle (etiket/izin hizası)
-        # Parola listesi crypto slot sırasını korur; izin listesi aynı uzunlukta olmalı.
         while len(slot_permissions) < len(user_passwords):
-            slot_permissions.append(UserPermissions())
+            slot_permissions.append(
+                UserPermissions(name=name_level, info=info_level)
+            )
         while len(slot_labels) < len(user_passwords):
             slot_labels.append(
                 tr("user_default_label", n=len(slot_labels) + 1)
             )
 
+        shared = UserPermissions(name=name_level, info=info_level)
         first_enabled = next(
             (p for (en, _), p in zip(user_passwords, slot_permissions) if en),
-            UserPermissions(),
+            shared,
         )
+        # Ortak alan seviyelerini tüm aktif slotlara yaz
+        for index, (enabled, _) in enumerate(user_passwords):
+            if not enabled:
+                continue
+            slot_permissions[index] = UserPermissions(
+                name=name_level,
+                info=info_level,
+                can_add_entry=slot_permissions[index].can_add_entry,
+                can_delete_entry=slot_permissions[index].can_delete_entry,
+                can_save=slot_permissions[index].can_save,
+            )
+
         new_enabled = [enabled for enabled, _ in user_passwords]
         old_slot_dicts = [
             self._vault.permissions_for_slot(i + 1).to_dict()
@@ -422,6 +445,7 @@ class UserAdminDialog(QDialog):
             bool(admin_new)
             or self._passwords_changed
             or new_slot_dicts != old_slot_dicts
+            or shared.to_dict() != self._vault.user_permissions.to_dict()
             or slot_labels != list(self._vault.user_slot_labels)
             or new_enabled != list(self._enabled_flags)
         )
