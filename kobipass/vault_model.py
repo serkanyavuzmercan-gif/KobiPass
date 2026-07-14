@@ -99,10 +99,10 @@ class VaultEntry:
 
 @dataclass
 class UserPermissions:
-    """Tüm alt kullanıcılar için ortak izin şablonu.
+    """Tek bir alt kullanıcının izinleri.
 
     Yalnızca iki alan izni: 'İsim' ve 'Bilgiler' (1. bilgi dahil tüm bilgi
-    alanları). İkisi de varsayılan olarak Görür.
+    alanları). Ayrıca kayıt ekleme / silme / kaydetme bayrakları.
     """
 
     name: FieldLevel = "read"
@@ -110,6 +110,9 @@ class UserPermissions:
     can_add_entry: bool = False
     can_delete_entry: bool = False
     can_save: bool = True
+
+    def copy(self) -> UserPermissions:
+        return UserPermissions.from_dict(self.to_dict())
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -205,6 +208,7 @@ class KobiVault:
 
     entries: list[VaultEntry] = field(default_factory=list)
     user_permissions: UserPermissions = field(default_factory=UserPermissions)
+    user_slot_permissions: list[UserPermissions] = field(default_factory=list)
     user_slot_labels: list[str] = field(
         default_factory=lambda: [
             f"Alt Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)
@@ -212,6 +216,18 @@ class KobiVault:
     )
     field_labels: dict[str, str] = field(default_factory=dict)
     audit_log: list[AuditEntry] = field(default_factory=list)
+
+    def permissions_for_slot(self, slot: int) -> UserPermissions:
+        """1-based kullanıcı slot izni; yoksa ortak/legacy şablona düşer."""
+        index = slot - 1
+        if 0 <= index < len(self.user_slot_permissions):
+            return self.user_slot_permissions[index]
+        return self.user_permissions
+
+    def set_slot_permissions(self, permissions: list[UserPermissions]) -> None:
+        self.user_slot_permissions = [p.copy() for p in permissions]
+        if self.user_slot_permissions:
+            self.user_permissions = self.user_slot_permissions[0].copy()
 
     def resolved_field_labels(self) -> dict[str, str]:
         result = dict(DEFAULT_FIELD_LABELS)
@@ -224,10 +240,14 @@ class KobiVault:
         return field_label_for(field_name, self.field_labels)
 
     def to_dict(self) -> dict[str, Any]:
+        slot_perms = self.user_slot_permissions or [self.user_permissions]
         return {
-            "version": 2,
+            "version": 3,
             "entries": [e.to_dict() for e in self.entries],
-            "user_permissions": self.user_permissions.to_dict(),
+            "user_permissions": (
+                slot_perms[0].to_dict() if slot_perms else self.user_permissions.to_dict()
+            ),
+            "user_slot_permissions": [p.to_dict() for p in slot_perms],
             "user_slot_labels": list(self.user_slot_labels),
             "field_labels": {
                 key: value
@@ -240,12 +260,24 @@ class KobiVault:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> KobiVault:
         entries = [VaultEntry.from_dict(item) for item in data.get("entries", [])]
-        perms = UserPermissions.from_dict(data.get("user_permissions", {}))
+        legacy_perms = UserPermissions.from_dict(data.get("user_permissions", {}))
         labels = data.get("user_slot_labels")
         if not isinstance(labels, list) or not labels:
             labels = [f"Alt Kullanıcı {i}" for i in range(1, USER_SLOT_COUNT + 1)]
         else:
             labels = [str(x) for x in labels]
+        raw_slot_perms = data.get("user_slot_permissions")
+        slot_perms: list[UserPermissions] = []
+        if isinstance(raw_slot_perms, list) and raw_slot_perms:
+            slot_perms = [
+                UserPermissions.from_dict(item if isinstance(item, dict) else {})
+                for item in raw_slot_perms
+            ]
+        else:
+            # Eski ortak şablon → her etiket için kopyala
+            slot_perms = [legacy_perms.copy() for _ in labels] or [legacy_perms.copy()]
+        while len(slot_perms) < len(labels):
+            slot_perms.append(legacy_perms.copy())
         raw_field_labels = data.get("field_labels", {})
         field_labels: dict[str, str] = {}
         if isinstance(raw_field_labels, dict):
@@ -261,12 +293,12 @@ class KobiVault:
         ]
         return cls(
             entries=entries,
-            user_permissions=perms,
+            user_permissions=slot_perms[0].copy() if slot_perms else legacy_perms,
+            user_slot_permissions=slot_perms,
             user_slot_labels=labels,
             field_labels=field_labels,
             audit_log=audit,
         )
-
 
 def vault_to_json_bytes(vault: KobiVault) -> bytes:
     return json.dumps(vault.to_dict(), ensure_ascii=False).encode("utf-8")

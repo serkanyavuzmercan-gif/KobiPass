@@ -485,7 +485,7 @@ class MainWindow(QMainWindow):
         """
         if not self._vault or not self._session:
             return None
-        return effective_permissions(self._session, self._vault.user_permissions)
+        return effective_permissions(self._session, self._vault)
 
     def _apply_row_permissions(self) -> None:
         perms = self._row_permissions()
@@ -963,6 +963,8 @@ class MainWindow(QMainWindow):
             self._session.admin_password = data["admin_new"]
 
         self._vault.user_permissions = data["permissions"]
+        if data.get("slot_permissions") is not None:
+            self._vault.set_slot_permissions(data["slot_permissions"])
         self._vault.user_slot_labels = data.get(
             "user_slot_labels", self._vault.user_slot_labels
         )
@@ -1084,7 +1086,8 @@ class MainWindow(QMainWindow):
         if isinstance(self._session, UserSession):
             if not self._vault or not self._session.keys:
                 return
-            if not self._vault.user_permissions.can_save:
+            slot_perms = self._vault.permissions_for_slot(self._session.user_slot)
+            if not slot_perms.can_save:
                 return
             self._sync_vault_entries()
             new_entries = self._collect_entries()
@@ -1092,7 +1095,7 @@ class MainWindow(QMainWindow):
                 self._snapshot_entries,
                 new_entries,
                 self._session,
-                self._vault.user_permissions,
+                slot_perms,
                 self._vault,
             )
             self._vault.audit_log.extend(logs)
@@ -1143,10 +1146,15 @@ class MainWindow(QMainWindow):
         if not data:
             return
 
-        vault = KobiVault(
-            entries=entries,
-            user_permissions=data["permissions"],
-        )
+        vault = KobiVault(entries=entries)
+        if data.get("slot_permissions"):
+            vault.set_slot_permissions(data["slot_permissions"])
+            vault.user_slot_labels = data.get(
+                "user_slot_labels", vault.user_slot_labels
+            )
+        else:
+            vault.user_permissions = data["permissions"]
+            vault.set_slot_permissions([data["permissions"].copy()])
         path = Path(path_str)
         try:
             clear_read_only(path)

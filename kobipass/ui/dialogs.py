@@ -177,13 +177,17 @@ class SetupVaultDialog(QDialog):
 
         perms = UserPermissions(
             name=self._perm_combos["name"].currentData(),
-            info1=self._perm_combos["info1"].currentData(),
             info=self._perm_combos["info"].currentData(),
         )
+        slot_permissions = [
+            perms.copy() if enabled else UserPermissions()
+            for enabled, _ in user_passwords
+        ]
         self._result = {
             "admin_password": self._admin1.text(),
             "user_passwords": user_passwords,
             "permissions": perms,
+            "slot_permissions": slot_permissions,
         }
         self.accept()
 

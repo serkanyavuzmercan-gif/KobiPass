@@ -55,7 +55,30 @@ def test_field_labels_roundtrip() -> None:
     loaded = vault_from_json_bytes(raw)
     assert loaded.label_for("name") == "Başlık"
     assert loaded.label_for("info1") == "Parola"
-    assert loaded.to_dict()["version"] == 2
+    assert loaded.to_dict()["version"] == 3
+
+
+def test_per_slot_permissions_roundtrip() -> None:
+    p1 = UserPermissions(name="read", info="write", can_add_entry=True)
+    p2 = UserPermissions(name="none", info="read", can_save=False)
+    vault = KobiVault(entries=[VaultEntry(name="n", info1="p")])
+    vault.set_slot_permissions([p1, p2])
+    vault.user_slot_labels = ["Ali", "Veli"]
+    loaded = vault_from_json_bytes(vault_to_json_bytes(vault))
+    assert loaded.permissions_for_slot(1).can_add_entry is True
+    assert loaded.permissions_for_slot(2).can_save is False
+    assert loaded.permissions_for_slot(2).name == "none"
+    # Legacy ortak şablon → slotlara kopyalanır
+    legacy = KobiVault.from_dict(
+        {
+            "version": 2,
+            "entries": [],
+            "user_permissions": UserPermissions(name="hidden_read", info="none").to_dict(),
+            "user_slot_labels": ["A", "B"],
+            "audit_log": [],
+        }
+    )
+    assert legacy.permissions_for_slot(2).name == "hidden_read"
 
 
 def test_build_and_unlock_argon2(tmp_path: Path) -> None:

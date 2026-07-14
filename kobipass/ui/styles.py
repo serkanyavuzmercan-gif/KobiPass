@@ -877,6 +877,13 @@ QFrame#userSlotCard {
     background-color: #1e2229;
 }
 
+QLabel#cardFlagsTitle {
+    color: #9aa0a8;
+    font-size: 12px;
+    font-weight: 600;
+    padding-top: 4px;
+}
+
 QPushButton#slotRemoveBtn {
     background: transparent;
     border: none;
@@ -1760,6 +1767,13 @@ QFrame#userSlotCard {
     border: 1px solid #dde3f0;
     border-radius: 8px;
     background-color: #ffffff;
+}
+
+QLabel#cardFlagsTitle {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+    padding-top: 4px;
 }
 
 QPushButton#slotRemoveBtn {

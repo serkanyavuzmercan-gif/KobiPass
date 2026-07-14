@@ -30,12 +30,13 @@ def can_copy(level: FieldLevel) -> bool:
     return level in ("read", "hidden_read", "write")
 
 
-def effective_permissions(session: Session, vault_perms: UserPermissions) -> UserPermissions:
+def effective_permissions(session: Session, vault: KobiVault) -> UserPermissions:
     if getattr(session, "is_admin", False):
         from kobipass.session import admin_permissions
 
         return admin_permissions()
-    return vault_perms
+    slot = getattr(session, "user_slot", None) or 1
+    return vault.permissions_for_slot(int(slot))
 
 
 def view_only_permissions(perms: UserPermissions) -> UserPermissions:
