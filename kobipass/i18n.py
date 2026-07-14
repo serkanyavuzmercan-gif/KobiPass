@@ -152,6 +152,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "hide": "Gizle",
         "pwd_too_short": "Parola en az {min_len} karakter olmalıdır.",
         "pwd_mismatch": "Parolalar eşleşmiyor.",
+        "pwd_not_available": "Bu parola kullanılamaz. Farklı bir parola seçin.",
         "pwd_admin_required": "Yönetici parolası zorunludur.",
         "open_pwd_title": "Kasa Parolası",
         "open_pwd_label": "Dosya: {file}\nYönetici veya kullanıcı parolanızı girin:",
@@ -320,6 +321,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "crypto.wrap_failed": "Sarmalayıcı oluşturulamadı",
         "crypto.invalid_dek": "Geçersiz veri anahtarı",
         "crypto.invalid_user_slots": "Geçersiz kullanıcı slot sayısı",
+        "crypto.duplicate_password": "Yönetici ve kullanıcı parolaları farklı olmalıdır",
     },
     "en": {
         "app_name": "KobiPass",
@@ -464,6 +466,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "hide": "Hide",
         "pwd_too_short": "Password must be at least {min_len} characters.",
         "pwd_mismatch": "Passwords do not match.",
+        "pwd_not_available": "This password cannot be used. Choose a different password.",
         "pwd_admin_required": "Admin password is required.",
         "open_pwd_title": "Vault Password",
         "open_pwd_label": "File: {file}\nEnter your admin or user password:",
@@ -632,6 +635,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "crypto.wrap_failed": "Failed to create key wrap",
         "crypto.invalid_dek": "Invalid data encryption key",
         "crypto.invalid_user_slots": "Invalid user slot count",
+        "crypto.duplicate_password": "Admin and user passwords must be different",
     },
 }
 

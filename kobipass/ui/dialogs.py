@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from kobipass.crypto import MAX_USER_SLOTS
+from kobipass.crypto import MAX_USER_SLOTS, passwords_are_unique
 from kobipass.i18n import MIN_PASSWORD_LENGTH, i18n, tr
 from kobipass.resources import app_icon
 from kobipass.ui.strength import attach_strength_label
@@ -295,6 +295,10 @@ class SetupVaultDialog(QDialog):
                     can_save=card["can_save"].isChecked(),
                 )
             )
+
+        if not passwords_are_unique(self._admin1.text(), user_passwords):
+            self._warn(tr("pwd_not_available"))
+            return
 
         shared = UserPermissions(name=name_level, info=info_level)
         first_enabled = slot_permissions[0] if slot_permissions else shared

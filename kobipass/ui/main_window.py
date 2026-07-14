@@ -1056,7 +1056,13 @@ class MainWindow(QMainWindow):
         if not self._require_admin():
             return
         enabled = [slot.enabled for slot in self._session.keys.user_slots]  # type: ignore[union-attr]
-        dlg = UserAdminDialog(self._vault, enabled, self)
+        dlg = UserAdminDialog(
+            self._vault,
+            enabled,
+            self,
+            admin_password=self._session.admin_password,
+            keys=self._session.keys,
+        )
         if dlg.exec() != dlg.DialogCode.Accepted:
             return
         data = dlg.result_data()

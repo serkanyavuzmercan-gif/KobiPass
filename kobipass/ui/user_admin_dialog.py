@@ -26,6 +26,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from kobipass.crypto import (
+    VaultFileKeys,
+    password_matches_user_slot,
+    passwords_are_unique,
+)
 from kobipass.i18n import MIN_PASSWORD_LENGTH, tr
 from kobipass.resources import app_icon
 from kobipass.ui.icons import icon_eye, icon_eye_off
@@ -80,6 +85,8 @@ class UserAdminDialog(QDialog):
         enabled_flags: list[bool],
         parent: QWidget | None = None,
         *,
+        admin_password: str = "",
+        keys: VaultFileKeys | None = None,
         require_admin_current: bool = True,
     ) -> None:
         super().__init__(parent)
@@ -92,6 +99,8 @@ class UserAdminDialog(QDialog):
         self._vault = vault
         self._enabled_flags = list(enabled_flags)
         self._passwords_changed = False
+        self._admin_password = admin_password
+        self._keys = keys
         self._require_admin_current = require_admin_current
         self._result: dict | None = None
 
@@ -343,6 +352,42 @@ class UserAdminDialog(QDialog):
             can_save=card["can_save"].isChecked(),
         )
 
+    def _conflicts_with_preserved_passwords(
+        self,
+        effective_admin: str,
+        user_passwords: list[tuple[bool, str]],
+        *,
+        admin_changed: bool,
+    ) -> bool:
+        """Yeni parolaları, şifreli olarak korunan mevcut slotlarla karşılaştır."""
+        if self._keys is None:
+            return False
+        for index, (enabled, password) in enumerate(user_passwords):
+            if not enabled:
+                continue
+            if not password:
+                if (
+                    admin_changed
+                    and password_matches_user_slot(
+                        self._keys, effective_admin, index
+                    )
+                ):
+                    return True
+                continue
+            for other_index in range(len(self._keys.user_slots)):
+                if other_index == index:
+                    continue
+                # Devre dışı bırakılan veya bu işlemde değiştirilen eski parola finalde yok.
+                if other_index < len(user_passwords):
+                    other_enabled, other_new = user_passwords[other_index]
+                    if not other_enabled or other_new:
+                        continue
+                if password_matches_user_slot(
+                    self._keys, password, other_index
+                ):
+                    return True
+        return False
+
     def _on_accept(self) -> None:
         admin_current = self._admin_current.text()
         admin_new = self._admin_new.text()
@@ -422,6 +467,19 @@ class UserAdminDialog(QDialog):
             slot_labels.append(
                 tr("user_default_label", n=len(slot_labels) + 1)
             )
+
+        effective_admin = admin_new or self._admin_password
+        admin_changed = bool(admin_new and admin_new != self._admin_password)
+        if (
+            not passwords_are_unique(effective_admin, user_passwords)
+            or self._conflicts_with_preserved_passwords(
+                effective_admin,
+                user_passwords,
+                admin_changed=admin_changed,
+            )
+        ):
+            self._warn(tr("pwd_not_available"))
+            return
 
         shared = UserPermissions(name=name_level, info=info_level)
         first_enabled = next(

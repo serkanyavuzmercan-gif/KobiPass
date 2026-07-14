@@ -8,9 +8,12 @@ import pytest
 
 from kobipass.crypto import (
     AccessDeniedError,
+    VaultCryptoError,
     VERSION_ARGON2,
     VERSION_PBKDF2,
     build_vault_file,
+    password_matches_user_slot,
+    passwords_are_unique,
     read_vault_file,
     try_unlock_vault,
     update_admin_wrap,
@@ -95,6 +98,37 @@ def test_build_and_unlock_argon2(tmp_path: Path) -> None:
     assert unlocked.role == "admin"
     assert unlocked.keys.version == VERSION_ARGON2
     assert unlocked.vault.entries[0].name == "Site"
+
+
+def test_admin_and_user_passwords_must_be_unique() -> None:
+    vault = KobiVault(entries=[VaultEntry(name="Site", info1="pass")])
+    assert passwords_are_unique(
+        "admin-secret",
+        [(True, "user-one"), (True, "user-two")],
+    )
+    assert not passwords_are_unique(
+        "admin-secret",
+        [(True, "admin-secret")],
+    )
+    assert not passwords_are_unique(
+        "admin-secret",
+        [(True, "same-user"), (True, "same-user")],
+    )
+    with pytest.raises(VaultCryptoError, match="crypto.duplicate_password"):
+        build_vault_file(
+            vault,
+            "same-password",
+            [(True, "same-password")],
+        )
+
+    raw = build_vault_file(
+        vault,
+        "admin-secret",
+        [(True, "user-one"), (True, "user-two")],
+    )
+    keys = try_unlock_vault(raw, "admin-secret").keys
+    assert password_matches_user_slot(keys, "user-one", 0)
+    assert not password_matches_user_slot(keys, "user-one", 1)
 
     user = read_vault_file(path, "user-one")
     assert user.role == "user"
