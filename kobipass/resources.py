@@ -77,6 +77,25 @@ def hero_art_pixmap(height: int = 360) -> QPixmap:
     return pm.scaledToHeight(height, Qt.TransformationMode.SmoothTransformation)
 
 
+def hero_left_pixmap(english: bool = False) -> QPixmap:
+    """Karşılama ekranının sol panelini komple kaplayan görsel (opsiyonel).
+
+    ``assets/hero_left.png`` (ve İngilizce için opsiyonel ``hero_left_en.png``)
+    varsa tam çözünürlükte döner; yoksa boş QPixmap. Landing bu görseli
+    "cover" biçiminde ölçekleyip sol paneli kaplar.
+    """
+    names = ["hero_left.png"]
+    if english:
+        names = ["hero_left_en.png", "hero_left.png"]
+    for name in names:
+        path = asset_path(name)
+        if path.is_file():
+            pm = QPixmap(str(path))
+            if not pm.isNull():
+                return pm
+    return QPixmap()
+
+
 def watermark_mask_pixmap(height: int = 512) -> QPixmap:
     """Yüksek çözünürlüklü logo2'den arka plansız, tek renk filigran maskesi."""
     path = asset_path("logo2.png")

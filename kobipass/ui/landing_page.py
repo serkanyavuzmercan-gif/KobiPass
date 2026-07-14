@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -14,12 +14,13 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QPushButton,
     QSizePolicy,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from kobipass.i18n import tr
-from kobipass.resources import hero_art_pixmap, logo_pixmap
+from kobipass.i18n import i18n, tr
+from kobipass.resources import hero_art_pixmap, hero_left_pixmap, logo_pixmap
 from kobipass.settings import get_recent_files
 from kobipass.ui.icons import (
     icon_file_new,
@@ -33,7 +34,51 @@ from kobipass.ui.icons import (
 )
 
 _FEATURE_ACCENT = QColor("#8296ff")
+_HERO_RADIUS = 22
 from kobipass.ui.theme import theme_manager
+
+
+class HeroImage(QWidget):
+    """Sol paneli komple kaplayan görsel: "cover" ölçekleme + yuvarlak köşe.
+
+    Görsel, pencere boyutundan bağımsız olarak paneli tamamen doldurur
+    (oran korunur, taşan kısım kırpılır) ve köşeleri karta uyumlu yuvarlanır.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("landingHeroImage")
+        self._pm = QPixmap()
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self.setMinimumSize(320, 340)
+
+    def set_pixmap(self, pm: QPixmap) -> None:
+        self._pm = pm
+        self.update()
+
+    def has_image(self) -> bool:
+        return not self._pm.isNull()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        if self._pm.isNull():
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        rect = self.rect()
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(rect), _HERO_RADIUS, _HERO_RADIUS)
+        painter.setClipPath(path)
+        scaled = self._pm.scaled(
+            rect.size(),
+            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        x = rect.x() + (rect.width() - scaled.width()) // 2
+        y = rect.y() + (rect.height() - scaled.height()) // 2
+        painter.drawPixmap(x, y, scaled)
 
 
 class LandingPage(QWidget):
@@ -236,12 +281,24 @@ class LandingPage(QWidget):
         actions_layout.addWidget(self._recent_empty)
         actions_layout.addStretch(1)
 
-        content.addWidget(hero, 5)
+        # Sol panel: assets/hero_left.png varsa komple görsel, yoksa kodlu hero.
+        self._left_stack = QStackedWidget()
+        self._left_stack.addWidget(hero)          # 0 — kodlu hero (yedek)
+        self._hero_image = HeroImage()
+        self._left_stack.addWidget(self._hero_image)  # 1 — tam panel görseli
+        content.addWidget(self._left_stack, 5)
         content.addWidget(actions, 4)
         outer.addLayout(content, 1)
 
+        self._apply_hero_image()
         self.retranslate()
         self.refresh_recent()
+
+    def _apply_hero_image(self) -> None:
+        """Mevcut dile göre sol panel görselini yükler; yoksa kodlu hero'ya düşer."""
+        pm = hero_left_pixmap(english=not i18n.is_tr())
+        self._hero_image.set_pixmap(pm)
+        self._left_stack.setCurrentIndex(1 if not pm.isNull() else 0)
 
     def _make_feature_card(
         self, icon_fn, title_key: str, desc_key: str, *, wide: bool = False
@@ -313,6 +370,7 @@ class LandingPage(QWidget):
             self._recent_list.addItem(item)
 
     def retranslate(self) -> None:
+        self._apply_hero_image()
         self.btn_theme.setToolTip(tr("btn_theme_tip"))
         self.btn_lang.setToolTip(tr("btn_lang_tip"))
         self.btn_security.setText(tr("landing_security"))
