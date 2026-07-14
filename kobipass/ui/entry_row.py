@@ -1,5 +1,6 @@
 """
-Tek vault kaydı satırı — sabit isim/1.bilgi, + ile dinamik ek alanlar.
+Tek vault kaydı satırı — tüm alanlar (İsim, 1. Bilgi, ekler) yatay scroll içinde.
+İsim alanındaki ⋯ menüsünden kayıt silinir.
 """
 
 from __future__ import annotations
@@ -13,7 +14,6 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMenu,
     QMessageBox,
-    QPushButton,
     QScrollArea,
     QSizePolicy,
     QToolButton,
@@ -35,7 +35,7 @@ COPY_GROUP_INSET = (5, 3, 0, 3)
 ROW_MARGINS = (0, 4, 12, 4)
 ROW_LAYOUT_SPACING = 8
 
-NAME_FIELD_WIDTH = 180
+NAME_FIELD_WIDTH = 200
 INFO_FIELD_WIDTH = 180
 FIELD_STEP_BTN_WIDTH = 30
 FIELD_STEP_BTN_HEIGHT = 20
@@ -130,7 +130,9 @@ class EntryFieldsScroll(QScrollArea):
 
 
 class CompactField(QWidget):
-    """Yatay: giriş kutusu + kopyala ikonu (sabit genişlik)."""
+    """Yatay: kopyala + giriş (+ göz/⋯). İsimde ⋯ ile kayıt silme."""
+
+    delete_requested = pyqtSignal()
 
     def __init__(
         self,
@@ -139,6 +141,7 @@ class CompactField(QWidget):
         field_key: str | None = None,
         fixed_width: int = INFO_FIELD_WIDTH,
         sensitive: bool = False,
+        with_delete_menu: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -151,13 +154,18 @@ class CompactField(QWidget):
         self._hidden = sensitive
         self._always_show = False
         self._view_only = False
+        self._can_delete = True
         self._custom_label = ""
         self._eye_btn: QToolButton | None = None
         self._menu_btn: QToolButton | None = None
         self._gen_action = None
+        self._delete_action = None
         self._strength_meter: QFrame | None = None
         self.setFixedWidth(fixed_width)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+        has_menu = sensitive or with_delete_menu
+        has_eye = sensitive
 
         if sensitive:
             outer = QVBoxLayout(self)
@@ -180,12 +188,12 @@ class CompactField(QWidget):
         layout.addWidget(self._copy_btn, 0, _ROW_ALIGN)
 
         inner_h = ROW_CONTROL_HEIGHT - COPY_GROUP_INSET[1] - COPY_GROUP_INSET[3]
-        trailing_btn_width = (
-            _FIELD_EYE_BTN_SIZE.width() + _FIELD_MENU_BTN_SIZE.width()
-            if sensitive
-            else 0
-        )
-        gap_count = 3 if sensitive else 1
+        trailing_btn_width = 0
+        if has_eye:
+            trailing_btn_width += _FIELD_EYE_BTN_SIZE.width()
+        if has_menu:
+            trailing_btn_width += _FIELD_MENU_BTN_SIZE.width()
+        gap_count = 1 + int(has_eye) + int(has_menu)
         edit_width = (
             fixed_width
             - COPY_BTN_SIZE.width()
@@ -200,7 +208,7 @@ class CompactField(QWidget):
         self._edit.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         layout.addWidget(self._edit, 0, _ROW_ALIGN)
 
-        if sensitive:
+        if has_eye:
             self._eye_btn = QToolButton()
             self._eye_btn.setObjectName("fieldEyeBtn")
             self._eye_btn.setIconSize(_ICON_SIZE)
@@ -213,7 +221,7 @@ class CompactField(QWidget):
             self._eye_btn.clicked.connect(self._on_eye_clicked)
             layout.addWidget(self._eye_btn, 0, _ROW_ALIGN)
 
-            # Kutuya özel ⋯ menüsü: parola üret (üzerine yazmadan önce sorar).
+        if has_menu:
             self._menu_btn = QToolButton()
             self._menu_btn.setObjectName("fieldMenuBtn")
             self._menu_btn.setIcon(icon_more())
@@ -224,8 +232,12 @@ class CompactField(QWidget):
             self._menu_btn.setAutoRaise(True)
             self._menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             self._field_menu = QMenu(self._menu_btn)
-            self._gen_action = self._field_menu.addAction(icon_key(), "")
-            self._gen_action.triggered.connect(self._on_generate)
+            if sensitive:
+                self._gen_action = self._field_menu.addAction(icon_key(), "")
+                self._gen_action.triggered.connect(self._on_generate)
+            if with_delete_menu:
+                self._delete_action = self._field_menu.addAction("")
+                self._delete_action.triggered.connect(self.delete_requested.emit)
             self._menu_btn.setMenu(self._field_menu)
             layout.addWidget(self._menu_btn, 0, _ROW_ALIGN)
 
@@ -267,7 +279,10 @@ class CompactField(QWidget):
         self._refresh_eye()
         if self._menu_btn is not None:
             self._menu_btn.setToolTip(tr("row_menu_tip"))
+        if self._gen_action is not None:
             self._gen_action.setText(tr("gen_password_menu"))
+        if self._delete_action is not None:
+            self._delete_action.setText(tr("btn_delete"))
 
     def _refresh_eye(self) -> None:
         if self._eye_btn is None:
@@ -315,9 +330,25 @@ class CompactField(QWidget):
                 return
         self.set_generated(generate_password())
 
+    def set_can_delete(self, allowed: bool) -> None:
+        self._can_delete = allowed
+        self._refresh_menu()
+
     def _refresh_menu(self) -> None:
-        if self._menu_btn is not None:
-            self._menu_btn.setVisible(self.is_editable())
+        if self._menu_btn is None:
+            return
+        show = False
+        if self._gen_action is not None:
+            gen_ok = self.is_editable()
+            self._gen_action.setVisible(gen_ok)
+            self._gen_action.setEnabled(gen_ok)
+            show = show or gen_ok
+        if self._delete_action is not None:
+            del_ok = self._can_delete and not self._view_only
+            self._delete_action.setVisible(del_ok)
+            self._delete_action.setEnabled(del_ok)
+            show = show or del_ok
+        self._menu_btn.setVisible(show)
 
     def set_view_only(self, view_only: bool) -> None:
         self._view_only = view_only
@@ -447,7 +478,7 @@ class CompactField(QWidget):
 
 
 class EntryRowWidget(QWidget):
-    """Bir kasa kaydı — isim + 1.bilgi sabit, + ile ek alanlar."""
+    """Bir kasa kaydı — İsim + 1. Bilgi + ek alanlar tek yatay scroll içinde."""
 
     changed = pyqtSignal()
     remove_requested = pyqtSignal(object)
@@ -470,19 +501,6 @@ class EntryRowWidget(QWidget):
         row.setSpacing(ROW_LAYOUT_SPACING)
         row.setAlignment(_ROW_ALIGN)
 
-        self._name = CompactField(
-            field_key="field_name",
-            fixed_width=NAME_FIELD_WIDTH,
-            sensitive=False,
-        )
-        self._info1 = CompactField(
-            info_index=1,
-            fixed_width=INFO_FIELD_WIDTH,
-            sensitive=True,
-        )
-        row.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
-        row.addWidget(self._info1, 0, Qt.AlignmentFlag.AlignTop)
-
         self._scroll = EntryFieldsScroll()
         self._scroll.setObjectName("entryFieldsScroll")
         self._scroll.setWidgetResizable(True)
@@ -497,11 +515,7 @@ class EntryRowWidget(QWidget):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-
-        # Scrollarea yüksekliğine scrollbar nefes payı (+14)
         self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT + 14)
-
-        # Kutular 14px boşluğun ortasında yüzmesin — yukarı yasla
         self._scroll.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
@@ -511,11 +525,28 @@ class EntryRowWidget(QWidget):
         self._extras_layout = QHBoxLayout(self._extras_host)
         self._extras_layout.setContentsMargins(0, 0, 0, 0)
         self._extras_layout.setSpacing(ROW_LAYOUT_SPACING)
-
-        # İçeriği sola ve yukarı hizala
         self._extras_layout.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
+
+        self._name = CompactField(
+            field_key="field_name",
+            fixed_width=NAME_FIELD_WIDTH,
+            sensitive=False,
+            with_delete_menu=True,
+            parent=self._extras_host,
+        )
+        self._info1 = CompactField(
+            info_index=1,
+            fixed_width=INFO_FIELD_WIDTH,
+            sensitive=True,
+            parent=self._extras_host,
+        )
+        self._name.delete_requested.connect(
+            lambda: self.remove_requested.emit(self)
+        )
+        self._extras_layout.addWidget(self._name, 0, Qt.AlignmentFlag.AlignTop)
+        self._extras_layout.addWidget(self._info1, 0, Qt.AlignmentFlag.AlignTop)
 
         self._field_step_column = QWidget()
         self._field_step_column.setObjectName("fieldStepColumn")
@@ -535,18 +566,12 @@ class EntryRowWidget(QWidget):
         field_step_layout.addWidget(
             self._remove_field_btn, 0, Qt.AlignmentFlag.AlignHCenter
         )
-        self._extras_layout.addWidget(self._field_step_column, 0, Qt.AlignmentFlag.AlignTop)
+        self._extras_layout.addWidget(
+            self._field_step_column, 0, Qt.AlignmentFlag.AlignTop
+        )
 
         self._scroll.setWidget(self._extras_host)
         row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
-
-        self._remove_btn = QPushButton()
-        self._remove_btn.setObjectName("dangerBtn")
-        self._remove_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._remove_btn.setFixedHeight(ROW_CONTROL_HEIGHT)
-        self._remove_btn.setMinimumWidth(ROW_CONTROL_HEIGHT)
-        self._remove_btn.clicked.connect(lambda: self.remove_requested.emit(self))
-        row.addWidget(self._remove_btn, 0, Qt.AlignmentFlag.AlignTop)
 
         self.retranslate()
 
@@ -578,9 +603,6 @@ class EntryRowWidget(QWidget):
             QWidget.setTabOrder(prev, nxt)
 
     def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
-        # Manuel pikselleri hesaplama kodları (for döngüsü ve setFixedSize) tamamen silindi.
-        # Genişlik hesabını artık setWidgetResizable(True) sayesinde QHBoxLayout kendisi yapacak.
-
         def update_scroll():
             bar = self._scroll.horizontalScrollBar()
             if scroll_to_end:
@@ -588,8 +610,6 @@ class EntryRowWidget(QWidget):
             else:
                 bar.setValue(min(bar.value(), bar.maximum()))
 
-        # Yeni alan eklendiğinde Qt'nin arayüzü çizmesi birkaç milisaniye sürer.
-        # Scroll barın doğru maksimum değere ulaşması için çizimin bitmesini sıfır gecikmeli timer ile bekliyoruz.
         QTimer.singleShot(0, update_scroll)
 
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
@@ -658,8 +678,7 @@ class EntryRowWidget(QWidget):
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_permission(perms.level_for_info_index(index))
         self._field_step_column.setVisible(not view_only)
-        self._remove_btn.setVisible(not view_only and self._can_delete)
-        self._remove_btn.setEnabled(not view_only and self._can_delete)
+        self._name.set_can_delete(self._can_delete and not view_only)
         if view_only:
             self._add_field_btn.setEnabled(False)
             self._remove_field_btn.setEnabled(False)
@@ -713,8 +732,7 @@ class EntryRowWidget(QWidget):
 
     def set_can_delete(self, allowed: bool) -> None:
         self._can_delete = allowed
-        self._remove_btn.setVisible(allowed and not self._view_only)
-        self._remove_btn.setEnabled(allowed and not self._view_only)
+        self._name.set_can_delete(allowed and not self._view_only)
 
     def retranslate(self) -> None:
         self._name.retranslate()
@@ -723,7 +741,6 @@ class EntryRowWidget(QWidget):
             field.retranslate()
         self._add_field_btn.setToolTip(tr("add_field_tip"))
         self._remove_field_btn.setToolTip(tr("remove_field_tip"))
-        self._remove_btn.setText(tr("btn_delete"))
 
     def _emit_changed(self) -> None:
         self.changed.emit()
