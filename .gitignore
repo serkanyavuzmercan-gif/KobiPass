@@ -21,3 +21,7 @@ _*.png
 # IDE
 .vscode/*
 !.vscode/launch.json
+
+# Test/performans artefaktlari
+*.enc
+test_*.enc
