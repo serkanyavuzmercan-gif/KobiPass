@@ -191,6 +191,34 @@ def icon_theme(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
     return _scaled_icon(f"theme:{color.name()}:{size}", draw, size)
 
 
+def icon_key(color: QColor = ACCENT_COLOR, size: int = 18) -> QIcon:
+    """Anahtar — parola üret."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 2.0 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        # halka (anahtarın başı)
+        p.drawEllipse(_pt(5 * s, 6 * s), 5.5 * s, 5.5 * s)
+        # sap ve dişler
+        p.drawLine(_pt(11.5 * s, 12 * s), _pt(20 * s, 20.5 * s))
+        p.drawLine(_pt(17 * s, 17.5 * s), _pt(19.5 * s, 15 * s))
+        p.drawLine(_pt(14.5 * s, 15 * s), _pt(17 * s, 12.5 * s))
+
+    return _scaled_icon(f"key:{color.name()}:{size}", draw, size)
+
+
+def icon_more(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Yatay üç nokta — satır menüsü."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(color)
+        for cx in (6, 12, 18):
+            p.drawEllipse(_pt((cx - 1.6) * s, 10.4 * s), 1.6 * s, 1.6 * s)
+
+    return _scaled_icon(f"more:{color.name()}:{size}", draw, size)
+
+
 def icon_refresh(color: QColor = ACCENT_COLOR, size: int = 18) -> QIcon:
     """Dairesel ok — parola üret/yenile."""
     def draw(p: QPainter) -> None:

@@ -11,6 +11,8 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLineEdit,
+    QMenu,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -22,7 +24,7 @@ from PyQt6.QtWidgets import (
 from kobipass.clipboard import copy_text
 from kobipass.i18n import tr
 from kobipass.permissions import can_copy, can_edit, can_view
-from kobipass.ui.icons import icon_copy, icon_eye, icon_eye_off
+from kobipass.ui.icons import icon_copy, icon_eye, icon_eye_off, icon_key, icon_more
 from kobipass.vault_model import FieldLevel, UserPermissions, VaultEntry
 
 ROW_MIME = "application/x-kobipass-row-index"
@@ -204,16 +206,6 @@ class CompactField(QWidget):
             layout.addWidget(self._eye_btn, 0, _ROW_ALIGN)
 
         if sensitive:
-            # Alan içi "üret" düğmesi — güvenli parola oluşturur ve gösterir.
-            from kobipass.ui.icons import icon_refresh
-
-            self._gen_action = self._edit.addAction(
-                icon_refresh(), QLineEdit.ActionPosition.TrailingPosition
-            )
-            self._gen_action.setToolTip(tr("gen_password_tip"))
-            self._gen_action.triggered.connect(self._on_generate)
-
-        if sensitive:
             outer.addWidget(row_host)
             self._strength_meter = QFrame(self)
             self._strength_meter.setFixedHeight(3)
@@ -264,13 +256,14 @@ class CompactField(QWidget):
         if self._strength_meter is not None:
             self._strength_meter.setStyleSheet(f"background-color: {color};")
 
-    def _on_generate(self) -> None:
-        """Güvenli parola üretir, alana yazar ve görünür yapar."""
-        if self._edit.isReadOnly() or not self._edit.isEnabled():
-            return
-        from kobipass.password_tools import generate_password
+    def is_editable(self) -> bool:
+        return not self._edit.isReadOnly() and self._edit.isEnabled()
 
-        self._edit.setText(generate_password())
+    def set_generated(self, value: str) -> None:
+        """Üretilmiş parolayı alana yazar ve görünür yapar."""
+        if not self.is_editable():
+            return
+        self._edit.setText(value)
         self._hidden = False
         self._sync_echo()
         self._refresh_eye()
@@ -497,6 +490,21 @@ class EntryRowWidget(QWidget):
         self._scroll.setWidget(self._extras_host)
         row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
 
+        # Satır menüsü (⋯): parola üret gibi kayda özel eylemler.
+        self._menu_btn = QToolButton()
+        self._menu_btn.setObjectName("rowMenuBtn")
+        self._menu_btn.setIcon(icon_more())
+        self._menu_btn.setIconSize(_ICON_SIZE)
+        self._menu_btn.setFixedSize(QSize(ROW_CONTROL_HEIGHT, ROW_CONTROL_HEIGHT))
+        self._menu_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._row_menu = QMenu(self._menu_btn)
+        self._gen_pw_action = self._row_menu.addAction(icon_key(), "")
+        self._gen_pw_action.triggered.connect(self._on_generate_password)
+        self._menu_btn.setMenu(self._row_menu)
+        row.addWidget(self._menu_btn, 0, Qt.AlignmentFlag.AlignTop)
+
         self._remove_btn = QPushButton()
         self._remove_btn.setObjectName("dangerBtn")
         self._remove_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -624,6 +632,26 @@ class EntryRowWidget(QWidget):
             self._update_field_step_buttons()
         self._sync_scroll_width()
         self._wire_tab_order()
+        # Menü yalnızca parola (info1) düzenlenebiliyorsa anlamlı.
+        self._menu_btn.setVisible(self._info1.is_editable())
+
+    def _on_generate_password(self) -> None:
+        """Menüden parola üret — mevcut parola varsa üzerine yazmadan önce sorar."""
+        if not self._info1.is_editable():
+            return
+        from kobipass.password_tools import generate_password
+
+        if self._info1.text().strip():
+            answer = QMessageBox.question(
+                self,
+                tr("gen_overwrite_title"),
+                tr("gen_overwrite_text"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        self._info1.set_generated(generate_password())
 
     def apply_field_labels(self, labels: dict[str, str]) -> None:
         self._field_labels = dict(labels)
@@ -681,6 +709,8 @@ class EntryRowWidget(QWidget):
         self._add_field_btn.setToolTip(tr("add_field_tip"))
         self._remove_field_btn.setToolTip(tr("remove_field_tip"))
         self._remove_btn.setText(tr("btn_delete"))
+        self._menu_btn.setToolTip(tr("row_menu_tip"))
+        self._gen_pw_action.setText(tr("gen_password_menu"))
 
     def _emit_changed(self) -> None:
         self.changed.emit()
