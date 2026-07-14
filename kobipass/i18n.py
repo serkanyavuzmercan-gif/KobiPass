@@ -114,6 +114,29 @@ _STRINGS: dict[str, dict[str, str]] = {
         "info_title": "Bilgi",
         "admin_needed_user": "Bu işlem için yönetici yetkisi gerekir. Alt kullanıcı olarak bu yetkiniz yok.",
         "admin_needed_new": "Bu bölümü kullanmak için lütfen önce dosyanızı kaydedip alt kullanıcı izinlerini oluşturun.",
+        "restricted_notice_title": "Yetki kısıtlaması",
+        "restricted_add_record": (
+            "Alt kullanıcı olarak yeni kayıt ekleme yetkiniz bulunmuyor. "
+            "Lütfen yöneticinize danışın."
+        ),
+        "restricted_save": (
+            "Bu kasadaki değişiklikleri kaydetme yetkiniz bulunmuyor. "
+            "Lütfen yöneticinize danışın."
+        ),
+        "restricted_delete_record": (
+            "Kayıt silme yetkiniz bulunmuyor. Lütfen yöneticinize danışın."
+        ),
+        "restricted_edit_fields": (
+            "Bilgi alanı ekleme veya kaldırma yetkiniz bulunmuyor. "
+            "Lütfen yöneticinize danışın."
+        ),
+        "restricted_field_edit": "Bu alan yalnızca görüntülenebilir; düzenleme yetkiniz yok.",
+        "restricted_manage_users": "Alt kullanıcılar ve izinleri yalnızca yönetici düzenleyebilir.",
+        "restricted_audit": "Değişiklik geçmişini yalnızca yönetici görüntüleyebilir.",
+        "restricted_report": "Parola sağlık raporunu yalnızca yönetici görüntüleyebilir.",
+        "restricted_admin_feature": "Bu özellik yalnızca yönetici tarafından kullanılabilir.",
+        "restricted_reorder": "Kayıt sıralamasını yalnızca yönetici değiştirebilir.",
+        "user_workspace_hint": "Alt kullanıcı oturumu · Yetkileriniz yönetici tarafından belirlenir",
         "opened_text": "{count} kayıt yüklendi.",
         "setup_pwd_title": "Kasa Kurulumu",
         "setup_pwd_info": (
@@ -428,6 +451,29 @@ _STRINGS: dict[str, dict[str, str]] = {
         "info_title": "Info",
         "admin_needed_user": "This action requires administrator rights. As a sub-user you do not have this permission.",
         "admin_needed_new": "To use this section, please save your file first and set up sub-user permissions.",
+        "restricted_notice_title": "Permission restricted",
+        "restricted_add_record": (
+            "You do not have permission to add a new record as a sub-user. "
+            "Please contact your administrator."
+        ),
+        "restricted_save": (
+            "You do not have permission to save changes to this vault. "
+            "Please contact your administrator."
+        ),
+        "restricted_delete_record": (
+            "You do not have permission to delete records. Please contact your administrator."
+        ),
+        "restricted_edit_fields": (
+            "You do not have permission to add or remove info fields. "
+            "Please contact your administrator."
+        ),
+        "restricted_field_edit": "This field is view-only; you do not have edit permission.",
+        "restricted_manage_users": "Only an administrator can manage sub-users and permissions.",
+        "restricted_audit": "Only an administrator can view the change history.",
+        "restricted_report": "Only an administrator can view the password health report.",
+        "restricted_admin_feature": "This feature is available only to administrators.",
+        "restricted_reorder": "Only an administrator can reorder records.",
+        "user_workspace_hint": "Sub-user session · Permissions are managed by your administrator",
         "opened_text": "{count} record(s) loaded.",
         "setup_pwd_title": "Vault Setup",
         "setup_pwd_info": (

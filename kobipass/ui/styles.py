@@ -481,6 +481,67 @@ QLabel#vaultWorkspaceHint {
     font-weight: 500;
 }
 
+QFrame#restrictionNotice {
+    background-color: #252a37;
+    border: 1px solid #56658a;
+    border-radius: 10px;
+}
+
+QLabel#restrictionNoticeIcon {
+    color: #ffffff;
+    background-color: #4b68f4;
+    border: 1px solid #7188ff;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QLabel#restrictionNoticeTitle {
+    color: #e9edff;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+QLabel#restrictionNoticeText {
+    color: #a7b0c1;
+    font-size: 10px;
+}
+
+QPushButton#restrictionNoticeClose {
+    background: transparent;
+    border: none;
+    color: #8994a7;
+    font-size: 15px;
+    padding: 0;
+}
+
+QPushButton#restrictionNoticeClose:hover {
+    background-color: #343c4b;
+    color: #ffffff;
+}
+
+QPushButton#primaryBtn[restricted="true"],
+QPushButton#addRecordBtn[restricted="true"],
+QPushButton#vaultEmptyPrimaryBtn[restricted="true"] {
+    background-color: #282d37;
+    color: #8993a4;
+    border: 1px dashed #566178;
+}
+
+QPushButton#primaryBtn[restricted="true"]:hover,
+QPushButton#addRecordBtn[restricted="true"]:hover,
+QPushButton#vaultEmptyPrimaryBtn[restricted="true"]:hover {
+    background-color: #303744;
+    color: #b2bdcf;
+    border-color: #7181a3;
+}
+
+QToolButton[restricted="true"] {
+    color: #7f899a;
+    background-color: #292f3a;
+    border-color: #4a5569;
+}
+
 QPushButton#headerSecurityBtn {
     background-color: #1e293b;
     color: #8aabf0;
@@ -1905,6 +1966,67 @@ QLabel#vaultWorkspaceHint {
     color: #8791a2;
     font-size: 10px;
     font-weight: 500;
+}
+
+QFrame#restrictionNotice {
+    background-color: #f3f5ff;
+    border: 1px solid #b9c5ee;
+    border-radius: 10px;
+}
+
+QLabel#restrictionNoticeIcon {
+    color: #ffffff;
+    background-color: #4b68f4;
+    border: 1px solid #405de4;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QLabel#restrictionNoticeTitle {
+    color: #26375f;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+QLabel#restrictionNoticeText {
+    color: #66728a;
+    font-size: 10px;
+}
+
+QPushButton#restrictionNoticeClose {
+    background: transparent;
+    border: none;
+    color: #7c879a;
+    font-size: 15px;
+    padding: 0;
+}
+
+QPushButton#restrictionNoticeClose:hover {
+    background-color: #e4e8f5;
+    color: #26375f;
+}
+
+QPushButton#primaryBtn[restricted="true"],
+QPushButton#addRecordBtn[restricted="true"],
+QPushButton#vaultEmptyPrimaryBtn[restricted="true"] {
+    background-color: #f5f6fa;
+    color: #8d97a8;
+    border: 1px dashed #b7c0d1;
+}
+
+QPushButton#primaryBtn[restricted="true"]:hover,
+QPushButton#addRecordBtn[restricted="true"]:hover,
+QPushButton#vaultEmptyPrimaryBtn[restricted="true"]:hover {
+    background-color: #edf0f7;
+    color: #667289;
+    border-color: #8f9bb2;
+}
+
+QToolButton[restricted="true"] {
+    color: #8e98a9;
+    background-color: #f2f4f8;
+    border-color: #c7cfdd;
 }
 
 QPushButton#headerSecurityBtn {

@@ -233,3 +233,11 @@ class VaultEmptyState(QWidget):
         self._cta.setText(tr("empty_state_cta"))
         self._shortcut.setText(tr("empty_state_shortcut"))
         self._security.setText(tr("empty_state_security"))
+
+    def set_restricted(self, restricted: bool) -> None:
+        self._cta.setProperty("restricted", restricted)
+        self._cta.setToolTip(
+            tr("restricted_add_record") if restricted else tr("add_record_tip")
+        )
+        self._cta.style().unpolish(self._cta)
+        self._cta.style().polish(self._cta)

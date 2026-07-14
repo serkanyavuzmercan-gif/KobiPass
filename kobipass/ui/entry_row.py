@@ -156,6 +156,7 @@ class CompactField(QWidget):
         self._always_show = False
         self._view_only = False
         self._can_delete = True
+        self._can_reorder = True
         self._can_remove_field = True
         self._custom_label = ""
         self._eye_btn: QToolButton | None = None
@@ -379,14 +380,6 @@ class CompactField(QWidget):
     def set_permission(self, level: FieldLevel) -> None:
         self._permission = level
         effective = level
-        if (
-            self._always_show
-            and not self._view_only
-            and (level == "none" or not can_edit(level))
-        ):
-            effective = "write"
-        elif level == "none":
-            effective = "read"
         visible = can_view(effective)
         self.setVisible(visible)
         if not visible:
@@ -408,6 +401,8 @@ class CompactField(QWidget):
             self._edit.clearFocus()
             self._edit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             self._edit.setProperty("readOnlyPerm", "true")
+            self._edit.setToolTip(tr("restricted_field_edit"))
+            self.setToolTip(tr("restricted_field_edit"))
         _restyle(self._edit)
         self._copy_btn.setEnabled(can_copy(effective) and not self._view_only)
         if self._copy_btn is not None:
@@ -505,6 +500,7 @@ class EntryRowWidget(QWidget):
 
     changed = pyqtSignal()
     remove_requested = pyqtSignal(object)
+    restricted_action = pyqtSignal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -605,7 +601,10 @@ class EntryRowWidget(QWidget):
         self._update_info_remove_actions()
 
     def _confirm_and_remove(self) -> None:
-        if not self._can_delete or self._view_only:
+        if self._view_only:
+            return
+        if not self._can_delete:
+            self.restricted_action.emit("restricted_delete_record")
             return
         # Boş kayıtta onay sorma; en az bir alan doluysa sor.
         if not self.to_entry().has_content():
@@ -660,6 +659,13 @@ class EntryRowWidget(QWidget):
         QTimer.singleShot(0, update_scroll)
 
     def _add_extra_field(self, *, initial_text: str = "", block_signals: bool = False) -> None:
+        if (
+            not block_signals
+            and not self._view_only
+            and self._permissions.info != "write"
+        ):
+            self.restricted_action.emit("restricted_edit_fields")
+            return
         info_index = len(self._extra_fields) + 2
         field = CompactField(
             info_index=info_index,
@@ -737,6 +743,9 @@ class EntryRowWidget(QWidget):
     def _remove_last_extra_field(self) -> None:
         if self._view_only:
             return
+        if self._permissions.info != "write":
+            self.restricted_action.emit("restricted_edit_fields")
+            return
         if not self._extra_fields:
             return
         field = self._extra_fields.pop()
@@ -769,8 +778,26 @@ class EntryRowWidget(QWidget):
         self._info1.set_permission(perms.level_for_info_index(1))
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_permission(perms.level_for_info_index(index))
-        self._field_step_column.setVisible(not view_only)
-        self._name.set_can_delete(self._can_delete and not view_only)
+        self.setVisible(perms.name != "none" or perms.info != "none")
+        self._field_step_column.setVisible(
+            not view_only and perms.info != "none"
+        )
+        # Menü görünür kalır; yetki yoksa tıklama açıklayıcı bildirim üretir.
+        self._name.set_can_delete(not view_only)
+        fields_restricted = perms.info != "write"
+        for button in (self._add_field_btn, self._remove_field_btn):
+            button.setProperty("restricted", fields_restricted)
+            button.setToolTip(
+                tr("restricted_edit_fields")
+                if fields_restricted
+                else (
+                    tr("add_field_tip")
+                    if button is self._add_field_btn
+                    else tr("remove_field_tip")
+                )
+            )
+            button.style().unpolish(button)
+            button.style().polish(button)
         self._update_info_remove_actions()
         if view_only:
             self._add_field_btn.setEnabled(False)
@@ -788,7 +815,11 @@ class EntryRowWidget(QWidget):
             field.set_custom_label(labels.get(f"info{index}", ""))
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
-        if event.button() == Qt.MouseButton.LeftButton and not self._view_only:
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and not self._view_only
+            and self._can_reorder
+        ):
             self._drag_start = event.position().toPoint()
         super().mousePressEvent(event)
 
@@ -797,6 +828,7 @@ class EntryRowWidget(QWidget):
             self._drag_start is not None
             and event.buttons() & Qt.MouseButton.LeftButton
             and not self._view_only
+            and self._can_reorder
             and self.vault_index is not None
         ):
             if (event.position().toPoint() - self._drag_start).manhattanLength() >= 8:
@@ -825,7 +857,13 @@ class EntryRowWidget(QWidget):
 
     def set_can_delete(self, allowed: bool) -> None:
         self._can_delete = allowed
-        self._name.set_can_delete(allowed and not self._view_only)
+        self._name.set_can_delete(not self._view_only)
+
+    def set_can_reorder(self, allowed: bool) -> None:
+        self._can_reorder = allowed
+        self.setToolTip(
+            tr("drag_row_tip") if allowed else tr("restricted_reorder")
+        )
 
     def retranslate(self) -> None:
         self._name.retranslate()

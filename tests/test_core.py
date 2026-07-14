@@ -138,6 +138,24 @@ def test_admin_and_user_passwords_must_be_unique() -> None:
     assert not password_matches_user_slot(keys, "user-one", 1)
 
 
+def test_add_record_requires_permission_and_a_writable_field() -> None:
+    from kobipass.ui.main_window import MainWindow
+
+    assert MainWindow._can_add_record(None)
+    assert MainWindow._can_add_record(
+        UserPermissions(name="write", info="read", can_add_entry=True)
+    )
+    assert MainWindow._can_add_record(
+        UserPermissions(name="read", info="write", can_add_entry=True)
+    )
+    assert not MainWindow._can_add_record(
+        UserPermissions(name="read", info="read", can_add_entry=True)
+    )
+    assert not MainWindow._can_add_record(
+        UserPermissions(name="write", info="write", can_add_entry=False)
+    )
+
+
 def test_legacy_pbkdf2_roundtrip(tmp_path: Path) -> None:
     vault = KobiVault(entries=[VaultEntry(name="Legacy", info1="x")])
     blob = build_vault_file(
