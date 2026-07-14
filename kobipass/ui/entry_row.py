@@ -130,9 +130,10 @@ class EntryFieldsScroll(QScrollArea):
 
 
 class CompactField(QWidget):
-    """Yatay: kopyala + giriş (+ göz/⋯). İsimde ⋯ ile kayıt silme."""
+    """Yatay: kopyala + giriş (+ göz/⋯). İsimde kayıt sil; bilgide alan sil."""
 
     delete_requested = pyqtSignal()
+    field_remove_requested = pyqtSignal(object)
 
     def __init__(
         self,
@@ -155,11 +156,13 @@ class CompactField(QWidget):
         self._always_show = False
         self._view_only = False
         self._can_delete = True
+        self._can_remove_field = True
         self._custom_label = ""
         self._eye_btn: QToolButton | None = None
         self._menu_btn: QToolButton | None = None
         self._gen_action = None
         self._delete_action = None
+        self._field_remove_action = None
         self._strength_meter: QFrame | None = None
         self.setFixedWidth(fixed_width)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -235,6 +238,11 @@ class CompactField(QWidget):
             if sensitive:
                 self._gen_action = self._field_menu.addAction(icon_key(), "")
                 self._gen_action.triggered.connect(self._on_generate)
+                # Parola üret altında: bu bilgi alanını sil
+                self._field_remove_action = self._field_menu.addAction("")
+                self._field_remove_action.triggered.connect(
+                    lambda: self.field_remove_requested.emit(self)
+                )
             if with_delete_menu:
                 self._delete_action = self._field_menu.addAction("")
                 self._delete_action.triggered.connect(self.delete_requested.emit)
@@ -281,6 +289,8 @@ class CompactField(QWidget):
             self._menu_btn.setToolTip(tr("row_menu_tip"))
         if self._gen_action is not None:
             self._gen_action.setText(tr("gen_password_menu"))
+        if self._field_remove_action is not None:
+            self._field_remove_action.setText(tr("btn_delete"))
         if self._delete_action is not None:
             self._delete_action.setText(tr("btn_delete"))
 
@@ -334,6 +344,14 @@ class CompactField(QWidget):
         self._can_delete = allowed
         self._refresh_menu()
 
+    def set_can_remove_field(self, allowed: bool) -> None:
+        self._can_remove_field = allowed
+        self._refresh_menu()
+
+    def set_info_index(self, info_index: int) -> None:
+        self._info_index = info_index
+        self.retranslate()
+
     def _refresh_menu(self) -> None:
         if self._menu_btn is None:
             return
@@ -343,6 +361,11 @@ class CompactField(QWidget):
             self._gen_action.setVisible(gen_ok)
             self._gen_action.setEnabled(gen_ok)
             show = show or gen_ok
+        if self._field_remove_action is not None:
+            rem_ok = self._can_remove_field and not self._view_only and self.is_editable()
+            self._field_remove_action.setVisible(rem_ok)
+            self._field_remove_action.setEnabled(rem_ok)
+            show = show or rem_ok
         if self._delete_action is not None:
             del_ok = self._can_delete and not self._view_only
             self._delete_action.setVisible(del_ok)
@@ -544,6 +567,7 @@ class EntryRowWidget(QWidget):
             sensitive=True,
             parent=self._extras_host,
         )
+        self._info1.field_remove_requested.connect(self._on_info_field_remove)
         self._extras_layout.addWidget(self._info1, 0, Qt.AlignmentFlag.AlignTop)
 
         self._field_step_column = QWidget()
@@ -578,6 +602,7 @@ class EntryRowWidget(QWidget):
 
         self._wire_tab_order()
         self._update_field_step_buttons()
+        self._update_info_remove_actions()
 
     def _confirm_and_remove(self) -> None:
         if not self._can_delete or self._view_only:
@@ -649,6 +674,7 @@ class EntryRowWidget(QWidget):
         level = self._permissions.level_for_info_index(info_index)
         field.set_permission(level)
         field.textChanged().connect(self._emit_changed)
+        field.field_remove_requested.connect(self._on_info_field_remove)
 
         self._extras_layout.insertWidget(
             self._field_step_index(),
@@ -661,7 +687,48 @@ class EntryRowWidget(QWidget):
         self._sync_scroll_width(scroll_to_end=not block_signals)
         self._wire_tab_order()
         self._update_field_step_buttons()
+        self._update_info_remove_actions()
         self._emit_changed()
+
+    def _update_info_remove_actions(self) -> None:
+        """1. Bilgi yalnızken silinmez; ek alanlar her zaman silinebilir."""
+        can_edit = not self._view_only
+        self._info1.set_can_remove_field(can_edit and len(self._extra_fields) > 0)
+        for field in self._extra_fields:
+            field.set_can_remove_field(can_edit)
+
+    def _on_info_field_remove(self, field: CompactField) -> None:
+        """Belirli bir bilgi alanını siler; kalanlar kaydırılıp yeniden numaralanır."""
+        if self._view_only:
+            return
+        if field is self._info1:
+            if not self._extra_fields:
+                return
+            # 1. Bilgi silinince 2. Bilgi yukarı kayar.
+            promoted = self._extra_fields.pop(0)
+            self._info1.setText(promoted.text())
+            self._extras_layout.removeWidget(promoted)
+            promoted.deleteLater()
+            self._renumber_extra_fields()
+        elif field in self._extra_fields:
+            self._extra_fields.remove(field)
+            self._extras_layout.removeWidget(field)
+            field.deleteLater()
+            self._renumber_extra_fields()
+        else:
+            return
+        self._sync_scroll_width()
+        self._wire_tab_order()
+        self._update_field_step_buttons()
+        self._update_info_remove_actions()
+        self._emit_changed()
+
+    def _renumber_extra_fields(self) -> None:
+        for offset, field in enumerate(self._extra_fields):
+            info_index = offset + 2
+            field.set_info_index(info_index)
+            field.set_custom_label(self._field_labels.get(f"info{info_index}", ""))
+            field.set_permission(self._permissions.level_for_info_index(info_index))
 
     def _remove_last_extra_field(self) -> None:
         if self._view_only:
@@ -671,9 +738,11 @@ class EntryRowWidget(QWidget):
         field = self._extra_fields.pop()
         self._extras_layout.removeWidget(field)
         field.deleteLater()
+        self._renumber_extra_fields()
         self._sync_scroll_width()
         self._wire_tab_order()
         self._update_field_step_buttons()
+        self._update_info_remove_actions()
         self._emit_changed()
 
     def _clear_extra_fields(self) -> None:
@@ -683,6 +752,7 @@ class EntryRowWidget(QWidget):
         self._extra_fields.clear()
         self._sync_scroll_width()
         self._update_field_step_buttons()
+        self._update_info_remove_actions()
 
     def apply_permissions(
         self, perms: UserPermissions, *, view_only: bool = False
@@ -697,6 +767,7 @@ class EntryRowWidget(QWidget):
             field.set_permission(perms.level_for_info_index(index))
         self._field_step_column.setVisible(not view_only)
         self._name.set_can_delete(self._can_delete and not view_only)
+        self._update_info_remove_actions()
         if view_only:
             self._add_field_btn.setEnabled(False)
             self._remove_field_btn.setEnabled(False)
