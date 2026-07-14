@@ -442,10 +442,23 @@ class MainWindow(QMainWindow):
                 edits[0].setFocus()
 
     def _refresh_empty_state(self) -> None:
-        show = should_show_empty_state(len(self._row_widgets)) and not self._kilitli_mi
-        self._empty_state.setVisible(show)
         perms = self._row_permissions()
         add_allowed = self._can_add_record(perms)
+        if (
+            should_show_empty_state(len(self._row_widgets))
+            and not self._kilitli_mi
+            and add_allowed
+        ):
+            # Onboarding ekranı yerine doğrudan boş, odaklı bir kayıt satırı
+            # sunulur — kullanıcı hiç ara adım görmeden yazmaya başlar.
+            self._add_row(refresh_session=False)
+            if self._row_widgets:
+                edits = self._row_widgets[-1].focus_edits()
+                if edits:
+                    edits[0].setFocus()
+            return
+        show = should_show_empty_state(len(self._row_widgets)) and not self._kilitli_mi
+        self._empty_state.setVisible(show)
         self._empty_state.set_restricted(not add_allowed)
         # Stretch yalnızca boş durumda — kayıt varken aralıkları sıkıştırmaz.
         self._entries_layout.setStretchFactor(self._empty_state, 1 if show else 0)
