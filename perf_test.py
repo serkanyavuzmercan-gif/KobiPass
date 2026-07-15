@@ -10,10 +10,8 @@ test_entries = [
 ]
 
 # 2. Vault yapısını kur
-vault = KobiVault(
-    entries=test_entries,
-    user_permissions=UserPermissions(),
-)
+vault = KobiVault(user_permissions=UserPermissions())
+vault.entries = test_entries
 
 # 3. Dosyaya şifreli olarak yaz (Kendi şifrenizi girin)
 write_vault_file(

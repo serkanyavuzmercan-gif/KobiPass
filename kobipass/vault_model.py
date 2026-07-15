@@ -5,6 +5,7 @@ kobiPass vault veri modeli ve JSON serileştirme.
 from __future__ import annotations
 
 import json
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -14,6 +15,15 @@ FIELD_NAMES = ("name", "info1", "info2", "info3", "info4")
 # İzin şablonu alanları: İsim ve tüm bilgi alanları için tek 'Bilgiler'.
 PERM_FIELDS = ("name", "info")
 USER_SLOT_COUNT = 3
+# Sekme (tab) sistemi: her kasa bir veya daha fazla sekmeden oluşur. 'gizli'
+# sekmeleri yalnızca yönetici görür ve (kripto katmanında) yalnızca yönetici
+# çözebilir. Varsayılan sekme adı; kullanıcı yeniden adlandırabilir.
+DEFAULT_TAB_NAME = "Sekme"
+
+
+def new_tab_id() -> str:
+    """Sekmeler için kararlı benzersiz kimlik (izin/audit/sıralama için)."""
+    return uuid.uuid4().hex
 DEFAULT_FIELD_LABELS: dict[str, str] = {
     "name": "",
     "info1": "",
@@ -227,10 +237,54 @@ class AuditEntry:
 
 
 @dataclass
+class VaultTab:
+    """Excel benzeri bir sekme: adı olan bir kayıt listesi.
+
+    ``hidden=True`` → yönetici-özel (gizli) sekme. Alt kullanıcılar bunu ne
+    görür ne de (kripto katmanında) çözebilir.
+    """
+
+    id: str
+    name: str
+    entries: list[VaultEntry] = field(default_factory=list)
+    hidden: bool = False
+
+    @classmethod
+    def new(cls, name: str, *, hidden: bool = False) -> VaultTab:
+        return cls(id=new_tab_id(), name=name, entries=[], hidden=hidden)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "hidden": bool(self.hidden),
+            "entries": [e.to_dict() for e in self.entries],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> VaultTab:
+        raw_entries = data.get("entries", [])
+        entries = [
+            VaultEntry.from_dict(item)
+            for item in (raw_entries if isinstance(raw_entries, list) else [])
+        ]
+        tab_id = str(data.get("id", "")) or new_tab_id()
+        name = str(data.get("name", "")) or DEFAULT_TAB_NAME
+        return cls(
+            id=tab_id,
+            name=name,
+            entries=entries,
+            hidden=bool(data.get("hidden", False)),
+        )
+
+
+@dataclass
 class KobiVault:
     """Şifrelenmiş vault gövdesinin JSON içeriği."""
 
-    entries: list[VaultEntry] = field(default_factory=list)
+    tabs: list[VaultTab] = field(
+        default_factory=lambda: [VaultTab.new(DEFAULT_TAB_NAME)]
+    )
     user_permissions: UserPermissions = field(default_factory=UserPermissions)
     user_slot_permissions: list[UserPermissions] = field(default_factory=list)
     user_slot_labels: list[str] = field(
@@ -240,6 +294,32 @@ class KobiVault:
     )
     field_labels: dict[str, str] = field(default_factory=dict)
     audit_log: list[AuditEntry] = field(default_factory=list)
+
+    # ── Sekme yardımcıları ───────────────────────────────────────────────
+    def ensure_tab(self) -> VaultTab:
+        """En az bir sekme garantiler; birincil sekmeyi döndürür."""
+        if not self.tabs:
+            self.tabs = [VaultTab.new(DEFAULT_TAB_NAME)]
+        return self.tabs[0]
+
+    @property
+    def entries(self) -> list[VaultEntry]:
+        """Geriye uyum: birincil sekmenin kayıt listesi (canlı referans).
+
+        Sekme arayüzü gelene kadar mevcut kod tek liste üzerinde çalışmaya
+        devam eder. Sekmeye özel erişim için ``tabs[i].entries`` kullanılır.
+        """
+        return self.ensure_tab().entries
+
+    @entries.setter
+    def entries(self, value: list[VaultEntry]) -> None:
+        self.ensure_tab().entries = list(value)
+
+    def normal_tabs(self) -> list[VaultTab]:
+        return [t for t in self.tabs if not t.hidden]
+
+    def hidden_tabs(self) -> list[VaultTab]:
+        return [t for t in self.tabs if t.hidden]
 
     def permissions_for_slot(self, slot: int) -> UserPermissions:
         """1-based kullanıcı slot izni; yoksa ortak/legacy şablona düşer."""
@@ -265,9 +345,10 @@ class KobiVault:
 
     def to_dict(self) -> dict[str, Any]:
         slot_perms = self.user_slot_permissions or [self.user_permissions]
+        tabs = self.tabs or [VaultTab.new(DEFAULT_TAB_NAME)]
         return {
-            "version": 3,
-            "entries": [e.to_dict() for e in self.entries],
+            "version": 4,
+            "tabs": [t.to_dict() for t in tabs],
             "user_permissions": (
                 slot_perms[0].to_dict() if slot_perms else self.user_permissions.to_dict()
             ),
@@ -283,7 +364,29 @@ class KobiVault:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> KobiVault:
-        entries = [VaultEntry.from_dict(item) for item in data.get("entries", [])]
+        # Sekme-farkında (v4+) format 'tabs' taşır; eski format 'entries' taşır
+        # → tek bir varsayılan sekmeye göç edilir.
+        raw_tabs = data.get("tabs")
+        if isinstance(raw_tabs, list) and raw_tabs:
+            tabs = [
+                VaultTab.from_dict(item)
+                for item in raw_tabs
+                if isinstance(item, dict)
+            ]
+        else:
+            legacy_entries = [
+                VaultEntry.from_dict(item) for item in data.get("entries", [])
+            ]
+            tabs = [
+                VaultTab(
+                    id=new_tab_id(),
+                    name=DEFAULT_TAB_NAME,
+                    entries=legacy_entries,
+                    hidden=False,
+                )
+            ]
+        if not tabs:
+            tabs = [VaultTab.new(DEFAULT_TAB_NAME)]
         legacy_perms = UserPermissions.from_dict(data.get("user_permissions", {}))
         labels = data.get("user_slot_labels")
         if not isinstance(labels, list) or not labels:
@@ -316,7 +419,7 @@ class KobiVault:
             AuditEntry.from_dict(item) for item in data.get("audit_log", [])
         ]
         return cls(
-            entries=entries,
+            tabs=tabs,
             user_permissions=slot_perms[0].copy() if slot_perms else legacy_perms,
             user_slot_permissions=slot_perms,
             user_slot_labels=labels,

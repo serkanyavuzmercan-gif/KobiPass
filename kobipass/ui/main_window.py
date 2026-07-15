@@ -1620,7 +1620,8 @@ class MainWindow(QMainWindow):
         if not data:
             return
 
-        vault = KobiVault(entries=entries)
+        vault = KobiVault()
+        vault.entries = entries
         if data.get("slot_permissions"):
             vault.set_slot_permissions(data["slot_permissions"])
             vault.user_slot_labels = data.get(

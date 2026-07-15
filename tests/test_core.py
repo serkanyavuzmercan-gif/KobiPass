@@ -34,9 +34,18 @@ from kobipass.vault_model import (
     KobiVault,
     UserPermissions,
     VaultEntry,
+    VaultTab,
     vault_from_json_bytes,
     vault_to_json_bytes,
 )
+
+
+def mkvault(entries=None, **kwargs) -> KobiVault:
+    """Test yardımcı: birincil sekmeye kayıt koyan KobiVault üretir."""
+    vault = KobiVault(**kwargs)
+    if entries is not None:
+        vault.entries = list(entries)
+    return vault
 
 
 def test_vault_entry_dynamic_fields() -> None:
@@ -50,7 +59,7 @@ def test_vault_entry_dynamic_fields() -> None:
 
 
 def test_field_labels_roundtrip() -> None:
-    vault = KobiVault(
+    vault = mkvault(
         entries=[VaultEntry(name="n", info1="p")],
         field_labels={"name": "Başlık", "info1": "Parola"},
     )
@@ -58,13 +67,54 @@ def test_field_labels_roundtrip() -> None:
     loaded = vault_from_json_bytes(raw)
     assert loaded.label_for("name") == "Başlık"
     assert loaded.label_for("info1") == "Parola"
-    assert loaded.to_dict()["version"] == 3
+    assert loaded.to_dict()["version"] == 4
+
+
+def test_tabs_roundtrip_and_hidden_flag() -> None:
+    vault = KobiVault(
+        tabs=[
+            VaultTab(id="t1", name="Genel", entries=[VaultEntry(name="A", info1="1")]),
+            VaultTab(id="t2", name="Muhasebe", entries=[], hidden=True),
+        ]
+    )
+    loaded = vault_from_json_bytes(vault_to_json_bytes(vault))
+    assert [t.name for t in loaded.tabs] == ["Genel", "Muhasebe"]
+    assert [t.id for t in loaded.tabs] == ["t1", "t2"]
+    assert loaded.tabs[0].hidden is False
+    assert loaded.tabs[1].hidden is True
+    assert [t.name for t in loaded.normal_tabs()] == ["Genel"]
+    assert [t.name for t in loaded.hidden_tabs()] == ["Muhasebe"]
+    assert loaded.to_dict()["version"] == 4
+
+
+def test_legacy_entries_migrate_to_single_tab() -> None:
+    # Eski format (tabs yok, entries var) → tek 'Sekme'ye göç.
+    legacy = KobiVault.from_dict(
+        {
+            "version": 3,
+            "entries": [VaultEntry(name="Eski", info1="x").to_dict()],
+            "user_slot_labels": ["A"],
+        }
+    )
+    assert len(legacy.tabs) == 1
+    assert legacy.tabs[0].name == "Sekme"
+    assert legacy.tabs[0].hidden is False
+    assert legacy.tabs[0].entries[0].name == "Eski"
+    # entries property birincil sekmeye bağlanır
+    assert legacy.entries[0].name == "Eski"
+
+
+def test_entries_property_maps_to_primary_tab() -> None:
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name="X", info1="p")]
+    assert vault.tabs[0].entries[0].name == "X"
+    assert vault.entries[0].name == "X"
 
 
 def test_per_slot_permissions_roundtrip() -> None:
     p1 = UserPermissions(name="read", info="write", can_add_entry=True)
     p2 = UserPermissions(name="none", info="read", can_save=False)
-    vault = KobiVault(entries=[VaultEntry(name="n", info1="p")])
+    vault = mkvault(entries=[VaultEntry(name="n", info1="p")])
     vault.set_slot_permissions([p1, p2])
     vault.user_slot_labels = ["Ali", "Veli"]
     loaded = vault_from_json_bytes(vault_to_json_bytes(vault))
@@ -133,7 +183,7 @@ def test_permissions_from_dict_normalizes_write_without_save() -> None:
 
 
 def test_build_and_unlock_argon2(tmp_path: Path) -> None:
-    vault = KobiVault(entries=[VaultEntry(name="Site", info1="pass")])
+    vault = mkvault(entries=[VaultEntry(name="Site", info1="pass")])
     path = tmp_path / "v2.enc"
     write_vault_file(
         path,
@@ -156,7 +206,7 @@ def test_build_and_unlock_argon2(tmp_path: Path) -> None:
 
 
 def test_admin_and_user_passwords_must_be_unique() -> None:
-    vault = KobiVault(entries=[VaultEntry(name="Site", info1="pass")])
+    vault = mkvault(entries=[VaultEntry(name="Site", info1="pass")])
     assert passwords_are_unique(
         "admin-secret",
         [(True, "user-one"), (True, "user-two")],
@@ -228,7 +278,7 @@ def test_primary_field_responsive_width_is_bounded() -> None:
 
 
 def test_legacy_pbkdf2_roundtrip(tmp_path: Path) -> None:
-    vault = KobiVault(entries=[VaultEntry(name="Legacy", info1="x")])
+    vault = mkvault(entries=[VaultEntry(name="Legacy", info1="x")])
     blob = build_vault_file(
         vault,
         "admin-legacy",
@@ -242,7 +292,7 @@ def test_legacy_pbkdf2_roundtrip(tmp_path: Path) -> None:
 
 
 def test_update_admin_wrap_and_verify(tmp_path: Path) -> None:
-    vault = KobiVault(entries=[VaultEntry(name="A", info1="1")])
+    vault = mkvault(entries=[VaultEntry(name="A", info1="1")])
     path = tmp_path / "admin.enc"
     write_vault_file(
         path,
@@ -260,7 +310,7 @@ def test_update_admin_wrap_and_verify(tmp_path: Path) -> None:
 
 
 def test_write_updated_preserves_version(tmp_path: Path) -> None:
-    vault = KobiVault(entries=[VaultEntry(name="A", info1="1")])
+    vault = mkvault(entries=[VaultEntry(name="A", info1="1")])
     path = tmp_path / "keep.enc"
     write_vault_file(
         path,
@@ -287,7 +337,7 @@ def test_view_only_permissions() -> None:
 
 
 def test_audit_masks_sensitive_fields(tmp_path: Path) -> None:
-    vault = KobiVault(entries=[VaultEntry(name="A", info1="oldpass")])
+    vault = mkvault(entries=[VaultEntry(name="A", info1="oldpass")])
     path = tmp_path / "audit.enc"
     write_vault_file(
         path,
@@ -401,7 +451,7 @@ def test_password_report_lists_all_including_strong() -> None:
     from kobipass.ui.password_report_dialog import analyze_vault
     from kobipass.vault_model import KobiVault, VaultEntry
 
-    vault = KobiVault(entries=[
+    vault = mkvault(entries=[
         VaultEntry(name="Strong", info1="Xy9#kLmn20!q"),
         VaultEntry(name="Weak", info1="123456"),
         VaultEntry(name="Dup1", info1="same-pw-x"),
@@ -424,7 +474,7 @@ def test_atomic_write_roundtrip(tmp_path: Path) -> None:
     """Atomik yazım sonrası dosya okunur ve geçici .tmp kalmaz."""
     from kobipass.vault_model import KobiVault, VaultEntry
 
-    vault = KobiVault(entries=[VaultEntry(name="A", info1="secret")])
+    vault = mkvault(entries=[VaultEntry(name="A", info1="secret")])
     path = tmp_path / "atomic.enc"
     write_vault_file(path, vault, "admin-pass", [(False, ""), (False, ""), (False, "")])
     assert path.exists()
@@ -437,7 +487,7 @@ def test_variable_user_slots(tmp_path: Path) -> None:
     from kobipass import crypto as C
 
     # v3: 5 alt kullanıcı
-    vault = KobiVault(entries=[VaultEntry(name="A", info1="1")])
+    vault = mkvault(entries=[VaultEntry(name="A", info1="1")])
     p3 = tmp_path / "multi.enc"
     C.write_vault_file(p3, vault, "adm", [(True, f"u{i}") for i in range(5)])
     r = read_vault_file(p3, "adm")
