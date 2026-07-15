@@ -20,6 +20,7 @@ from PyQt6.QtGui import (
     QShortcut,
 )
 from PyQt6.QtWidgets import (
+    QAbstractButton,
     QApplication,
     QFileDialog,
     QFrame,
@@ -671,6 +672,12 @@ class MainWindow(QMainWindow):
             return False
         # Köşe tutamacı (QStatusBar size grip) kendi işini yapsın.
         if isinstance(obj, QSizeGrip):
+            self._clear_resize_cursor()
+            return False
+        # Etkileşimli kontrollerin (düğme/metin kutusu) tıklamasını çalma;
+        # aksi halde üst kenara yakın oturan başlık düğmeleri (küçült/kapla/
+        # kapat) kenar boyutlandırması tarafından yutulur.
+        if isinstance(obj, (QAbstractButton, QLineEdit)):
             self._clear_resize_cursor()
             return False
         try:
