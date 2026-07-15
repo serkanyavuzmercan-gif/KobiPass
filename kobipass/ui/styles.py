@@ -1317,24 +1317,19 @@ QFrame#landingActions QLabel#landingRecentTitle {
     padding-top: 7px;
 }
 
-QFrame#landingActions QListWidget#landingRecentList {
-    background-color: transparent;
+QScrollArea#landingActionsScroll,
+QWidget#landingActionsContent {
+    background: transparent;
     border: none;
-    border-radius: 8px;
-    color: #d7dce6;
-    padding: 0;
 }
 
-QFrame#landingActions QListWidget#landingRecentList::item {
+QFrame#landingActions QWidget#landingRecentRow {
     background-color: #242932;
     border: 1px solid #323a47;
-    border-radius: 7px;
-    padding: 7px 10px;
-    margin: 2px 0;
+    border-radius: 9px;
 }
 
-QFrame#landingActions QListWidget#landingRecentList::item:hover,
-QFrame#landingActions QListWidget#landingRecentList::item:selected {
+QFrame#landingActions QWidget#landingRecentRow:hover {
     background-color: #2c3443;
     border-color: #4b68f4;
 }
@@ -3123,24 +3118,19 @@ QFrame#landingActions QLabel#landingRecentTitle {
     padding-top: 7px;
 }
 
-QFrame#landingActions QListWidget#landingRecentList {
-    background-color: transparent;
+QScrollArea#landingActionsScroll,
+QWidget#landingActionsContent {
+    background: transparent;
     border: none;
-    border-radius: 8px;
-    color: #263247;
-    padding: 0;
 }
 
-QFrame#landingActions QListWidget#landingRecentList::item {
+QFrame#landingActions QWidget#landingRecentRow {
     background-color: #f7f8fb;
     border: 1px solid #e0e5ee;
-    border-radius: 7px;
-    padding: 7px 10px;
-    margin: 2px 0;
+    border-radius: 9px;
 }
 
-QFrame#landingActions QListWidget#landingRecentList::item:hover,
-QFrame#landingActions QListWidget#landingRecentList::item:selected {
+QFrame#landingActions QWidget#landingRecentRow:hover {
     background-color: #edf1ff;
     border-color: #8094ea;
 }

@@ -6,16 +6,15 @@ from pathlib import Path
 
 from datetime import datetime
 
-from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
     QMenu,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -130,6 +129,9 @@ class RecentRow(QWidget):
 
     def __init__(self, path: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setObjectName("landingRecentRow")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._path = path
         p = Path(path)
         lay = QHBoxLayout(self)
@@ -275,14 +277,36 @@ class LandingPage(QWidget):
         hero_layout.addLayout(wide_wrap)
         hero_layout.addStretch(1)
 
-        # Sağ: birincil kasa işlemleri.
+        # Sağ: birincil kasa işlemleri. Dar/kısa pencerede içerik taşarsa panel
+        # dikey olarak kaydırılır (son açılanlar alttan kırpılmaz).
         actions = QFrame()
         actions.setObjectName("landingActions")
         actions.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         actions.setMinimumWidth(380)
         actions.setMaximumWidth(500)
-        actions_layout = QVBoxLayout(actions)
-        actions_layout.setContentsMargins(28, 28, 28, 28)
+        actions_shell = QVBoxLayout(actions)
+        actions_shell.setContentsMargins(0, 0, 0, 0)
+        actions_shell.setSpacing(0)
+
+        actions_scroll = QScrollArea()
+        actions_scroll.setObjectName("landingActionsScroll")
+        actions_scroll.setWidgetResizable(True)
+        actions_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        actions_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        actions_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        actions_scroll.viewport().setAutoFillBackground(False)
+        actions_shell.addWidget(actions_scroll)
+
+        actions_content = QWidget()
+        actions_content.setObjectName("landingActionsContent")
+        actions_content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        actions_scroll.setWidget(actions_content)
+        actions_layout = QVBoxLayout(actions_content)
+        actions_layout.setContentsMargins(28, 28, 22, 28)
         actions_layout.setSpacing(12)
 
         access_header = QHBoxLayout()
@@ -389,15 +413,12 @@ class LandingPage(QWidget):
         recent_header.addWidget(self._clear_recent, 0)
         actions_layout.addWidget(self._recent_header)
 
-        self._recent_list = QListWidget()
-        self._recent_list.setObjectName("landingRecentList")
-        self._recent_list.setSelectionMode(
-            QListWidget.SelectionMode.NoSelection
-        )
-        self._recent_list.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        actions_layout.addWidget(self._recent_list, 1)
+        self._recent_container = QWidget()
+        self._recent_container.setObjectName("landingRecentContainer")
+        self._recent_layout = QVBoxLayout(self._recent_container)
+        self._recent_layout.setContentsMargins(0, 0, 0, 0)
+        self._recent_layout.setSpacing(6)
+        actions_layout.addWidget(self._recent_container)
 
         self._recent_empty = QLabel()
         self._recent_empty.setObjectName("landingRecentEmpty")
@@ -470,11 +491,15 @@ class LandingPage(QWidget):
         self.refresh_recent()
 
     def refresh_recent(self) -> None:
-        self._recent_list.clear()
+        while self._recent_layout.count():
+            item = self._recent_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
         recent = [p for p in get_recent_files() if Path(p).exists()]
         self._latest_path = recent[0] if recent else ""
         self._latest_card.setVisible(bool(recent))
-        self._recent_list.setVisible(bool(recent))
+        self._recent_container.setVisible(bool(recent))
         self._recent_header.setVisible(bool(recent))
         self._recent_empty.setVisible(not recent)
 
@@ -487,10 +512,7 @@ class LandingPage(QWidget):
             row = RecentRow(path)
             row.open_requested.connect(self.recent_file_chosen.emit)
             row.remove_requested.connect(self._on_remove_recent)
-            item = QListWidgetItem()
-            item.setSizeHint(QSize(0, max(64, row.sizeHint().height())))
-            self._recent_list.addItem(item)
-            self._recent_list.setItemWidget(item, row)
+            self._recent_layout.addWidget(row)
 
     def retranslate(self) -> None:
         self._apply_hero_image()
