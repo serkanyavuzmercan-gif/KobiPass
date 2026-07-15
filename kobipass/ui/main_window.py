@@ -53,6 +53,7 @@ from kobipass.permissions import (
     diff_entries_for_audit,
     effective_permissions,
 )
+from kobipass.platform_win import enable_native_window_features
 from kobipass.resources import app_icon
 from kobipass.session import AdminSession, Session, UserSession, session_from_unlock
 from kobipass.settings import (
@@ -758,6 +759,8 @@ class MainWindow(QMainWindow):
         super().showEvent(event)
         self.winId()
         self.setWindowIcon(app_icon())
+        # Windows Snap / native boyutlandırma için WS stillerini etkinleştir.
+        enable_native_window_features(self)
         if not self._geometry_ready:
             self._wire_screen_sizing()
             self._title_bar.apply_screen_ratio_geometry(recenter=True)
