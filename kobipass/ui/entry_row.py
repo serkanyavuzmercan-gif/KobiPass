@@ -721,15 +721,12 @@ class EntryRowWidget(QWidget):
             Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
         )
 
+        # Yalnızca '+' (alan ekle) düğmesi. '-' kaldırıldı: bir bilgi alanı
+        # zaten kendi '…' menüsünden kaldırılabildiği için gereksizdi.
         self._add_field_btn = _field_step_button("+", "addFieldBtn")
         self._add_field_btn.clicked.connect(self._add_extra_field)
         field_step_layout.addWidget(self._add_field_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        self._remove_field_btn = _field_step_button("-", "removeFieldBtn")
-        self._remove_field_btn.clicked.connect(self._remove_last_extra_field)
-        field_step_layout.addWidget(
-            self._remove_field_btn, 0, Qt.AlignmentFlag.AlignHCenter
-        )
         self._extras_layout.addWidget(
             self._field_step_column, 0, Qt.AlignmentFlag.AlignTop
         )
@@ -778,7 +775,8 @@ class EntryRowWidget(QWidget):
         return self._extras_layout.indexOf(self._field_step_column)
 
     def _update_field_step_buttons(self) -> None:
-        self._remove_field_btn.setEnabled(len(self._extra_fields) > 0)
+        # '-' düğmesi kaldırıldı; '+' her zaman etkin (sınır yok).
+        return
 
     def _sensitive_fields(self) -> list[CompactField]:
         return [self._info1, *self._extra_fields]
@@ -917,24 +915,6 @@ class EntryRowWidget(QWidget):
             field.set_custom_label(self._field_labels.get(f"info{info_index}", ""))
             field.set_permission(self._permissions.level_for_info_index(info_index))
 
-    def _remove_last_extra_field(self) -> None:
-        if self._view_only:
-            return
-        if self._permissions.info != "write":
-            self.restricted_action.emit("restricted_edit_fields")
-            return
-        if not self._extra_fields:
-            return
-        field = self._extra_fields.pop()
-        self._extras_layout.removeWidget(field)
-        field.deleteLater()
-        self._renumber_extra_fields()
-        self._sync_scroll_width()
-        self._wire_tab_order()
-        self._update_field_step_buttons()
-        self._update_info_remove_actions()
-        self._emit_changed()
-
     def _clear_extra_fields(self) -> None:
         for field in self._extra_fields:
             self._extras_layout.removeWidget(field)
@@ -962,23 +942,17 @@ class EntryRowWidget(QWidget):
         # Menü görünür kalır; yetki yoksa tıklama açıklayıcı bildirim üretir.
         self._name.set_can_delete(not view_only)
         fields_restricted = perms.info != "write"
-        for button in (self._add_field_btn, self._remove_field_btn):
-            button.setProperty("restricted", fields_restricted)
-            button.setToolTip(
-                tr("restricted_edit_fields")
-                if fields_restricted
-                else (
-                    tr("add_field_tip")
-                    if button is self._add_field_btn
-                    else tr("remove_field_tip")
-                )
-            )
-            button.style().unpolish(button)
-            button.style().polish(button)
+        self._add_field_btn.setProperty("restricted", fields_restricted)
+        self._add_field_btn.setToolTip(
+            tr("restricted_edit_fields")
+            if fields_restricted
+            else tr("add_field_tip")
+        )
+        self._add_field_btn.style().unpolish(self._add_field_btn)
+        self._add_field_btn.style().polish(self._add_field_btn)
         self._update_info_remove_actions()
         if view_only:
             self._add_field_btn.setEnabled(False)
-            self._remove_field_btn.setEnabled(False)
         else:
             self._update_field_step_buttons()
         self._sync_scroll_width()
@@ -1048,7 +1022,6 @@ class EntryRowWidget(QWidget):
         for field in self._extra_fields:
             field.retranslate()
         self._add_field_btn.setToolTip(tr("add_field_tip"))
-        self._remove_field_btn.setToolTip(tr("remove_field_tip"))
 
     def _emit_changed(self) -> None:
         self.changed.emit()
