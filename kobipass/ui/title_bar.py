@@ -300,6 +300,8 @@ class CustomTitleBar(QWidget):
         if not self._is_near_fullscreen(geom, avail):
             self._restore_size = (geom.width(), geom.height())
             self._restore_pos = (geom.x(), geom.y())
+        # Boyut kilidi kalmış olabilir; kaplamadan önce tavanı serbest bırak.
+        self._window.setMaximumSize(_QWIDGETSIZE_MAX, _QWIDGETSIZE_MAX)
         self._window.winId()
         set_window_geometry(self._window, avail, restoring=False)
         self._maximized = True

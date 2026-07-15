@@ -9,8 +9,6 @@ from PyQt6.QtWidgets import QWidget
 
 _GWL_STYLE = -16
 _WS_MAXIMIZE = 0x01000000
-_SWP_NOANIMATION = 0x0040
-_SWP_NOZORDER = 0x0004
 
 
 def _hwnd(widget: QWidget) -> int:
@@ -37,40 +35,16 @@ def clear_maximized_style(widget: QWidget) -> None:
 
 
 def set_window_geometry(widget: QWidget, rect: QRect, *, restoring: bool = False) -> None:
-    """Frameless pencerede boyutu tek adımda uygular (Windows animasyonu yok)."""
-    if sys.platform != "win32":
-        widget.setGeometry(rect)
-        return
+    """Frameless pencerede geometriyi tek adımda, DPI-güvenli uygular.
 
+    Qt'nin ``setGeometry``'si mantıksal (ölçekten bağımsız) piksel kullanır ve
+    DPI dönüşümünü kendi yapar. Ham ``SetWindowPos`` ise fiziksel piksel bekler;
+    Qt'nin mantıksal değerlerini oraya geçirmek %125/%150 ölçeklemede pencereyi
+    olması gerekenden küçük bırakıyordu (ekranı kapla tam kaplamıyor, geri al
+    daha da küçültüyordu). Bu yüzden doğrudan ``setGeometry`` kullanılır;
+    yalnızca gerçek bir OS-maximize durumundan dönerken ``WS_MAXIMIZE`` stili
+    temizlenir (restore animasyonu tetiklenmesin)."""
     widget.winId()
-    widget.setGeometry(rect)
-
-    try:
-        import ctypes
-
-        hwnd = _hwnd(widget)
-        if not hwnd:
-            return
-
-        user32 = ctypes.windll.user32
-        if restoring:
-            style = user32.GetWindowLongW(hwnd, _GWL_STYLE)
-            if style & _WS_MAXIMIZE:
-                user32.SetWindowLongW(hwnd, _GWL_STYLE, style & ~_WS_MAXIMIZE)
-
-        flags = _SWP_NOANIMATION | _SWP_NOZORDER
-        user32.SetWindowPos(
-            hwnd,
-            0,
-            int(rect.x()),
-            int(rect.y()),
-            int(rect.width()),
-            int(rect.height()),
-            flags,
-        )
-        widget.setGeometry(rect)
-        return
-    except Exception:
-        pass
-
+    if sys.platform == "win32" and restoring:
+        clear_maximized_style(widget)
     widget.setGeometry(rect)
