@@ -646,6 +646,7 @@ class EntryRowWidget(QWidget):
         super().__init__(parent)
         self.setObjectName("entryRow")
         self._can_delete = True
+        self._can_reorder = False
         self._view_only = False
         self._pw_updated_at = ""
         self._permissions = UserPermissions()
