@@ -215,42 +215,42 @@ QScrollArea#vaultEntriesScroll > QWidget > QWidget {
 }
 
 QWidget#vaultWatermarkPane {
-    background-color: #1a1d23;
+    background-color: #10141d;
 }
 
 QWidget#vaultBody {
-    background-color: #1a1d23;
+    background-color: #10141d;
 }
 
 QFrame#recordsPanel {
-    background-color: #1a1d23;
-    border: 1px solid #2c313b;
+    background-color: #141a26;
+    border: 1px solid #283242;
     border-radius: 14px;
 }
 
 QLabel#recordsPanelTitle {
-    color: #b9c5df;
+    color: #aab6d0;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.5px;
 }
 
 QFrame#summaryPanel {
-    background-color: #1e2229;
-    border: 1px solid #2c313b;
+    background-color: #141a26;
+    border: 1px solid #283242;
     border-radius: 14px;
 }
 
 QLabel#summaryTitle {
-    color: #b9c5df;
+    color: #aab6d0;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.5px;
 }
 
 QFrame#summaryStatRow {
-    background-color: #232833;
-    border: 1px solid #333c4c;
+    background-color: #1a2130;
+    border: 1px solid #2a3446;
     border-radius: 10px;
 }
 
@@ -291,8 +291,8 @@ QLabel#summarySecurityText {
 }
 
 QWidget#entryRow {
-    background-color: #252830;
-    border: 1px solid #343a46;
+    background-color: #1b2231;
+    border: 1px solid #2e3849;
     border-radius: 10px;
 }
 

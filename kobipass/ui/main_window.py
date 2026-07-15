@@ -673,11 +673,15 @@ class MainWindow(QMainWindow):
             show_error(self, tr("lock_title"), tr("lock_wrong"))
 
     def _role_label(self) -> str:
-        if self._session is None:
-            return ""
         if isinstance(self._session, AdminSession):
             return tr("role_admin")
-        return tr("role_user", slot=self._session.user_slot)
+        if isinstance(self._session, UserSession):
+            return tr("role_user", slot=self._session.user_slot)
+        # Yeni / kaydedilmemiş kasa: onu oluşturan kişi yöneticidir. Kasa
+        # görünümündeyken 'Yönetici' göster (karşılama ekranında değil).
+        if self._stacked_widget.currentWidget() is self._vault_view:
+            return tr("role_admin")
+        return ""
 
     def _row_permissions(self) -> UserPermissions | None:
         """Oturumun etkin izinleri — yönetici şablonu kullanıcılar için AYNEN geçerlidir.
