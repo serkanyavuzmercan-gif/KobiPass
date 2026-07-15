@@ -47,6 +47,36 @@ _FEATURE_ACCENT = QColor("#8296ff")
 _HERO_RADIUS = 22
 
 
+class ElidedLabel(QLabel):
+    """Tek satır, sağdan '…' ile kısaltan etiket.
+
+    Uzun dosya yolları paneli genişletip yuvarlak köşelerden taşmaya yol
+    açıyordu; bu etiket genişlik dayatmaz (Ignored yatay politika), eldeki
+    alana göre metni kısaltır."""
+
+    def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
+        super().__init__(text, parent)
+        self._full_text = text
+        self.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
+        )
+
+    def setText(self, text: str) -> None:  # noqa: N802
+        self._full_text = text
+        self._apply_elision()
+
+    def _apply_elision(self) -> None:
+        fm = self.fontMetrics()
+        elided = fm.elidedText(
+            self._full_text, Qt.TextElideMode.ElideRight, max(0, self.width())
+        )
+        super().setText(elided)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._apply_elision()
+
+
 class HeroPanel(QFrame):
     """Sol hero paneli: arka plana (kasa+fon) görsel basar, üstüne vektörel
     yazılar/kartlar çocuk widget olarak gelir. Görsel yoksa QSS degrade fon
@@ -147,10 +177,11 @@ class RecentRow(QWidget):
 
         text = QVBoxLayout()
         text.setSpacing(3)
-        name = QLabel(p.name)
+        name = ElidedLabel(p.name)
         name.setObjectName("recentRowName")
-        path_lbl = QLabel(str(p.parent))
+        path_lbl = ElidedLabel(str(p.parent))
         path_lbl.setObjectName("recentRowPath")
+        path_lbl.setToolTip(str(p.parent))
         text.addWidget(name)
         text.addWidget(path_lbl)
         lay.addLayout(text, 1)
@@ -284,8 +315,11 @@ class LandingPage(QWidget):
         actions.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         actions.setMinimumWidth(380)
         actions.setMaximumWidth(500)
+        # Kaydırma alanını yuvarlak çerçeveden 9px içeri al: viewport dikdörtgeni
+        # köşe yarıçapının (22px) içinde kalır, böylece içerik/kaydırma çubuğu
+        # yuvarlak köşelerden taşmaz.
         actions_shell = QVBoxLayout(actions)
-        actions_shell.setContentsMargins(0, 0, 0, 0)
+        actions_shell.setContentsMargins(9, 9, 9, 9)
         actions_shell.setSpacing(0)
 
         actions_scroll = QScrollArea()
@@ -306,7 +340,7 @@ class LandingPage(QWidget):
         actions_content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         actions_scroll.setWidget(actions_content)
         actions_layout = QVBoxLayout(actions_content)
-        actions_layout.setContentsMargins(28, 28, 22, 28)
+        actions_layout.setContentsMargins(19, 19, 13, 19)
         actions_layout.setSpacing(12)
 
         access_header = QHBoxLayout()
@@ -354,14 +388,12 @@ class LandingPage(QWidget):
         kicker_row.addStretch(1)
         latest_text.addLayout(kicker_row)
 
-        self._latest_name = QLabel()
+        self._latest_name = ElidedLabel()
         self._latest_name.setObjectName("landingLatestName")
-        self._latest_name.setWordWrap(True)
         latest_text.addWidget(self._latest_name)
 
-        self._latest_path_label = QLabel()
+        self._latest_path_label = ElidedLabel()
         self._latest_path_label.setObjectName("landingLatestPath")
-        self._latest_path_label.setWordWrap(True)
         latest_text.addWidget(self._latest_path_label)
         latest_top.addLayout(latest_text, 1)
 
