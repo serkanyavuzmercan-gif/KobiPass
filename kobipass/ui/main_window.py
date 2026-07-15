@@ -85,6 +85,7 @@ from kobipass.backup import (
     set_read_only,
 )
 from kobipass.ui.icons import (
+    icon_chevron_left,
     icon_history,
     icon_home,
     icon_info,
@@ -438,11 +439,25 @@ class MainWindow(QMainWindow):
         records_layout.addWidget(self._vault_body, 1)
 
         self._summary_panel = VaultSummaryPanel()
+        self._summary_panel.collapse_requested.connect(self._collapse_summary)
+
+        # Özet paneli gizliyken sağ kenarda görünen ince 'aç' tutamacı.
+        self._summary_reopen_btn = QPushButton()
+        self._summary_reopen_btn.setObjectName("summaryReopenBtn")
+        self._summary_reopen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._summary_reopen_btn.setIcon(icon_chevron_left(QColor("#8a93a8"), size=15))
+        self._summary_reopen_btn.setFixedWidth(22)
+        self._summary_reopen_btn.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
+        )
+        self._summary_reopen_btn.clicked.connect(self._expand_summary)
+        self._summary_reopen_btn.hide()
 
         body_row = QHBoxLayout()
         body_row.setSpacing(14)
         body_row.addWidget(records_panel, 1)
         body_row.addWidget(self._summary_panel, 0)
+        body_row.addWidget(self._summary_reopen_btn, 0)
         root.addLayout(body_row, 1)
 
         status = QStatusBar()
@@ -1079,6 +1094,7 @@ class MainWindow(QMainWindow):
         self.security_badge.setToolTip(tr("security_badge_tip"))
         self._workspace_hint.setText(tr("vault_workspace_hint"))
         self._records_panel_title.setText(tr("records_panel_title"))
+        self._summary_reopen_btn.setToolTip(tr("summary_expand"))
         self._summary_panel.retranslate()
         self._title_bar.retranslate()
         self._landing_page.retranslate()
@@ -1161,6 +1177,14 @@ class MainWindow(QMainWindow):
         self._status_role.style().unpolish(self._status_role)
         self._status_role.style().polish(self._status_role)
         self._update_summary_panel()
+
+    def _collapse_summary(self) -> None:
+        self._summary_panel.hide()
+        self._summary_reopen_btn.show()
+
+    def _expand_summary(self) -> None:
+        self._summary_reopen_btn.hide()
+        self._summary_panel.show()
 
     def _update_summary_panel(self) -> None:
         total_fields = 0

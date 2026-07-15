@@ -418,6 +418,32 @@ def icon_arrow_right(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
     return _scaled_icon(f"arrowr:{color.name()}:{size}", draw, size)
 
 
+def icon_chevron_right(color: QColor = NEUTRAL_COLOR, size: int = 16) -> QIcon:
+    """Sağ chevron (›) — paneli daralt/gizle."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 2.0 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolyline(
+            _pt(9 * s, 5 * s), _pt(16 * s, 12 * s), _pt(9 * s, 19 * s)
+        )
+
+    return _scaled_icon(f"chevronr:{color.name()}:{size}", draw, size)
+
+
+def icon_chevron_left(color: QColor = NEUTRAL_COLOR, size: int = 16) -> QIcon:
+    """Sol chevron (‹) — paneli aç/göster."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 2.0 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolyline(
+            _pt(15 * s, 5 * s), _pt(8 * s, 12 * s), _pt(15 * s, 19 * s)
+        )
+
+    return _scaled_icon(f"chevronl:{color.name()}:{size}", draw, size)
+
+
 def icon_trash(color: QColor = NEUTRAL_COLOR, size: int = 16) -> QIcon:
     """Çöp kutusu — tümünü temizle / kaldır."""
     def draw(p: QPainter) -> None:

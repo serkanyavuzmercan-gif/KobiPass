@@ -241,6 +241,27 @@ QFrame#summaryPanel {
     border-radius: 14px;
 }
 
+QPushButton#summaryCollapseBtn {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+}
+
+QPushButton#summaryCollapseBtn:hover {
+    background-color: #1e2740;
+}
+
+QPushButton#summaryReopenBtn {
+    background-color: #121826;
+    border: 1px solid #33456e;
+    border-radius: 10px;
+}
+
+QPushButton#summaryReopenBtn:hover {
+    background-color: #1a2138;
+    border-color: #4b68f4;
+}
+
 QLabel#summaryTitle {
     color: #aab6d0;
     font-size: 11px;
@@ -2047,6 +2068,27 @@ QFrame#summaryPanel {
     background-color: #ffffff;
     border: 1px solid #dde3f0;
     border-radius: 14px;
+}
+
+QPushButton#summaryCollapseBtn {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+}
+
+QPushButton#summaryCollapseBtn:hover {
+    background-color: #eef1f8;
+}
+
+QPushButton#summaryReopenBtn {
+    background-color: #ffffff;
+    border: 1px solid #dde3f0;
+    border-radius: 10px;
+}
+
+QPushButton#summaryReopenBtn:hover {
+    background-color: #eef1f8;
+    border-color: #8094ea;
 }
 
 QLabel#summaryTitle {
