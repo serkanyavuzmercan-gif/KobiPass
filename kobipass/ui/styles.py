@@ -584,43 +584,46 @@ QPushButton#securityBadge:hover {
     color: #ffffff;
 }
 
-/* --- Excel benzeri sekme çubuğu --- */
-QWidget#vaultTabBar {
+/* --- Excel benzeri sekme çubuğu (ince, düz sayfa sekmeleri) --- */
+QWidget#vaultTabBar,
+QScrollArea#vaultTabScroll,
+QWidget#vaultTabChipsHost {
     background: transparent;
+    border: none;
 }
 
 QPushButton#vaultTabChip {
-    background-color: #1a2233;
-    color: #aab6d0;
-    border: 1px solid #2c3a5c;
-    border-radius: 9px;
-    padding: 4px 14px;
-    font-size: 12px;
+    background-color: #0e131d;
+    color: #7a869e;
+    border: 1px solid #1f2a3d;
+    border-radius: 6px;
+    padding: 2px 11px;
+    font-size: 11px;
     font-weight: 600;
-    min-height: 24px;
+    min-height: 20px;
 }
 
 QPushButton#vaultTabChip:hover {
-    background-color: #212b40;
-    color: #e7ebf3;
+    background-color: #172033;
+    color: #cdd6e6;
 }
 
 QPushButton#vaultTabChip[active="true"] {
-    background-color: #2a3a63;
+    background-color: #21315a;
     color: #ffffff;
     border-color: #4b68f4;
 }
 
 QPushButton#vaultTabChip[closable="true"] {
-    padding-right: 26px;
+    padding-right: 23px;
 }
 
 QToolButton#vaultTabCloseBtn {
     background: transparent;
-    color: #8a90a0;
+    color: #7f8aa0;
     border: none;
-    border-radius: 8px;
-    font-size: 15px;
+    border-radius: 7px;
+    font-size: 14px;
     font-weight: 600;
     padding: 0;
 }
@@ -630,19 +633,32 @@ QToolButton#vaultTabCloseBtn:hover {
     color: #ffffff;
 }
 
-QPushButton#vaultTabAddBtn {
-    background-color: #161d2a;
-    color: #9aa4bb;
-    border: 1px solid #2c3a5c;
-    border-radius: 9px;
-    font-size: 17px;
-    font-weight: 600;
+QToolButton#vaultTabAddBtn {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
 }
 
-QPushButton#vaultTabAddBtn:hover {
-    background-color: #212b40;
-    color: #e7ebf3;
-    border-color: #4b68f4;
+QToolButton#vaultTabAddBtn:hover {
+    background-color: #1e2740;
+}
+
+QScrollArea#vaultTabScroll QScrollBar:horizontal {
+    height: 5px;
+    background: transparent;
+    margin: 0;
+}
+
+QScrollArea#vaultTabScroll QScrollBar::handle:horizontal {
+    background: #2c3a5c;
+    border-radius: 2px;
+    min-width: 26px;
+}
+
+QScrollArea#vaultTabScroll QScrollBar::add-line:horizontal,
+QScrollArea#vaultTabScroll QScrollBar::sub-line:horizontal {
+    width: 0;
+    height: 0;
 }
 
 QFrame#vaultCommandSurface {
@@ -2473,43 +2489,46 @@ QPushButton#securityBadge:hover {
     color: #14532d;
 }
 
-/* --- Excel benzeri sekme çubuğu (aydınlık) --- */
-QWidget#vaultTabBar {
+/* --- Excel benzeri sekme çubuğu (ince, düz — aydınlık) --- */
+QWidget#vaultTabBar,
+QScrollArea#vaultTabScroll,
+QWidget#vaultTabChipsHost {
     background: transparent;
+    border: none;
 }
 
 QPushButton#vaultTabChip {
-    background-color: #f2f5fb;
-    color: #45526f;
-    border: 1px solid #d8dfec;
-    border-radius: 9px;
-    padding: 4px 14px;
-    font-size: 12px;
+    background-color: #eef2f9;
+    color: #5a6580;
+    border: 1px solid #dbe2ef;
+    border-radius: 6px;
+    padding: 2px 11px;
+    font-size: 11px;
     font-weight: 600;
-    min-height: 24px;
+    min-height: 20px;
 }
 
 QPushButton#vaultTabChip:hover {
-    background-color: #e9eefa;
+    background-color: #e4eaf7;
     color: #1b2740;
 }
 
 QPushButton#vaultTabChip[active="true"] {
-    background-color: #dfe7ff;
-    color: #1b2740;
+    background-color: #d5e0ff;
+    color: #16223d;
     border-color: #6c86f0;
 }
 
 QPushButton#vaultTabChip[closable="true"] {
-    padding-right: 26px;
+    padding-right: 23px;
 }
 
 QToolButton#vaultTabCloseBtn {
     background: transparent;
     color: #8794ad;
     border: none;
-    border-radius: 8px;
-    font-size: 15px;
+    border-radius: 7px;
+    font-size: 14px;
     font-weight: 600;
     padding: 0;
 }
@@ -2519,19 +2538,32 @@ QToolButton#vaultTabCloseBtn:hover {
     color: #ffffff;
 }
 
-QPushButton#vaultTabAddBtn {
-    background-color: #f2f5fb;
-    color: #6b7794;
-    border: 1px solid #d8dfec;
-    border-radius: 9px;
-    font-size: 17px;
-    font-weight: 600;
+QToolButton#vaultTabAddBtn {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
 }
 
-QPushButton#vaultTabAddBtn:hover {
-    background-color: #e9eefa;
-    color: #1b2740;
-    border-color: #6c86f0;
+QToolButton#vaultTabAddBtn:hover {
+    background-color: #e4eaf7;
+}
+
+QScrollArea#vaultTabScroll QScrollBar:horizontal {
+    height: 5px;
+    background: transparent;
+    margin: 0;
+}
+
+QScrollArea#vaultTabScroll QScrollBar::handle:horizontal {
+    background: #c3ccdd;
+    border-radius: 2px;
+    min-width: 26px;
+}
+
+QScrollArea#vaultTabScroll QScrollBar::add-line:horizontal,
+QScrollArea#vaultTabScroll QScrollBar::sub-line:horizontal {
+    width: 0;
+    height: 0;
 }
 
 QFrame#vaultCommandSurface {

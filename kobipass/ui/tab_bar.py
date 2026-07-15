@@ -12,9 +12,11 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QMouseEvent
 from PyQt6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QMenu,
     QPushButton,
+    QScrollArea,
     QToolButton,
     QWidget,
 )
@@ -56,6 +58,18 @@ class _TabChip(QPushButton):
             self.setIcon(icon_lock(QColor("#e0b64a"), size=13))
             self.setToolTip(tr("tab_hidden_tip"))
         self.clicked.connect(lambda: self.selected.emit(self._tab_id))
+
+        # Genişliği içeriğe göre sabitle: çok sekme olunca ezilip metin
+        # kırpılmasın (fazlası kaydırma çubuğuyla kayar). Font metriği QSS'ten
+        # bağımsız güvenli bir üst sınır verir.
+        width = self.fontMetrics().horizontalAdvance(name) + 26
+        if hidden:
+            width += 18
+        if is_admin:
+            width += 22  # '×' kaldır düğmesi için pay
+        self.chip_width = width
+        self.setFixedWidth(width)
+        self.setFixedHeight(24)
 
         self._close_btn: QToolButton | None = None
         if is_admin:
@@ -115,29 +129,62 @@ class VaultTabBar(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("vaultTabBar")
-        self._layout = QHBoxLayout(self)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(6)
-        # '+' düğmesi bir kez oluşturulur, her yeniden kurulumda tekrar eklenir.
-        self._add_btn = QPushButton()
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(4)
+
+        # Çipler yatay kaydırılabilir bir şeritte; çok sekme olunca küçülmez,
+        # kayar.
+        self._scroll = QScrollArea()
+        self._scroll.setObjectName("vaultTabScroll")
+        # widthResizable=False: host kendi doğal genişliğinde kalır (çipler
+        # ezilmez), taşınca yatay kaydırma çubuğu çıkar.
+        self._scroll.setWidgetResizable(False)
+        self._scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self._scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._scroll.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        self._scroll.viewport().setAutoFillBackground(False)
+        self._scroll.setFixedHeight(30)  # ince şerit
+        self._chips_host = QWidget()
+        self._chips_host.setObjectName("vaultTabChipsHost")
+        self._chips_layout = QHBoxLayout(self._chips_host)
+        self._chips_layout.setContentsMargins(0, 0, 0, 0)
+        self._chips_layout.setSpacing(3)
+        self._scroll.setWidget(self._chips_host)
+        outer.addWidget(self._scroll, 1)
+
+        # Düz, çerçevesiz '+' (tarayıcı/Excel usulü) — sekmelerden sonra sabit.
+        self._add_btn = QToolButton()
         self._add_btn.setObjectName("vaultTabAddBtn")
-        self._add_btn.setIcon(icon_plus(QColor("#9aa4bb"), size=16))
-        self._add_btn.setFixedSize(32, 28)
+        self._add_btn.setIcon(icon_plus(QColor("#8f9bb3"), size=15))
+        self._add_btn.setAutoRaise(True)
+        self._add_btn.setFixedSize(26, 24)
         self._add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_btn.setToolTip(tr("tab_add_tip"))
         self._add_btn.clicked.connect(self.add_requested.emit)
+        outer.addWidget(self._add_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        self._active_chip: _TabChip | None = None
 
     def set_tabs(self, tabs, active_id: str, *, is_admin: bool) -> None:
         """Çubuğu verilen (görünür) sekmelerle yeniden kurar."""
-        # Yalnızca çipleri (ve stretch'i) temizle; '+' düğmesini SİLME —
-        # tekrar kullanılacak (aksi halde silinmiş nesneye erişim → çökme).
-        while self._layout.count():
-            item = self._layout.takeAt(0)
+        while self._chips_layout.count():
+            item = self._chips_layout.takeAt(0)
             widget = item.widget()
-            if widget is not None and widget is not self._add_btn:
+            if widget is not None:
                 widget.setParent(None)
                 widget.deleteLater()
+        self._active_chip = None
 
+        total_width = 0
+        spacing = self._chips_layout.spacing()
         for tab in tabs:
             chip = _TabChip(
                 tab.id,
@@ -150,12 +197,14 @@ class VaultTabBar(QWidget):
             chip.rename_requested.connect(self.rename_requested.emit)
             chip.toggle_hidden_requested.connect(self.toggle_hidden_requested.emit)
             chip.delete_requested.connect(self.delete_requested.emit)
-            self._layout.addWidget(chip, 0)
+            self._chips_layout.addWidget(chip, 0)
+            total_width += chip.chip_width + spacing
+            if tab.id == active_id:
+                self._active_chip = chip
 
-        if is_admin:
-            self._add_btn.setToolTip(tr("tab_add_tip"))
-            self._layout.addWidget(self._add_btn, 0)
-            self._add_btn.show()
-        else:
-            self._add_btn.hide()
-        self._layout.addStretch(1)
+        # Host'u tam içerik genişliğinde sabitle → taşınca yatay kaydırma.
+        self._chips_host.setFixedWidth(max(1, total_width))
+        self._chips_host.setFixedHeight(26)
+        self._add_btn.setVisible(is_admin)
+        if self._active_chip is not None:
+            self._scroll.ensureWidgetVisible(self._active_chip, 40, 0)
