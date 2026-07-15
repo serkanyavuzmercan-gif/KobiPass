@@ -611,6 +611,25 @@ QPushButton#vaultTabChip[active="true"] {
     border-color: #4b68f4;
 }
 
+QPushButton#vaultTabChip[closable="true"] {
+    padding-right: 26px;
+}
+
+QToolButton#vaultTabCloseBtn {
+    background: transparent;
+    color: #8a90a0;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 0;
+}
+
+QToolButton#vaultTabCloseBtn:hover {
+    background-color: #c42b1c;
+    color: #ffffff;
+}
+
 QPushButton#vaultTabAddBtn {
     background-color: #161d2a;
     color: #9aa4bb;
@@ -2479,6 +2498,25 @@ QPushButton#vaultTabChip[active="true"] {
     background-color: #dfe7ff;
     color: #1b2740;
     border-color: #6c86f0;
+}
+
+QPushButton#vaultTabChip[closable="true"] {
+    padding-right: 26px;
+}
+
+QToolButton#vaultTabCloseBtn {
+    background: transparent;
+    color: #8794ad;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 0;
+}
+
+QToolButton#vaultTabCloseBtn:hover {
+    background-color: #dc2626;
+    color: #ffffff;
 }
 
 QPushButton#vaultTabAddBtn {
