@@ -29,7 +29,10 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from kobipass.vault_model import (
     KobiVault,
     USER_SLOT_COUNT,
+    hidden_tabs_json_bytes,
+    merge_hidden_tabs,
     vault_from_json_bytes,
+    vault_main_json_bytes,
     vault_to_json_bytes,
 )
 
@@ -39,18 +42,31 @@ MAGIC = b"KBPS"
 #   v2 = Argon2id, sabit 3 slot  (eski)
 #   v3 = Argon2id, değişken slot (slot sayısı byte'ı ile)
 #   v4 = PBKDF2,  değişken slot  (eski v1 dosyasına kullanıcı eklenince)
+#   v5 = Argon2id, değişken slot + gizli sekme bölmesi (yönetici-özel AEK)
+#   v6 = PBKDF2,  değişken slot + gizli sekme bölmesi
 VERSION_PBKDF2 = 0x01
 VERSION_ARGON2 = 0x02
 VERSION_ARGON2_MULTI = 0x03
 VERSION_PBKDF2_MULTI = 0x04
-VERSION = VERSION_ARGON2_MULTI  # yeni kasalar değişken slot destekler
-SUPPORTED_VERSIONS = frozenset({0x01, 0x02, 0x03, 0x04})
-MULTI_VERSIONS = frozenset({0x03, 0x04})       # slot sayısı byte'ı taşıyanlar
-_PBKDF2_VERSIONS = frozenset({0x01, 0x04})     # KDF = PBKDF2 olanlar
+VERSION_ARGON2_HIDDEN = 0x05
+VERSION_PBKDF2_HIDDEN = 0x06
+VERSION = VERSION_ARGON2_HIDDEN  # yeni kasalar gizli sekme bölmesini içerir
+SUPPORTED_VERSIONS = frozenset({0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
+# Slot sayısı byte'ı taşıyanlar (değişken slot).
+MULTI_VERSIONS = frozenset({0x03, 0x04, 0x05, 0x06})
+# Yönetici-özel gizli sekme bölmesini (AEK) taşıyanlar.
+HIDDEN_VERSIONS = frozenset({0x05, 0x06})
+_PBKDF2_VERSIONS = frozenset({0x01, 0x04, 0x06})     # KDF = PBKDF2 olanlar
 LEGACY_SLOT_COUNT = 3
 MAX_USER_SLOTS = 64
 # Değişken slotlu dosyaya kullanıcı eklenince aynı KDF'yi koruyan yeni sürüm.
 _UPGRADE_VERSION = {VERSION_PBKDF2: VERSION_PBKDF2_MULTI, VERSION_ARGON2: VERSION_ARGON2_MULTI}
+
+
+def _hidden_sibling(version: int) -> int:
+    """Verilen sürümün, aynı KDF ailesinden gizli-sekme yeteneğine sahip
+    kardeşini döndürür."""
+    return VERSION_PBKDF2_HIDDEN if version in _PBKDF2_VERSIONS else VERSION_ARGON2_HIDDEN
 SALT_SIZE = 16
 NONCE_SIZE = 12
 DEK_SIZE = 32
@@ -143,12 +159,24 @@ class UserSlotWrap:
 
 @dataclass
 class VaultFileKeys:
-    """Dosyadan okunan sarmalayıcılar — kullanıcı kaydında yeniden kullanılır."""
+    """Dosyadan okunan sarmalayıcılar — kullanıcı kaydında yeniden kullanılır.
+
+    Gizli sekme izolasyonu (v5/v6):
+      - ``aek_wrap``: yönetici-özel AEK sarmalayıcısı (yalnızca yönetici parolası
+        açar). Yoksa boş.
+      - ``aek``: AEK açık metni — yalnızca yönetici oturumunda bilinir; alt
+        kullanıcıda ``None``. ``None`` iken gizli blok aynen taşınır.
+      - ``hidden_blob``: AEK ile şifreli gizli sekmeler (nonce+şifreli metin).
+        Alt kullanıcı bunu çözemez, olduğu gibi taşır.
+    """
 
     admin_wrap: bytes
     user_slots: list[UserSlotWrap]
     dek: bytes
     version: int = VERSION
+    aek_wrap: bytes = b""
+    aek: bytes | None = None
+    hidden_blob: bytes = b""
 
 
 @dataclass
@@ -209,9 +237,15 @@ def _unwrap_dek(wrap: bytes, password: str, version: int = VERSION) -> bytes:
     return dek
 
 
-def _encrypt_vault_blob(vault: KobiVault, dek: bytes) -> bytes:
+def _encrypt_vault_blob(vault: KobiVault, dek: bytes, version: int = VERSION) -> bytes:
     nonce = os.urandom(NONCE_SIZE)
-    plaintext = vault_to_json_bytes(vault)
+    # Gizli-sekme yeteneği olan sürümlerde ana gövde YALNIZCA normal sekmeleri
+    # taşır; gizli sekmeler ayrı AEK bloğunda durur. Eski sürümlerde tüm
+    # sekmeler ana gövdededir (gizli bölme yoktur).
+    if version in HIDDEN_VERSIONS:
+        plaintext = vault_main_json_bytes(vault)
+    else:
+        plaintext = vault_to_json_bytes(vault)
     ciphertext = AESGCM(dek).encrypt(nonce, plaintext, None)
     return nonce + ciphertext
 
@@ -226,6 +260,28 @@ def _decrypt_vault_blob(blob: bytes, dek: bytes) -> KobiVault:
     except InvalidTag as exc:
         raise VaultCryptoError("crypto.corrupt_vault") from exc
     return vault_from_json_bytes(plaintext)
+
+
+def _encrypt_hidden_blob(vault: KobiVault, aek: bytes) -> bytes:
+    """Gizli sekmeleri AEK ile şifreler (nonce+şifreli metin)."""
+    nonce = os.urandom(NONCE_SIZE)
+    ciphertext = AESGCM(aek).encrypt(nonce, hidden_tabs_json_bytes(vault), None)
+    return nonce + ciphertext
+
+
+def _decrypt_hidden_into(vault: KobiVault, blob: bytes, aek: bytes) -> None:
+    """AEK ile gizli bloğu çözüp sekmeleri vault içine yerleştirir."""
+    if not blob:
+        return
+    if len(blob) < NONCE_SIZE + 16:
+        raise VaultCryptoError("crypto.corrupt_vault")
+    nonce = blob[:NONCE_SIZE]
+    ciphertext = blob[NONCE_SIZE:]
+    try:
+        plaintext = AESGCM(aek).decrypt(nonce, ciphertext, None)
+    except InvalidTag as exc:
+        raise VaultCryptoError("crypto.corrupt_vault") from exc
+    merge_hidden_tabs(vault, plaintext)
 
 
 def _empty_wrap() -> bytes:
@@ -248,7 +304,9 @@ def _strip_file_checksum(data: bytes) -> bytes:
     raise VaultCryptoError("crypto.file_corrupt")
 
 
-def _parse_file(data: bytes) -> tuple[int, bytes, list[UserSlotWrap], bytes]:
+def _parse_file(
+    data: bytes,
+) -> tuple[int, bytes, list[UserSlotWrap], bytes, bytes, bytes]:
     data = _strip_file_checksum(data)
     if len(data) < MIN_BODY_SIZE:
         raise VaultCryptoError("crypto.file_too_short")
@@ -282,8 +340,23 @@ def _parse_file(data: bytes) -> tuple[int, bytes, list[UserSlotWrap], bytes]:
         offset += WRAP_BLOCK_SIZE
         user_slots.append(UserSlotWrap(enabled=enabled, wrap=wrap))
 
+    aek_wrap = b""
+    hidden_blob = b""
+    if version in HIDDEN_VERSIONS:
+        # Yönetici-özel AEK sarmalayıcısı + uzunluk önekli gizli blok.
+        if len(data) < offset + WRAP_BLOCK_SIZE + 4:
+            raise VaultCryptoError("crypto.file_too_short")
+        aek_wrap = data[offset : offset + WRAP_BLOCK_SIZE]
+        offset += WRAP_BLOCK_SIZE
+        (hidden_len,) = struct.unpack(">I", data[offset : offset + 4])
+        offset += 4
+        if len(data) < offset + hidden_len + NONCE_SIZE + 16:
+            raise VaultCryptoError("crypto.file_too_short")
+        hidden_blob = data[offset : offset + hidden_len]
+        offset += hidden_len
+
     vault_blob = data[offset:]
-    return version, admin_wrap, user_slots, vault_blob
+    return version, admin_wrap, user_slots, aek_wrap, hidden_blob, vault_blob
 
 
 def _header_prefix(version: int, slot_count: int) -> list[bytes]:
@@ -293,13 +366,31 @@ def _header_prefix(version: int, slot_count: int) -> list[bytes]:
     return parts
 
 
+def _hidden_section_bytes(keys: VaultFileKeys, vault: KobiVault) -> bytes:
+    """Gizli sekme bölmesini (aek_wrap + uzunluk + gizli blok) üretir.
+
+    Yönetici (``aek`` bilinir): gizli sekmeleri AEK ile tazeler.
+    Alt kullanıcı (``aek is None``): mevcut opak bloğu aynen taşır.
+    """
+    aek_wrap = keys.aek_wrap if keys.aek_wrap else _empty_wrap()
+    if keys.aek is not None:
+        hidden_blob = _encrypt_hidden_blob(vault, keys.aek)
+    else:
+        hidden_blob = keys.hidden_blob or b""
+    return b"".join(
+        [aek_wrap, struct.pack(">I", len(hidden_blob)), hidden_blob]
+    )
+
+
 def _serialize_keys(keys: VaultFileKeys, vault: KobiVault) -> bytes:
     parts = _header_prefix(keys.version, len(keys.user_slots))
     parts.append(keys.admin_wrap)
     for slot in keys.user_slots:
         parts.append(struct.pack("B", 1 if slot.enabled else 0))
         parts.append(slot.wrap)
-    parts.append(_encrypt_vault_blob(vault, keys.dek))
+    if keys.version in HIDDEN_VERSIONS:
+        parts.append(_hidden_section_bytes(keys, vault))
+    parts.append(_encrypt_vault_blob(vault, keys.dek, keys.version))
     return _finalize_vault_bytes(b"".join(parts))
 
 
@@ -333,7 +424,21 @@ def build_vault_file(
         else:
             parts.append(_empty_wrap())
 
-    parts.append(_encrypt_vault_blob(vault, dek))
+    if version in HIDDEN_VERSIONS:
+        # Yönetici-özel AEK: yalnızca yönetici parolasıyla sarılır; gizli
+        # sekmeler bununla şifrelenir (alt kullanıcının parolası açamaz).
+        aek = os.urandom(DEK_SIZE)
+        keys = VaultFileKeys(
+            admin_wrap=admin_wrap,
+            user_slots=[],
+            dek=dek,
+            version=version,
+            aek_wrap=_wrap_dek(aek, admin_password, version),
+            aek=aek,
+        )
+        parts.append(_hidden_section_bytes(keys, vault))
+
+    parts.append(_encrypt_vault_blob(vault, dek, version))
     return _finalize_vault_bytes(b"".join(parts))
 
 
@@ -377,12 +482,22 @@ def update_user_wraps(
 
 
 def update_admin_wrap(keys: VaultFileKeys, new_admin_password: str) -> VaultFileKeys:
-    """Yönetici sarmalayıcısını yeni parola ile yeniden üretir."""
+    """Yönetici sarmalayıcısını yeni parola ile yeniden üretir.
+
+    Gizli sürümlerde AEK sarmalayıcısı da yeni parolayla yenilenir (AEK yalnızca
+    yönetici parolasıyla açılır).
+    """
+    aek_wrap = keys.aek_wrap
+    if keys.version in HIDDEN_VERSIONS and keys.aek is not None:
+        aek_wrap = _wrap_dek(keys.aek, new_admin_password, keys.version)
     return VaultFileKeys(
         admin_wrap=_wrap_dek(keys.dek, new_admin_password, keys.version),
         user_slots=list(keys.user_slots),
         dek=keys.dek,
         version=keys.version,
+        aek_wrap=aek_wrap,
+        aek=keys.aek,
+        hidden_blob=keys.hidden_blob,
     )
 
 
@@ -405,30 +520,55 @@ def write_vault_file_updated(
     version = keys.version
     if len(user_slots) != LEGACY_SLOT_COUNT and version not in MULTI_VERSIONS:
         version = _UPGRADE_VERSION[version]
+    # Gizli sekme varsa ve dosya henüz gizli-yetenekli değilse, AEK'i olan
+    # yönetici oturumunda gizli-sekme sürümüne yükselt (aksi halde gizli veri
+    # kaybolurdu). AEK yalnızca yönetici oturumunda bulunur.
+    if vault.hidden_tabs() and keys.aek is not None and version not in HIDDEN_VERSIONS:
+        version = _hidden_sibling(version)
     admin_wrap = keys.admin_wrap
+    aek_wrap = keys.aek_wrap
     if admin_password:
-        admin_wrap = _wrap_dek(keys.dek, admin_password, keys.version)
+        admin_wrap = _wrap_dek(keys.dek, admin_password, version)
+        if version in HIDDEN_VERSIONS and keys.aek is not None:
+            aek_wrap = _wrap_dek(keys.aek, admin_password, version)
     new_keys = VaultFileKeys(
         admin_wrap=admin_wrap,
         user_slots=user_slots,
         dek=keys.dek,
         version=version,
+        aek_wrap=aek_wrap,
+        aek=keys.aek,
+        hidden_blob=keys.hidden_blob,
     )
     _atomic_write(path, _serialize_keys(new_keys, vault))
     return new_keys
 
 
 def try_unlock_vault(data: bytes, password: str) -> UnlockResult:
-    version, admin_wrap, user_slots, vault_blob = _parse_file(data)
+    version, admin_wrap, user_slots, aek_wrap, hidden_blob, vault_blob = _parse_file(
+        data
+    )
 
     try:
         dek = _unwrap_dek(admin_wrap, password, version)
         vault = _decrypt_vault_blob(vault_blob, dek)
+        # Yönetici: gizli sekmeleri çöz (varsa) ve vault içine yerleştir.
+        if version in HIDDEN_VERSIONS:
+            aek = _unwrap_dek(aek_wrap, password, version)
+            _decrypt_hidden_into(vault, hidden_blob, aek)
+        else:
+            # Eski (gizli-yeteneksiz) dosya: yönetici için taze bir AEK üret ki
+            # ilk gizli sekme oluşturulunca kayıtta dosya gizli sürüme yükselsin.
+            aek = os.urandom(DEK_SIZE)
+            aek_wrap = _wrap_dek(aek, password, version)
         keys = VaultFileKeys(
             admin_wrap=admin_wrap,
             user_slots=user_slots,
             dek=dek,
             version=version,
+            aek_wrap=aek_wrap,
+            aek=aek,
+            hidden_blob=hidden_blob,
         )
         return UnlockResult(role="admin", user_slot=None, vault=vault, keys=keys)
     except WrongPasswordError:
@@ -440,11 +580,15 @@ def try_unlock_vault(data: bytes, password: str) -> UnlockResult:
         try:
             dek = _unwrap_dek(slot.wrap, password, version)
             vault = _decrypt_vault_blob(vault_blob, dek)
+            # Alt kullanıcı: gizli bloğu ÇÖZEMEZ; yalnızca opak biçimde taşır.
             keys = VaultFileKeys(
                 admin_wrap=admin_wrap,
                 user_slots=user_slots,
                 dek=dek,
                 version=version,
+                aek_wrap=aek_wrap,
+                aek=None,
+                hidden_blob=hidden_blob,
             )
             return UnlockResult(
                 role="user",

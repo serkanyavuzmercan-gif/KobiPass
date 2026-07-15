@@ -448,5 +448,54 @@ def vault_from_json_bytes(data: bytes) -> KobiVault:
     return KobiVault.from_dict(raw)
 
 
+# ── Gizli sekme kripto izolasyonu için bölme/birleştirme ─────────────────────
+# Ana gövde (DEK ile şifreli, her rol okur) yalnızca normal sekmeleri ve tüm
+# ortak meta veriyi taşır. Gizli sekmeler ayrı bir AEK bloğunda (yalnızca
+# yönetici çözer) durur. Böylece alt kullanıcının parolası gizli sekmeleri
+# açamaz; alt kullanıcı gizli bloğu opak biçimde taşır.
+
+
+def vault_main_json_bytes(vault: KobiVault) -> bytes:
+    """Ana (DEK) gövde: yalnızca normal sekmeler + tüm ortak meta."""
+    data = vault.to_dict()
+    data["tabs"] = [t.to_dict() for t in vault.normal_tabs()]
+    return json.dumps(data, ensure_ascii=False).encode("utf-8")
+
+
+def hidden_tabs_json_bytes(vault: KobiVault) -> bytes:
+    """Gizli (AEK) blok gövdesi: gizli sekmeler + tam sekme listesindeki
+    konumları (``pos``) — yönetici açtığında sıra korunur."""
+    tabs: list[dict[str, Any]] = []
+    for index, tab in enumerate(vault.tabs):
+        if tab.hidden:
+            data = tab.to_dict()
+            data["pos"] = index
+            tabs.append(data)
+    return json.dumps({"tabs": tabs}, ensure_ascii=False).encode("utf-8")
+
+
+def merge_hidden_tabs(vault: KobiVault, payload: bytes) -> None:
+    """Çözülmüş gizli sekmeleri ``vault.tabs`` içine konumlarına ekler."""
+    try:
+        raw = json.loads(payload.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return
+    items = raw.get("tabs", []) if isinstance(raw, dict) else []
+    parsed: list[tuple[int, VaultTab]] = []
+    for data in items:
+        if not isinstance(data, dict):
+            continue
+        try:
+            pos = int(data.get("pos", len(vault.tabs)))
+        except (TypeError, ValueError):
+            pos = len(vault.tabs)
+        tab = VaultTab.from_dict(data)
+        tab.hidden = True
+        parsed.append((pos, tab))
+    for pos, tab in sorted(parsed, key=lambda item: item[0]):
+        index = max(0, min(pos, len(vault.tabs)))
+        vault.tabs.insert(index, tab)
+
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

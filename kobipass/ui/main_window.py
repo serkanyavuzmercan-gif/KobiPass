@@ -1482,6 +1482,11 @@ class MainWindow(QMainWindow):
         tab = self._find_tab(tab_id)
         if tab is None:
             return
+        # Son görünür sekmeyi gizlemeye izin verme: alt kullanıcıların en az bir
+        # normal sekmesi kalmalı (aksi halde boş bir kasa görürler).
+        if not tab.hidden and len(self._vault.normal_tabs()) <= 1:
+            show_info(self, tr("app_name"), tr("tab_cannot_hide_last"))
+            return
         tab.hidden = not tab.hidden
         self._mark_dirty()
         self._apply_session_ui()

@@ -111,6 +111,97 @@ def test_entries_property_maps_to_primary_tab() -> None:
     assert vault.entries[0].name == "X"
 
 
+def test_hidden_tab_crypto_isolation(tmp_path: Path) -> None:
+    """Gizli sekme, alt kullanıcının parolasıyla ÇÖZÜLEMEZ; yönetici görür,
+    alt kullanıcı opak bloğu taşır ve kayıtta gizli veri korunur."""
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    from kobipass.crypto import HIDDEN_VERSIONS, _parse_file
+    from kobipass.vault_model import vault_main_json_bytes
+
+    path = tmp_path / "v.enc"
+    vault = KobiVault(
+        tabs=[
+            VaultTab(id="n1", name="Genel", entries=[VaultEntry(name="s", info1="p1")]),
+            VaultTab(
+                id="h1",
+                name="GizliDep",
+                entries=[VaultEntry(name="banka", info1="COK-GIZLI")],
+                hidden=True,
+            ),
+            VaultTab(id="n2", name="Satış", entries=[VaultEntry(name="c", info1="p2")]),
+        ]
+    )
+    raw = build_vault_file(
+        vault, "admin-pw", [(True, "user-pw"), (False, ""), (False, "")]
+    )
+    path.write_bytes(raw)
+    assert _parse_file(raw)[0] in HIDDEN_VERSIONS
+
+    # Yönetici: üç sekmeyi de sırayla ve gizliyi çözülmüş görür.
+    admin = read_vault_file(path, "admin-pw")
+    assert [t.name for t in admin.vault.tabs] == ["Genel", "GizliDep", "Satış"]
+    assert admin.vault.tabs[1].entries[0].info1 == "COK-GIZLI"
+
+    # Alt kullanıcı: yalnızca normal sekmeler; gizli ne görünür ne çözülür.
+    user = read_vault_file(path, "user-pw")
+    assert [t.name for t in user.vault.tabs] == ["Genel", "Satış"]
+    assert user.keys.aek is None
+    assert user.keys.hidden_blob
+    # Alt kullanıcının DEK'i gizli bloğu AÇAMAMALI (gerçek kripto sınırı).
+    blob = user.keys.hidden_blob
+    with pytest.raises(Exception):
+        AESGCM(user.keys.dek).decrypt(blob[:12], blob[12:], None)
+    # Gizli ad/içerik alt kullanıcının ana gövdesinde HİÇ yer almaz.
+    main_json = vault_main_json_bytes(user.vault)
+    assert b"COK-GIZLI" not in main_json
+    assert b"GizliDep" not in main_json
+
+    # Alt kullanıcı normal sekmeyi düzenleyip kaydeder → gizli veri korunur.
+    user.vault.tabs[0].entries.append(VaultEntry(name="yeni", info1="p3"))
+    write_vault_file_updated(path, user.vault, user.keys)
+    admin2 = read_vault_file(path, "admin-pw")
+    assert [t.name for t in admin2.vault.tabs] == ["Genel", "GizliDep", "Satış"]
+    assert admin2.vault.tabs[1].entries[0].info1 == "COK-GIZLI"
+    assert "yeni" in [e.name for e in admin2.vault.tabs[0].entries]
+
+
+def test_hidden_tab_legacy_upgrade_and_admin_password_change(tmp_path: Path) -> None:
+    """Eski (gizli-yeteneksiz) kasada yönetici ilk gizli sekmeyi ekleyince dosya
+    gizli sürüme yükselir; yönetici parolası değişince AEK yeniden sarılır."""
+    from kobipass import crypto as C
+
+    path = tmp_path / "legacy.enc"
+    vault = mkvault(entries=[VaultEntry(name="a", info1="1")])
+    C.write_vault_file(
+        path, vault, "adm", [(True, "usr"), (False, ""), (False, "")],
+        version=C.VERSION_ARGON2,
+    )
+    assert C._parse_file(path.read_bytes())[0] == C.VERSION_ARGON2
+
+    admin = read_vault_file(path, "adm")
+    assert admin.keys.aek is not None  # eski kasada bile yöneticiye taze AEK
+    admin.vault.tabs.append(
+        VaultTab(id="hz", name="Gizli", entries=[VaultEntry(name="x", info1="ZZZ")],
+                 hidden=True)
+    )
+    admin.keys = write_vault_file_updated(path, admin.vault, admin.keys)
+    assert C._parse_file(path.read_bytes())[0] in C.HIDDEN_VERSIONS
+
+    # Alt kullanıcı yükseltilmiş kasada gizliyi göremez.
+    from kobipass.vault_model import vault_main_json_bytes
+    user = read_vault_file(path, "usr")
+    assert all(not t.hidden for t in user.vault.tabs)
+    assert b"ZZZ" not in vault_main_json_bytes(user.vault)
+
+    # Yönetici parolası değişir → gizli hâlâ okunur.
+    new_keys = C.update_admin_wrap(admin.keys, "adm2")
+    write_vault_file_updated(path, admin.vault, new_keys)
+    admin3 = read_vault_file(path, "adm2")
+    assert any(t.name == "Gizli" and t.hidden for t in admin3.vault.tabs)
+    assert admin3.vault.tabs[-1].entries[0].info1 == "ZZZ"
+
+
 def test_per_slot_permissions_roundtrip() -> None:
     p1 = UserPermissions(name="read", info="write", can_add_entry=True)
     p2 = UserPermissions(name="none", info="read", can_save=False)
@@ -483,15 +574,15 @@ def test_atomic_write_roundtrip(tmp_path: Path) -> None:
 
 
 def test_variable_user_slots(tmp_path: Path) -> None:
-    """v3 değişken slot round-trip + v2->v3 kullanıcı ekleme upgrade."""
+    """Değişken slot round-trip + v2->v3 kullanıcı ekleme upgrade."""
     from kobipass import crypto as C
 
-    # v3: 5 alt kullanıcı
+    # Yeni kasa: değişken slot + gizli-sekme yeteneği (v5), 5 alt kullanıcı
     vault = mkvault(entries=[VaultEntry(name="A", info1="1")])
     p3 = tmp_path / "multi.enc"
     C.write_vault_file(p3, vault, "adm", [(True, f"u{i}") for i in range(5)])
     r = read_vault_file(p3, "adm")
-    assert r.keys.version == C.VERSION_ARGON2_MULTI
+    assert r.keys.version == C.VERSION_ARGON2_HIDDEN
     assert len(r.keys.user_slots) == 5
     assert read_vault_file(p3, "u4").user_slot == 5
 
