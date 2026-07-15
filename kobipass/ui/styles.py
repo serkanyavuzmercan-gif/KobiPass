@@ -584,6 +584,48 @@ QPushButton#securityBadge:hover {
     color: #ffffff;
 }
 
+/* --- Excel benzeri sekme çubuğu --- */
+QWidget#vaultTabBar {
+    background: transparent;
+}
+
+QPushButton#vaultTabChip {
+    background-color: #1a2233;
+    color: #aab6d0;
+    border: 1px solid #2c3a5c;
+    border-radius: 9px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    min-height: 24px;
+}
+
+QPushButton#vaultTabChip:hover {
+    background-color: #212b40;
+    color: #e7ebf3;
+}
+
+QPushButton#vaultTabChip[active="true"] {
+    background-color: #2a3a63;
+    color: #ffffff;
+    border-color: #4b68f4;
+}
+
+QPushButton#vaultTabAddBtn {
+    background-color: #161d2a;
+    color: #9aa4bb;
+    border: 1px solid #2c3a5c;
+    border-radius: 9px;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+QPushButton#vaultTabAddBtn:hover {
+    background-color: #212b40;
+    color: #e7ebf3;
+    border-color: #4b68f4;
+}
+
 QFrame#vaultCommandSurface {
     background-color: #121826;
     border: 1px solid #2c3a5c;
@@ -2410,6 +2452,48 @@ QPushButton#securityBadge {
 QPushButton#securityBadge:hover {
     background-color: #dcfce7;
     color: #14532d;
+}
+
+/* --- Excel benzeri sekme çubuğu (aydınlık) --- */
+QWidget#vaultTabBar {
+    background: transparent;
+}
+
+QPushButton#vaultTabChip {
+    background-color: #f2f5fb;
+    color: #45526f;
+    border: 1px solid #d8dfec;
+    border-radius: 9px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    min-height: 24px;
+}
+
+QPushButton#vaultTabChip:hover {
+    background-color: #e9eefa;
+    color: #1b2740;
+}
+
+QPushButton#vaultTabChip[active="true"] {
+    background-color: #dfe7ff;
+    color: #1b2740;
+    border-color: #6c86f0;
+}
+
+QPushButton#vaultTabAddBtn {
+    background-color: #f2f5fb;
+    color: #6b7794;
+    border: 1px solid #d8dfec;
+    border-radius: 9px;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+QPushButton#vaultTabAddBtn:hover {
+    background-color: #e9eefa;
+    color: #1b2740;
+    border-color: #6c86f0;
 }
 
 QFrame#vaultCommandSurface {

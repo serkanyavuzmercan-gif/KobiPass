@@ -294,26 +294,36 @@ class KobiVault:
     )
     field_labels: dict[str, str] = field(default_factory=dict)
     audit_log: list[AuditEntry] = field(default_factory=list)
+    # Aktif (görüntülenen) sekmenin indeksi — geçici UI durumu, serileştirilmez.
+    active_index: int = field(default=0, compare=False)
 
     # ── Sekme yardımcıları ───────────────────────────────────────────────
     def ensure_tab(self) -> VaultTab:
-        """En az bir sekme garantiler; birincil sekmeyi döndürür."""
+        """En az bir sekme garantiler; ilk sekmeyi döndürür."""
         if not self.tabs:
             self.tabs = [VaultTab.new(DEFAULT_TAB_NAME)]
         return self.tabs[0]
 
+    def active_tab(self) -> VaultTab:
+        """Aktif indekse karşılık gelen sekme (sınır dışıysa ilk sekme)."""
+        self.ensure_tab()
+        if 0 <= self.active_index < len(self.tabs):
+            return self.tabs[self.active_index]
+        return self.tabs[0]
+
     @property
     def entries(self) -> list[VaultEntry]:
-        """Geriye uyum: birincil sekmenin kayıt listesi (canlı referans).
+        """Aktif sekmenin kayıt listesi (canlı referans).
 
-        Sekme arayüzü gelene kadar mevcut kod tek liste üzerinde çalışmaya
-        devam eder. Sekmeye özel erişim için ``tabs[i].entries`` kullanılır.
+        Mevcut arayüz kodu ``vault.entries`` üzerinden tek liste ile çalışır;
+        aktif sekme değiştikçe (``active_index``) bu otomatik olarak o sekmeye
+        işaret eder.
         """
-        return self.ensure_tab().entries
+        return self.active_tab().entries
 
     @entries.setter
     def entries(self, value: list[VaultEntry]) -> None:
-        self.ensure_tab().entries = list(value)
+        self.active_tab().entries = list(value)
 
     def normal_tabs(self) -> list[VaultTab]:
         return [t for t in self.tabs if not t.hidden]

@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -98,6 +99,7 @@ from kobipass.ui.icons import (
     icon_theme,
     icon_users,
 )
+from kobipass.ui.tab_bar import VaultTabBar
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
@@ -107,7 +109,13 @@ from kobipass.ui.vault_empty_state import (
     VaultEmptyState,
     should_show_empty_state,
 )
-from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry, utc_now_iso
+from kobipass.vault_model import (
+    KobiVault,
+    UserPermissions,
+    VaultEntry,
+    VaultTab,
+    utc_now_iso,
+)
 
 _FILTER_PAGE_SIZE = 100
 _FILTER_DEBOUNCE_MS = 300
@@ -199,6 +207,7 @@ class MainWindow(QMainWindow):
         self._row_widgets: list[EntryRowWidget] = []
         self._about_dialog: AboutDialog | None = None
         self._security_dialog: SecurityDialog | None = None
+        self._active_tab_id: str | None = None
         self._showing_copy_notice = False
         self._copy_notice_field = ""
         self._copy_notice_has_text = True
@@ -369,19 +378,25 @@ class MainWindow(QMainWindow):
         # Tema/dil düğmeleri artık üst başlık çubuğunda.
         command_layout.addLayout(toolbar)
 
+        # Rozet/ipucu satırının yerine Excel benzeri sekme çubuğu; sağda küçük
+        # AES-256 güvence rozeti kalır.
         self.security_badge = QPushButton()
         self.security_badge.setObjectName("securityBadge")
         self.security_badge.setCursor(Qt.CursorShape.PointingHandCursor)
         self.security_badge.clicked.connect(self._open_security_dialog)
 
+        self._tab_bar = VaultTabBar()
+        self._tab_bar.tab_selected.connect(self._on_tab_selected)
+        self._tab_bar.add_requested.connect(self._on_add_tab)
+        self._tab_bar.rename_requested.connect(self._on_rename_tab)
+        self._tab_bar.toggle_hidden_requested.connect(self._on_toggle_hidden_tab)
+        self._tab_bar.delete_requested.connect(self._on_delete_tab)
+
         badge_layout = QHBoxLayout()
         badge_layout.setSpacing(8)
-        badge_layout.addWidget(self.security_badge)
-        self._workspace_hint = QLabel()
-        self._workspace_hint.setObjectName("vaultWorkspaceHint")
-        badge_layout.addWidget(self._workspace_hint)
-        badge_layout.addStretch()
         badge_layout.setContentsMargins(0, 0, 0, 0)
+        badge_layout.addWidget(self._tab_bar, 1)
+        badge_layout.addWidget(self.security_badge, 0)
         command_layout.addLayout(badge_layout)
 
         root.addWidget(self._command_surface)
@@ -907,11 +922,7 @@ class MainWindow(QMainWindow):
         if is_unlocked:
             title = f"{title} — {self._role_label()}"
         self.setWindowTitle(title)
-        self._workspace_hint.setText(
-            tr("user_workspace_hint")
-            if isinstance(self._session, UserSession)
-            else tr("vault_workspace_hint")
-        )
+        self._refresh_tab_bar()
         self._update_status()
         self._refresh_empty_state()
 
@@ -1094,7 +1105,7 @@ class MainWindow(QMainWindow):
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))
-        self._workspace_hint.setText(tr("vault_workspace_hint"))
+        self._refresh_tab_bar()
         self._records_panel_title.setText(tr("records_panel_title"))
         self._summary_reopen_btn.setToolTip(tr("summary_expand"))
         self._summary_panel.retranslate()
@@ -1335,21 +1346,189 @@ class MainWindow(QMainWindow):
 
     def _load_vault_data(self, vault: KobiVault) -> None:
         self._vault = vault
+        self._set_active_tab_to_first_visible()
+        self._reload_active_tab(reset_dirty=True)
+        self._apply_session_ui()
+        self._reset_idle_timer()
+        self._refresh_empty_state()
+
+    def _reload_active_tab(self, *, reset_dirty: bool) -> None:
+        """Aktif sekmenin kayıtlarını satırlara yükler."""
+        vault = self._vault
+        if vault is None:
+            return
         self._display_entries = list(vault.entries)
         self._search_bar.blockSignals(True)
         self._search_bar.clear()
         self._search_bar.blockSignals(False)
         self._clear_all_rows()
-        visible_entries = vault.entries[:_FILTER_PAGE_SIZE]
-        for index, entry in enumerate(visible_entries):
+        for index, entry in enumerate(vault.entries[:_FILTER_PAGE_SIZE]):
             self._add_row(entry, vault_index=index, refresh_session=False)
         self._snapshot_entries = copy.deepcopy(vault.entries)
-        self._clear_dirty()
+        if reset_dirty:
+            self._clear_dirty()
         for row in self._row_widgets:
             row.set_sensitive_shown(False)
+
+    # ── Sekme yönetimi ───────────────────────────────────────────────────
+    def _visible_tabs(self) -> list[VaultTab]:
+        """Bu oturumun görebildiği sekmeler (alt kullanıcıya gizli yok)."""
+        if not self._vault:
+            return []
+        if isinstance(self._session, UserSession):
+            return self._vault.normal_tabs()
+        return list(self._vault.tabs)
+
+    def _tab_mgmt_allowed(self) -> bool:
+        """Sekme ekle/adlandır/gizle/sil yalnızca yöneticiye (alt kullanıcı değil)."""
+        return self._vault is not None and not isinstance(
+            self._session, UserSession
+        )
+
+    def _find_tab(self, tab_id: str) -> VaultTab | None:
+        if not self._vault:
+            return None
+        for tab in self._vault.tabs:
+            if tab.id == tab_id:
+                return tab
+        return None
+
+    def _apply_active_index(self) -> None:
+        """_active_tab_id → vault.active_index (entries property bunu izler)."""
+        vault = self._vault
+        if vault is None or not vault.tabs:
+            return
+        for index, tab in enumerate(vault.tabs):
+            if tab.id == self._active_tab_id:
+                vault.active_index = index
+                return
+        vault.active_index = 0
+        self._active_tab_id = vault.tabs[0].id
+
+    def _set_active_tab_to_first_visible(self) -> None:
+        vault = self._vault
+        if vault is None:
+            self._active_tab_id = None
+            return
+        visible = self._visible_tabs()
+        if visible:
+            self._active_tab_id = visible[0].id
+        elif vault.tabs:
+            self._active_tab_id = vault.tabs[0].id
+        self._apply_active_index()
+
+    def _refresh_tab_bar(self) -> None:
+        if not hasattr(self, "_tab_bar"):
+            return
+        if self._vault is None:
+            self._tab_bar.set_tabs([], "", is_admin=False)
+            return
+        self._apply_active_index()
+        self._tab_bar.set_tabs(
+            self._visible_tabs(),
+            self._active_tab_id or "",
+            is_admin=self._tab_mgmt_allowed(),
+        )
+
+    def _on_tab_selected(self, tab_id: str) -> None:
+        if self._vault is None or tab_id == self._active_tab_id:
+            return
+        if self._find_tab(tab_id) is None:
+            return
+        # Mevcut sekmedeki düzenlemeleri modele işle (kaybolmasın).
+        self._sync_vault_entries()
+        self._active_tab_id = tab_id
+        self._apply_active_index()
+        self._reload_active_tab(reset_dirty=False)
         self._apply_session_ui()
-        self._reset_idle_timer()
-        self._refresh_empty_state()
+
+    def _next_tab_name(self) -> str:
+        existing = {tab.name for tab in self._vault.tabs} if self._vault else set()
+        base = tr("tab_default_name")
+        if base not in existing:
+            return base
+        index = 2
+        while tr("tab_new_name", n=index) in existing:
+            index += 1
+        return tr("tab_new_name", n=index)
+
+    def _on_add_tab(self) -> None:
+        if not self._tab_mgmt_allowed() or self._kilitli_mi:
+            return
+        self._sync_vault_entries()
+        tab = VaultTab.new(self._next_tab_name())
+        self._vault.tabs.append(tab)
+        self._active_tab_id = tab.id
+        self._apply_active_index()
+        self._reload_active_tab(reset_dirty=False)
+        self._mark_dirty()
+        self._apply_session_ui()
+        if self._row_widgets:
+            edits = self._row_widgets[0].focus_edits()
+            if edits:
+                edits[0].setFocus()
+
+    def _on_rename_tab(self, tab_id: str) -> None:
+        if not self._tab_mgmt_allowed():
+            return
+        tab = self._find_tab(tab_id)
+        if tab is None:
+            return
+        text, ok = QInputDialog.getText(
+            self,
+            tr("tab_rename_title"),
+            tr("tab_rename_label"),
+            text=tab.name,
+        )
+        if ok and text.strip():
+            tab.name = text.strip()
+            self._mark_dirty()
+            self._refresh_tab_bar()
+
+    def _on_toggle_hidden_tab(self, tab_id: str) -> None:
+        if not self._tab_mgmt_allowed():
+            return
+        tab = self._find_tab(tab_id)
+        if tab is None:
+            return
+        tab.hidden = not tab.hidden
+        self._mark_dirty()
+        self._apply_session_ui()
+        show_info(
+            self,
+            tr("app_name"),
+            tr("tab_made_hidden" if tab.hidden else "tab_made_normal", name=tab.name),
+        )
+
+    def _on_delete_tab(self, tab_id: str) -> None:
+        if not self._tab_mgmt_allowed():
+            return
+        if self._vault is None or len(self._vault.tabs) <= 1:
+            show_info(self, tr("tab_delete_title"), tr("tab_cannot_delete_last"))
+            return
+        tab = self._find_tab(tab_id)
+        if tab is None:
+            return
+        if any(e.has_content() for e in tab.entries):
+            box = QMessageBox(self)
+            box.setWindowTitle(tr("tab_delete_title"))
+            box.setText(tr("tab_delete_text", name=tab.name))
+            box.setIcon(QMessageBox.Icon.Warning)
+            box.setStandardButtons(
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            box.setDefaultButton(QMessageBox.StandardButton.No)
+            if box.exec() != QMessageBox.StandardButton.Yes:
+                return
+        was_active = self._active_tab_id == tab_id
+        self._vault.tabs.remove(tab)
+        if was_active:
+            self._set_active_tab_to_first_visible()
+            self._reload_active_tab(reset_dirty=False)
+        else:
+            self._apply_active_index()
+        self._mark_dirty()
+        self._apply_session_ui()
 
     def _open_security_dialog(self) -> None:
         if self._security_dialog is None:
