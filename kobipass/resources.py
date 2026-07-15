@@ -99,6 +99,21 @@ def hero_left_pixmap(english: bool = False, light: bool = False) -> QPixmap:
     return QPixmap()
 
 
+def security_shield_pixmap(width: int = 320) -> QPixmap:
+    """Özet panelindeki güvenlik kartı görseli (opsiyonel).
+
+    ``assets/security_shield.png`` varsa oranı korunarak genişliğe göre
+    ölçeklenir; yoksa boş QPixmap döner (arayüz çizili kalkana düşer).
+    """
+    path = asset_path("security_shield.png")
+    if not path.is_file():
+        return QPixmap()
+    pm = QPixmap(str(path))
+    if pm.isNull():
+        return QPixmap()
+    return pm.scaledToWidth(width, Qt.TransformationMode.SmoothTransformation)
+
+
 def watermark_mask_pixmap(height: int = 512) -> QPixmap:
     """Yüksek çözünürlüklü logo2'den arka plansız, tek renk filigran maskesi."""
     path = asset_path("logo2.png")

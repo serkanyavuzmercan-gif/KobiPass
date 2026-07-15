@@ -690,7 +690,15 @@ class MainWindow(QMainWindow):
         'Düzenler' verdiği alanları düzenleyebilir; değişiklikler audit'e düşer.
         Herkesi salt-okunur isteyen yönetici şablonda yazma yetkisi vermez.
         """
-        if not self._vault or not self._session:
+        if not self._vault:
+            return None
+        if self._session is None:
+            # Yeni / kaydedilmemiş kasa: onu oluşturan kişi yöneticidir, kayıt
+            # görünümünde tam yetkiyle çalışır (alan ekle/sil, kaydet...).
+            if self._stacked_widget.currentWidget() is self._vault_view:
+                from kobipass.session import admin_permissions
+
+                return admin_permissions()
             return None
         return effective_permissions(self._session, self._vault)
 

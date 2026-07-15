@@ -280,6 +280,16 @@ QFrame#summarySecurityCard {
     border-radius: 14px;
 }
 
+QFrame#summarySecurityCardArt {
+    background-color: #0a0e1a;
+    border: 1px solid #232f4e;
+    border-radius: 14px;
+}
+
+QLabel#summarySecurityArt {
+    background: transparent;
+}
+
 QLabel#summarySecurityIcon {
     background-color: rgba(75, 104, 244, 0.22);
     border-radius: 28px;
@@ -2082,6 +2092,20 @@ QFrame#summarySecurityCard {
     );
     border: 1px solid #c7d2fe;
     border-radius: 14px;
+}
+
+QFrame#summarySecurityCardArt {
+    background-color: #0a0e1a;
+    border: 1px solid #cbd5f0;
+    border-radius: 14px;
+}
+
+QFrame#summarySecurityCardArt QLabel#summarySecurityText {
+    color: #b9c5df;
+}
+
+QLabel#summarySecurityArt {
+    background: transparent;
 }
 
 QLabel#summarySecurityIcon {

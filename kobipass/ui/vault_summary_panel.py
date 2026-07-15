@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.i18n import tr
+from kobipass.resources import security_shield_pixmap
 from kobipass.ui.icons import (
     icon_bar_chart,
     icon_clock,
@@ -71,18 +72,32 @@ class VaultSummaryPanel(QFrame):
         security.setObjectName("summarySecurityCard")
         security.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         security_layout = QVBoxLayout(security)
-        security_layout.setContentsMargins(20, 26, 20, 22)
         security_layout.setSpacing(10)
         security_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
-        shield_icon = QLabel()
-        shield_icon.setObjectName("summarySecurityIcon")
-        shield_icon.setFixedSize(56, 56)
-        shield_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        shield_icon.setPixmap(
-            icon_shield(QColor("#aeb9ff"), size=30).pixmap(30, 30)
-        )
-        security_layout.addWidget(shield_icon, 0, Qt.AlignmentFlag.AlignHCenter)
+        # assets/security_shield.png varsa onu kullan; yoksa çizili kalkan.
+        shield_art = security_shield_pixmap(236)
+        if not shield_art.isNull():
+            security.setObjectName("summarySecurityCardArt")
+            security_layout.setContentsMargins(10, 10, 10, 15)
+            art = QLabel()
+            art.setObjectName("summarySecurityArt")
+            art.setPixmap(shield_art)
+            art.setScaledContents(False)
+            art.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            security_layout.addWidget(art, 0)
+        else:
+            security_layout.setContentsMargins(20, 26, 20, 22)
+            shield_icon = QLabel()
+            shield_icon.setObjectName("summarySecurityIcon")
+            shield_icon.setFixedSize(56, 56)
+            shield_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            shield_icon.setPixmap(
+                icon_shield(QColor("#aeb9ff"), size=30).pixmap(30, 30)
+            )
+            security_layout.addWidget(
+                shield_icon, 0, Qt.AlignmentFlag.AlignHCenter
+            )
 
         self._security_text = QLabel()
         self._security_text.setObjectName("summarySecurityText")
