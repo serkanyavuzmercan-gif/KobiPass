@@ -1520,10 +1520,24 @@ class MainWindow(QMainWindow):
             box.setDefaultButton(QMessageBox.StandardButton.No)
             if box.exec() != QMessageBox.StandardButton.Yes:
                 return
+        # Silinen sekmenin görünür sekmeler içindeki konumu → silince en yakın
+        # (aynı konuma kayan sonraki, o da yoksa önceki) sekmeye geç.
+        visible_before = [t.id for t in self._visible_tabs()]
+        try:
+            pos = visible_before.index(tab_id)
+        except ValueError:
+            pos = 0
         was_active = self._active_tab_id == tab_id
         self._vault.tabs.remove(tab)
         if was_active:
-            self._set_active_tab_to_first_visible()
+            visible_after = self._visible_tabs()
+            if visible_after:
+                self._active_tab_id = visible_after[
+                    min(pos, len(visible_after) - 1)
+                ].id
+            elif self._vault.tabs:
+                self._active_tab_id = self._vault.tabs[0].id
+            self._apply_active_index()
             self._reload_active_tab(reset_dirty=False)
         else:
             self._apply_active_index()

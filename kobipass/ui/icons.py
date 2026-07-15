@@ -502,6 +502,17 @@ def icon_layers(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
     return _scaled_icon(f"layers:{color.name()}:{size}", draw, size)
 
 
+def icon_plus(color: QColor = NEUTRAL_COLOR, size: int = 16) -> QIcon:
+    """Sade artı (+) — yeni sekme ekle."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 2.2 * s))
+        p.drawLine(_pt(12 * s, 5.5 * s), _pt(12 * s, 18.5 * s))
+        p.drawLine(_pt(5.5 * s, 12 * s), _pt(18.5 * s, 12 * s))
+
+    return _scaled_icon(f"plus:{color.name()}:{size}", draw, size)
+
+
 def icon_grid(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
     """2×2 hücre ızgarası — toplam değer hücresi."""
     def draw(p: QPainter) -> None:

@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.i18n import tr
-from kobipass.ui.icons import icon_lock
+from kobipass.ui.icons import icon_lock, icon_plus
 
 
 class _TabChip(QPushButton):
@@ -119,9 +119,10 @@ class VaultTabBar(QWidget):
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(6)
         # '+' düğmesi bir kez oluşturulur, her yeniden kurulumda tekrar eklenir.
-        self._add_btn = QPushButton("+")
+        self._add_btn = QPushButton()
         self._add_btn.setObjectName("vaultTabAddBtn")
-        self._add_btn.setFixedSize(28, 26)
+        self._add_btn.setIcon(icon_plus(QColor("#9aa4bb"), size=16))
+        self._add_btn.setFixedSize(32, 28)
         self._add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_btn.setToolTip(tr("tab_add_tip"))
         self._add_btn.clicked.connect(self.add_requested.emit)
