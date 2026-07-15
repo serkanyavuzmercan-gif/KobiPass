@@ -1,6 +1,7 @@
 ﻿"""
-Özel pencere başlığı: sürükleme + kapat (Windows çerçevesi yok).
-Pencere boyutu ekranın kullanılabilir alanına oranlıdır; köşeden büyütme yok.
+Özel pencere başlığı: sürükleme + simge durumu / ekranı kapla / kapat
+(Windows çerçevesi yok). Açılış boyutu ekranın kullanılabilir alanına
+oranlıdır; pencere yeniden boyutlandırılabilir.
 """
 
 from __future__ import annotations
@@ -19,12 +20,27 @@ from PyQt6.QtWidgets import (
 from kobipass.i18n import i18n, tr
 from kobipass.platform_win import set_window_geometry
 from kobipass.resources import logo_pixmap
-from kobipass.ui.icons import icon_globe, icon_info, icon_shield, icon_sun, icon_theme
+from kobipass.ui.icons import (
+    icon_globe,
+    icon_info,
+    icon_shield,
+    icon_sun,
+    icon_theme,
+    icon_win_maximize,
+    icon_win_minimize,
+    icon_win_restore,
+)
 from kobipass.ui.theme import theme_manager
 
 # Tasarım referansı: 1280×760 @ 1920×1080 → sabit açılış oranı
 WINDOW_WIDTH_RATIO = 1280 / 1920
 WINDOW_HEIGHT_RATIO = 760 / 1080
+
+# Yeniden boyutlandırma tabanı (düzen bu boyutun altında bozulmasın) ve
+# Qt'nin varsayılan boyut tavanı (sabit-boyut kilidini kaldırmak için).
+_MIN_WINDOW_WIDTH = 860
+_MIN_WINDOW_HEIGHT = 540
+_QWIDGETSIZE_MAX = 16777215
 
 
 def window_size_for_available(avail: QRect) -> QSize:
@@ -45,6 +61,7 @@ class CustomTitleBar(QWidget):
         self._drag_pos: QPoint | None = None
         self._maximized = False
         self._restore_size: tuple[int, int] | None = None
+        self._restore_pos: tuple[int, int] | None = None
         self._toggle_busy = False
 
         self.setObjectName("customTitleBar")
@@ -126,13 +143,29 @@ class CustomTitleBar(QWidget):
         self._update_theme_icon()
         theme_manager.theme_changed.connect(self._update_theme_icon)
 
-        # Yalnızca kapat düğmesi — simge durumuna küçült / ekranı kapla yok.
+        # Standart pencere düğmeleri: simge durumu · ekranı kapla/geri al · kapat.
+        self._btn_min = QPushButton()
+        self._btn_min.setObjectName("titleBtnMin")
+        self._btn_min.setFixedSize(46, 38)
+        self._btn_min.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_min.setIcon(icon_win_minimize(size=14))
+        self._btn_min.clicked.connect(self._window.showMinimized)
+        layout.addWidget(self._btn_min)
+
+        self._btn_max = QPushButton()
+        self._btn_max.setObjectName("titleBtnMax")
+        self._btn_max.setFixedSize(46, 38)
+        self._btn_max.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_max.clicked.connect(self._on_maximize_clicked)
+        layout.addWidget(self._btn_max)
+
         self._btn_close = QPushButton("\u00d7")
         self._btn_close.setObjectName("titleBtnClose")
         self._btn_close.setFixedSize(46, 38)
         self._btn_close.clicked.connect(self._window.close)
         layout.addWidget(self._btn_close)
 
+        self._refresh_maximize_button()
         self.retranslate()
 
     @staticmethod
@@ -150,17 +183,31 @@ class CustomTitleBar(QWidget):
         if self._is_near_fullscreen(geom, avail):
             return
         self._restore_size = (geom.width(), geom.height())
+        self._restore_pos = (geom.x(), geom.y())
 
     def apply_screen_ratio_geometry(self, *, recenter: bool = True) -> QSize:
-        """Ekran oranına göre sabit boyut uygular; köşeden büyütmeyi kilitler."""
+        """Açılış boyutunu ekran oranına göre uygular; pencere yeniden
+        boyutlandırılabilir kalır (sabit boyut kilidi kaldırıldı).
+
+        ``recenter=True`` (ilk açılış / ekran değişimi) boyutu ve konumu
+        uygular; ``recenter=False`` yalnızca boyut sınırlarını tazeler ve
+        kullanıcının seçtiği boyutu korur.
+        """
         avail = self._available_screen_geometry()
         size = window_size_for_available(avail)
-        self._window.setFixedSize(size)
+        # Yeniden boyutlandırmayı serbest bırak: alt sınır makul bir taban,
+        # üst sınır Qt'nin varsayılan tavanı. Alt sınır açılış boyutunu asla
+        # aşmasın (küçük ekranlarda pencere büyümeye zorlanmasın).
+        min_w = min(_MIN_WINDOW_WIDTH, size.width())
+        min_h = min(_MIN_WINDOW_HEIGHT, size.height())
+        self._window.setMaximumSize(_QWIDGETSIZE_MAX, _QWIDGETSIZE_MAX)
+        self._window.setMinimumSize(min_w, min_h)
         if recenter:
             target = self._centered_geometry(size.width(), size.height())
             self._window.winId()
             set_window_geometry(self._window, target, restoring=False)
-        self._restore_size = (size.width(), size.height())
+            self._restore_size = (size.width(), size.height())
+            self._restore_pos = (target.x(), target.y())
         self._maximized = False
         self._refresh_maximize_button()
         return size
@@ -175,11 +222,15 @@ class CustomTitleBar(QWidget):
             size = window_size_for_available(self._available_screen_geometry())
             width = size.width() if width is None else width
             height = size.height() if height is None else height
-        self._window.setFixedSize(width, height)
+        self._window.setMaximumSize(_QWIDGETSIZE_MAX, _QWIDGETSIZE_MAX)
+        self._window.setMinimumSize(
+            min(_MIN_WINDOW_WIDTH, width), min(_MIN_WINDOW_HEIGHT, height)
+        )
         target = self._centered_geometry(width, height)
         self._window.winId()
         set_window_geometry(self._window, target, restoring=False)
         self._restore_size = (width, height)
+        self._restore_pos = (target.x(), target.y())
         self._maximized = False
         self._refresh_maximize_button()
 
@@ -191,6 +242,8 @@ class CustomTitleBar(QWidget):
     def retranslate(self) -> None:
         self._brand.setText(tr("app_name"))
         self._slogan.setText(tr("slogan"))
+        self._btn_min.setToolTip(tr("title_minimize"))
+        self._refresh_maximize_button()
         self._btn_close.setToolTip(tr("title_close"))
         self.btn_theme.setToolTip(tr("btn_theme_tip"))
         self.btn_lang.setToolTip(tr("btn_lang_tip"))
@@ -215,8 +268,15 @@ class CustomTitleBar(QWidget):
         return QRect(x, y, width, height)
 
     def _refresh_maximize_button(self) -> None:
-        # Büyüt/geri al düğmesi kaldırıldı — yalnızca kapat düğmesi var.
-        return
+        btn = getattr(self, "_btn_max", None)
+        if btn is None:
+            return
+        if self._maximized:
+            btn.setIcon(icon_win_restore(size=14))
+            btn.setToolTip(tr("title_restore"))
+        else:
+            btn.setIcon(icon_win_maximize(size=14))
+            btn.setToolTip(tr("title_maximize"))
 
     def _on_maximize_clicked(self) -> None:
         if self._toggle_busy:
@@ -228,8 +288,40 @@ class CustomTitleBar(QWidget):
             self._toggle_busy = False
 
     def _toggle_maximize(self) -> None:
-        # Ekranı kapla / geri al kaldırıldı — oranlı sabit boyut korunur.
-        self.apply_screen_ratio_geometry(recenter=True)
+        if self._maximized:
+            self._restore_normal()
+        else:
+            self._maximize_to_available()
+
+    def _maximize_to_available(self) -> None:
+        """Pencereyi kullanılabilir ekran alanına kaplar (görev çubuğu hariç)."""
+        geom = self._window.geometry()
+        avail = self._available_screen_geometry()
+        if not self._is_near_fullscreen(geom, avail):
+            self._restore_size = (geom.width(), geom.height())
+            self._restore_pos = (geom.x(), geom.y())
+        self._window.winId()
+        set_window_geometry(self._window, avail, restoring=False)
+        self._maximized = True
+        self._refresh_maximize_button()
+
+    def _restore_normal(self) -> None:
+        """Ekranı kaplı pencereyi önceki boyut/konuma geri alır."""
+        avail = self._available_screen_geometry()
+        if self._restore_size is not None:
+            width, height = self._restore_size
+        else:
+            size = window_size_for_available(avail)
+            width, height = size.width(), size.height()
+        if self._restore_pos is not None:
+            x, y = self._restore_pos
+            target = QRect(x, y, width, height)
+        else:
+            target = self._centered_geometry(width, height)
+        self._window.winId()
+        set_window_geometry(self._window, target, restoring=True)
+        self._maximized = False
+        self._refresh_maximize_button()
 
     def _is_draggable_target(self, pos) -> bool:
         child = self.childAt(pos)
@@ -268,5 +360,13 @@ class CustomTitleBar(QWidget):
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
-        # Ekranı kapla kaldırıldı — çift tıklama bir şey yapmaz.
+        # Başlığa çift tıklama ekranı kapla / geri al (düğmelerin üstünde değil).
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and self._is_draggable_target(event.pos())
+        ):
+            self._drag_pos = None
+            self._on_maximize_clicked()
+            event.accept()
+            return
         super().mouseDoubleClickEvent(event)

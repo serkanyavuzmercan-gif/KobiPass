@@ -580,3 +580,44 @@ def icon_search(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
         p.drawLine(_pt(15 * s, 15 * s), _pt(20 * s, 20 * s))
 
     return _scaled_icon(f"search:{color.name()}:{size}", draw, size)
+
+
+def icon_win_minimize(color: QColor = NEUTRAL_COLOR, size: int = 14) -> QIcon:
+    """Yatay çizgi — pencereyi simge durumuna küçült."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.drawLine(_pt(5 * s, 12 * s), _pt(19 * s, 12 * s))
+
+    return _scaled_icon(f"winmin:{color.name()}:{size}", draw, size)
+
+
+def icon_win_maximize(color: QColor = NEUTRAL_COLOR, size: int = 14) -> QIcon:
+    """Boş kare — pencereyi ekranı kapla."""
+    def draw(p: QPainter) -> None:
+        from PyQt6.QtCore import QRectF
+
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(5 * s, 5 * s, 14 * s, 14 * s), 2 * s, 2 * s)
+
+    return _scaled_icon(f"winmax:{color.name()}:{size}", draw, size)
+
+
+def icon_win_restore(color: QColor = NEUTRAL_COLOR, size: int = 14) -> QIcon:
+    """Üst üste iki kare — ekranı kaplı pencereyi geri al."""
+    def draw(p: QPainter) -> None:
+        from PyQt6.QtCore import QRectF
+
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        # Arka (sağ-üst) kare
+        p.drawPolyline(
+            _pt(8 * s, 7 * s), _pt(17 * s, 7 * s), _pt(17 * s, 16 * s)
+        )
+        # Ön (sol-alt) kare
+        p.drawRoundedRect(QRectF(6 * s, 9 * s, 11 * s, 10 * s), 2 * s, 2 * s)
+
+    return _scaled_icon(f"winrestore:{color.name()}:{size}", draw, size)

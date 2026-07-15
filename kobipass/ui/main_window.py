@@ -11,6 +11,7 @@ from pathlib import Path
 from PyQt6.QtCore import QEvent, QThread, QTimer, QUrl, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QColor,
+    QCursor,
     QDesktopServices,
     QDragEnterEvent,
     QDropEvent,
@@ -30,6 +31,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizeGrip,
     QSizePolicy,
     QStackedWidget,
     QStatusBar,
@@ -197,6 +199,9 @@ class MainWindow(QMainWindow):
         self._showing_copy_notice = False
         self._copy_notice_field = ""
         self._copy_notice_has_text = True
+        # Frameless pencere kenarından yeniden boyutlandırma.
+        self._resize_margin = 6
+        self._resize_cursor_active = False
 
         self._vault: KobiVault | None = None
         self._session: Session | None = None
@@ -231,7 +236,7 @@ class MainWindow(QMainWindow):
         self._title_bar.apply_screen_ratio_geometry(recenter=True)
 
     def _wire_screen_sizing(self) -> None:
-        """Ekran değişince oranlı boyutu koru; köşe resize kapalı kalsın."""
+        """Ekran değişince pencereyi yeni ekrana oranlı olarak yeniden hizala."""
         handle = self.windowHandle()
         if handle is not None:
             try:
@@ -260,8 +265,18 @@ class MainWindow(QMainWindow):
         self._title_bar.apply_screen_ratio_geometry(recenter=True)
 
     def _on_available_geometry_changed(self) -> None:
-        # Ekran çözünürlüğü / görev çubuğu değişince aynı oranı uygula.
-        self._title_bar.apply_screen_ratio_geometry(recenter=True)
+        # Görev çubuğu (otomatik gizle) sık sık bu sinyali tetikler; kullanıcının
+        # seçtiği boyut/konumu sıfırlamayalım. Ekranı kaplıysa yeni alana uydur;
+        # değilse pencere ekran dışına taşmışsa/sığmıyorsa güvenli boyuta çek.
+        if getattr(self._title_bar, "_maximized", False):
+            self._title_bar._maximize_to_available()
+            return
+        avail = self._available_screen_geometry()
+        geom = self.geometry()
+        too_big = geom.width() > avail.width() or geom.height() > avail.height()
+        off_screen = not avail.intersects(geom)
+        if too_big or off_screen:
+            self._title_bar.apply_screen_ratio_geometry(recenter=True)
 
     def _build_ui(self) -> None:
         central = QWidget()
@@ -585,14 +600,103 @@ class MainWindow(QMainWindow):
             self._kilit_ekranini_goster()
 
     def eventFilter(self, obj, event):  # noqa: N802
-        if event.type() in (
+        etype = event.type()
+        if etype in (
             QEvent.Type.MouseMove,
             QEvent.Type.MouseButtonPress,
             QEvent.Type.KeyPress,
             QEvent.Type.Wheel,
         ):
             self._reset_idle_timer()
+        if etype in (QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress):
+            if self._handle_edge_resize(obj, event):
+                return True
         return super().eventFilter(obj, event)
+
+    # ── Frameless kenar/köşe yeniden boyutlandırma ───────────────────────────
+    def _resize_edges_at(self, pos) -> int:
+        """Verilen (pencereye göreli) noktanın hangi kenarlara yakın olduğunu
+        Qt.Edge bayrak değerlerinin toplamı (int) olarak döndürür."""
+        m = self._resize_margin
+        rect = self.rect()
+        edges = 0
+        if pos.x() <= m:
+            edges |= Qt.Edge.LeftEdge.value
+        if pos.x() >= rect.width() - m:
+            edges |= Qt.Edge.RightEdge.value
+        if pos.y() <= m:
+            edges |= Qt.Edge.TopEdge.value
+        if pos.y() >= rect.height() - m:
+            edges |= Qt.Edge.BottomEdge.value
+        return edges
+
+    def _cursor_for_edges(self, edges: int):
+        left = edges & Qt.Edge.LeftEdge.value
+        right = edges & Qt.Edge.RightEdge.value
+        top = edges & Qt.Edge.TopEdge.value
+        bottom = edges & Qt.Edge.BottomEdge.value
+        if (top and left) or (bottom and right):
+            return Qt.CursorShape.SizeFDiagCursor
+        if (top and right) or (bottom and left):
+            return Qt.CursorShape.SizeBDiagCursor
+        if left or right:
+            return Qt.CursorShape.SizeHorCursor
+        if top or bottom:
+            return Qt.CursorShape.SizeVerCursor
+        return None
+
+    def _set_resize_cursor(self, shape) -> None:
+        if shape is None:
+            self._clear_resize_cursor()
+            return
+        if self._resize_cursor_active:
+            QApplication.changeOverrideCursor(QCursor(shape))
+        else:
+            QApplication.setOverrideCursor(QCursor(shape))
+            self._resize_cursor_active = True
+
+    def _clear_resize_cursor(self) -> None:
+        if self._resize_cursor_active:
+            QApplication.restoreOverrideCursor()
+            self._resize_cursor_active = False
+
+    def _handle_edge_resize(self, obj, event) -> bool:
+        # Yalnızca bu pencereye ait widget'lar için; diyalog/başka pencere değil.
+        if not isinstance(obj, QWidget) or obj.window() is not self:
+            return False
+        # Karşılama/kilit fark etmez; yalnızca ekranı kaplı değilken ve normal
+        # pencere durumunda kenar boyutlandırması yapılır.
+        if getattr(self._title_bar, "_maximized", False) or self.isMaximized():
+            self._clear_resize_cursor()
+            return False
+        # Köşe tutamacı (QStatusBar size grip) kendi işini yapsın.
+        if isinstance(obj, QSizeGrip):
+            self._clear_resize_cursor()
+            return False
+        try:
+            global_pos = event.globalPosition().toPoint()
+        except AttributeError:
+            return False
+        pos = self.mapFromGlobal(global_pos)
+        if not self.rect().contains(pos):
+            self._clear_resize_cursor()
+            return False
+        edges = self._resize_edges_at(pos)
+        if event.type() == QEvent.Type.MouseMove:
+            if not (event.buttons() & Qt.MouseButton.LeftButton):
+                self._set_resize_cursor(self._cursor_for_edges(edges))
+            return False
+        # MouseButtonPress
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and edges
+        ):
+            handle = self.windowHandle()
+            if handle is not None:
+                self._clear_resize_cursor()
+                handle.startSystemResize(Qt.Edge(edges))
+                return True
+        return False
 
     def _reset_idle_timer(self) -> None:
         self._idle_timer.stop()
