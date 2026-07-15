@@ -99,11 +99,13 @@ def hero_left_pixmap(english: bool = False, light: bool = False) -> QPixmap:
     return QPixmap()
 
 
-def security_shield_pixmap(width: int = 320) -> QPixmap:
+def security_shield_pixmap(width: int | None = 320) -> QPixmap:
     """Özet panelindeki güvenlik kartı görseli (opsiyonel).
 
-    ``assets/security_shield.png`` varsa oranı korunarak genişliğe göre
-    ölçeklenir; yoksa boş QPixmap döner (arayüz çizili kalkana düşer).
+    ``assets/security_shield.png`` varsa döner; yoksa boş QPixmap (arayüz
+    çizili kalkana düşer). ``width`` verilirse oran korunarak o genişliğe
+    ölçeklenir; ``None`` ise ham (tam çözünürlük) görsel döner — çağıran taraf
+    kendi alanına göre ölçekleyebilir (responsive kalkan için).
     """
     path = asset_path("security_shield.png")
     if not path.is_file():
@@ -111,6 +113,8 @@ def security_shield_pixmap(width: int = 320) -> QPixmap:
     pm = QPixmap(str(path))
     if pm.isNull():
         return QPixmap()
+    if width is None or width <= 0:
+        return pm
     return pm.scaledToWidth(width, Qt.TransformationMode.SmoothTransformation)
 
 

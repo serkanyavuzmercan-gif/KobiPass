@@ -8,11 +8,12 @@ istatistiklerini ve küçük bir güvenlik kartını gösterir. Salt görsel bir
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -31,6 +32,52 @@ from kobipass.ui.icons import (
 _STAT_ACCENT = QColor("#8296ff")
 
 
+class _ScalingShield(QLabel):
+    """Kalkan görselini, oranını koruyarak kartın genişliğine göre ölçekler.
+
+    Yüksekliği genişliğe göre (heightForWidth) belirlenir; böylece görsel her
+    zaman en/boy oranını korur, panel genişledikçe büyür ve etrafındaki
+    esnek boşluklarla dikeyde ortalandığında ölü boşluk dengeli görünür.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._source = QPixmap()
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        policy = QSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
+        )
+        policy.setHeightForWidth(True)
+        self.setSizePolicy(policy)
+
+    def set_source(self, pixmap: QPixmap) -> None:
+        self._source = pixmap
+        self.updateGeometry()
+        self._rescale()
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802
+        return not self._source.isNull()
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802
+        if self._source.isNull() or self._source.width() == 0:
+            return 0
+        return int(self._source.height() * max(1, width) / self._source.width())
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._rescale()
+
+    def _rescale(self) -> None:
+        if self._source.isNull():
+            return
+        width = max(1, self.width())
+        super().setPixmap(
+            self._source.scaledToWidth(
+                width, Qt.TransformationMode.SmoothTransformation
+            )
+        )
+
+
 class VaultSummaryPanel(QFrame):
     """Sabit genişlikli sağ panel: istatistik kartları + güvenlik kartı."""
 
@@ -38,8 +85,8 @@ class VaultSummaryPanel(QFrame):
         super().__init__(parent)
         self.setObjectName("summaryPanel")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setMinimumWidth(286)
-        self.setMaximumWidth(320)
+        self.setMinimumWidth(300)
+        self.setMaximumWidth(360)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(14, 13, 14, 13)
@@ -72,19 +119,24 @@ class VaultSummaryPanel(QFrame):
         security.setObjectName("summarySecurityCard")
         security.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         security_layout = QVBoxLayout(security)
-        security_layout.setSpacing(10)
-        security_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        security_layout.setSpacing(12)
 
-        # assets/security_shield.png varsa onu kullan; yoksa çizili kalkan.
-        shield_art = security_shield_pixmap(280)
-        if not shield_art.isNull():
+        self._security_text = QLabel()
+        self._security_text.setObjectName("summarySecurityText")
+        self._security_text.setWordWrap(True)
+        self._security_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # assets/security_shield.png varsa ham görseli responsive ölçekle;
+        # yoksa çizili kalkan ikonuna düş. Her iki durumda kalkan + açıklama
+        # grubu kartın dikeyinde ortalanır (üstte/altta dengeli boşluk).
+        shield_source = security_shield_pixmap(None)
+        security_layout.addStretch(1)
+        if not shield_source.isNull():
             security.setObjectName("summarySecurityCardArt")
-            security_layout.setContentsMargins(6, 6, 6, 12)
-            art = QLabel()
+            security_layout.setContentsMargins(16, 16, 16, 16)
+            art = _ScalingShield()
             art.setObjectName("summarySecurityArt")
-            art.setPixmap(shield_art)
-            art.setScaledContents(False)
-            art.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            art.set_source(shield_source)
             security_layout.addWidget(art, 0)
         else:
             security_layout.setContentsMargins(20, 26, 20, 22)
@@ -98,14 +150,8 @@ class VaultSummaryPanel(QFrame):
             security_layout.addWidget(
                 shield_icon, 0, Qt.AlignmentFlag.AlignHCenter
             )
-
-        self._security_text = QLabel()
-        self._security_text.setObjectName("summarySecurityText")
-        self._security_text.setWordWrap(True)
-        self._security_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        security_layout.addWidget(self._security_text)
-        # Kalkan kartı kalan dikey alanı doldurur — mockup'taki gibi görsele
-        # geniş bir alan bırakır, istatistikler üstte sıkışık kalır.
+        security_layout.addWidget(self._security_text, 0)
+        security_layout.addStretch(1)
         outer.addWidget(security, 1)
 
         self.retranslate()
