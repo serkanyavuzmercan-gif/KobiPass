@@ -597,10 +597,9 @@ QPushButton#vaultTabChip {
     color: #7a869e;
     border: 1px solid #1f2a3d;
     border-radius: 6px;
-    padding: 2px 11px;
+    padding: 0px 11px;
     font-size: 11px;
     font-weight: 600;
-    min-height: 20px;
 }
 
 QPushButton#vaultTabChip:hover {
@@ -2502,10 +2501,9 @@ QPushButton#vaultTabChip {
     color: #5a6580;
     border: 1px solid #dbe2ef;
     border-radius: 6px;
-    padding: 2px 11px;
+    padding: 0px 11px;
     font-size: 11px;
     font-weight: 600;
-    min-height: 20px;
 }
 
 QPushButton#vaultTabChip:hover {

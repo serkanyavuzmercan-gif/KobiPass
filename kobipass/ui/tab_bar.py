@@ -69,7 +69,7 @@ class _TabChip(QPushButton):
             width += 22  # '×' kaldır düğmesi için pay
         self.chip_width = width
         self.setFixedWidth(width)
-        self.setFixedHeight(24)
+        self.setFixedHeight(26)
 
         self._close_btn: QToolButton | None = None
         if is_admin:

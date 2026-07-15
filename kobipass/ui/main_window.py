@@ -1959,10 +1959,15 @@ class MainWindow(QMainWindow):
         self._load_vault_data(unlock.vault)
         self._show_vault_view()
         self._landing_page.refresh_recent()
-        show_info(
-            self,
-            tr("opened_title"),
-            tr("opened_text", count=len(unlock.vault.entries)),
+        # 'Açıldı' diyaloğunu bir olay-döngüsü tık'ı geciktir: modal, çalışma
+        # alanı yerleşmeden açılırsa arkada yarı-yerleşmiş garip bir görüntü
+        # kalıyordu. Önce layout otursun, sonra bilgi çıksın.
+        count = len(unlock.vault.entries)
+        QTimer.singleShot(
+            0,
+            lambda: show_info(
+                self, tr("opened_title"), tr("opened_text", count=count)
+            ),
         )
 
     def closeEvent(self, event) -> None:  # noqa: N802
