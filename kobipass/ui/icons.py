@@ -502,6 +502,22 @@ def icon_layers(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
     return _scaled_icon(f"layers:{color.name()}:{size}", draw, size)
 
 
+def icon_grid(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """2×2 hücre ızgarası — toplam değer hücresi."""
+    def draw(p: QPainter) -> None:
+        from PyQt6.QtCore import QRectF
+
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(4 * s, 4 * s, 7 * s, 7 * s), 1.5 * s, 1.5 * s)
+        p.drawRoundedRect(QRectF(13 * s, 4 * s, 7 * s, 7 * s), 1.5 * s, 1.5 * s)
+        p.drawRoundedRect(QRectF(4 * s, 13 * s, 7 * s, 7 * s), 1.5 * s, 1.5 * s)
+        p.drawRoundedRect(QRectF(13 * s, 13 * s, 7 * s, 7 * s), 1.5 * s, 1.5 * s)
+
+    return _scaled_icon(f"grid:{color.name()}:{size}", draw, size)
+
+
 def icon_plus_circle(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
     """Daire içinde artı — alan/kayıt ekleme."""
     def draw(p: QPainter) -> None:

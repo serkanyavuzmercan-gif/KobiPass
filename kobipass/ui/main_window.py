@@ -195,6 +195,7 @@ class MainWindow(QMainWindow):
         self._current_path: Path | None = None
         self._dirty = False
         self._last_saved_at: datetime | None = None
+        self._last_access_at: datetime | None = None
         self._row_widgets: list[EntryRowWidget] = []
         self._about_dialog: AboutDialog | None = None
         self._security_dialog: SecurityDialog | None = None
@@ -756,6 +757,7 @@ class MainWindow(QMainWindow):
         self._pending_admin_password = None
         self._kilitli_mi = False
         self._last_saved_at = None
+        self._last_access_at = datetime.now()
         self._load_vault_data(KobiVault())
         self._show_vault_view()
 
@@ -1186,27 +1188,33 @@ class MainWindow(QMainWindow):
         self._summary_reopen_btn.hide()
         self._summary_panel.show()
 
+    @staticmethod
+    def _format_stat_time(when: datetime | None) -> str:
+        """İstatistik zamanı: Bugün/Dün HH:MM ya da GG.AA.YYYY; yoksa '—'."""
+        if when is None:
+            return "—"
+        clock = when.strftime("%H:%M")
+        today = datetime.now().date()
+        delta = (today - when.date()).days
+        if delta <= 0:
+            return tr("date_today", time=clock)
+        if delta == 1:
+            return tr("date_yesterday", time=clock)
+        return when.strftime("%d.%m.%Y")
+
     def _update_summary_panel(self) -> None:
-        total_fields = 0
-        hidden_count = 0
+        total_rows = len(self._row_widgets)
+        total_cells = 0
         for row in self._row_widgets:
-            entry = row.to_entry()
-            total_fields += entry.max_info_index()
-            if entry.info1.strip():
-                hidden_count += 1
-        add_allowed = self._can_add_record(self._row_permissions())
+            total_cells += row.to_entry().max_info_index()
         if self._dirty or self._last_saved_at is None:
             last_saved_text = tr("summary_not_saved")
         else:
-            clock = self._last_saved_at.strftime("%H:%M")
-            if self._last_saved_at.date() == datetime.now().date():
-                last_saved_text = tr("date_today", time=clock)
-            else:
-                last_saved_text = tr("date_yesterday", time=clock)
+            last_saved_text = self._format_stat_time(self._last_saved_at)
         self._summary_panel.set_stats(
-            total_fields=total_fields,
-            hidden_count=hidden_count,
-            add_allowed=add_allowed,
+            total_rows=total_rows,
+            total_cells=total_cells,
+            last_access_text=self._format_stat_time(self._last_access_at),
             last_saved_text=last_saved_text,
         )
 
@@ -1738,6 +1746,7 @@ class MainWindow(QMainWindow):
         self._pending_admin_password = None
         self._kilitli_mi = False
         add_recent_file(path)
+        self._last_access_at = datetime.now()
         try:
             self._last_saved_at = datetime.fromtimestamp(path.stat().st_mtime)
         except OSError:

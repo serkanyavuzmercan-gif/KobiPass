@@ -25,9 +25,9 @@ from kobipass.ui.icons import (
     icon_bar_chart,
     icon_chevron_right,
     icon_clock,
-    icon_eye_slash,
+    icon_grid,
     icon_layers,
-    icon_plus_circle,
+    icon_save,
     icon_shield,
 )
 
@@ -112,13 +112,13 @@ class VaultSummaryPanel(QFrame):
         outer.addLayout(header)
         outer.addSpacing(1)
 
-        self._row_total, self._value_total = self._make_stat_row(icon_layers)
-        outer.addWidget(self._row_total)
-        self._row_hidden, self._value_hidden = self._make_stat_row(icon_eye_slash)
-        outer.addWidget(self._row_hidden)
-        self._row_add, self._value_add = self._make_stat_row(icon_plus_circle)
-        outer.addWidget(self._row_add)
-        self._row_saved, self._value_saved = self._make_stat_row(icon_clock)
+        self._row_rows, self._value_rows = self._make_stat_row(icon_layers)
+        outer.addWidget(self._row_rows)
+        self._row_cells, self._value_cells = self._make_stat_row(icon_grid)
+        outer.addWidget(self._row_cells)
+        self._row_access, self._value_access = self._make_stat_row(icon_clock)
+        outer.addWidget(self._row_access)
+        self._row_saved, self._value_saved = self._make_stat_row(icon_save)
         outer.addWidget(self._row_saved)
 
         outer.addSpacing(2)
@@ -192,23 +192,21 @@ class VaultSummaryPanel(QFrame):
     def set_stats(
         self,
         *,
-        total_fields: int,
-        hidden_count: int,
-        add_allowed: bool,
+        total_rows: int,
+        total_cells: int,
+        last_access_text: str,
         last_saved_text: str,
     ) -> None:
-        self._value_total.setText(str(total_fields))
-        self._value_hidden.setText(str(hidden_count))
-        self._value_add.setText(
-            tr("summary_add_ok") if add_allowed else tr("summary_add_restricted")
-        )
+        self._value_rows.setText(str(total_rows))
+        self._value_cells.setText(str(total_cells))
+        self._value_access.setText(last_access_text)
         self._value_saved.setText(last_saved_text)
 
     def retranslate(self) -> None:
         self._title.setText(tr("summary_title"))
         self._collapse_btn.setToolTip(tr("summary_collapse"))
-        self._row_total._label_widget.setText(tr("summary_total_fields"))  # type: ignore[attr-defined]
-        self._row_hidden._label_widget.setText(tr("summary_hidden_values"))  # type: ignore[attr-defined]
-        self._row_add._label_widget.setText(tr("summary_add_field"))  # type: ignore[attr-defined]
+        self._row_rows._label_widget.setText(tr("summary_total_rows"))  # type: ignore[attr-defined]
+        self._row_cells._label_widget.setText(tr("summary_total_cells"))  # type: ignore[attr-defined]
+        self._row_access._label_widget.setText(tr("summary_last_access"))  # type: ignore[attr-defined]
         self._row_saved._label_widget.setText(tr("summary_last_saved"))  # type: ignore[attr-defined]
         self._security_text.setText(tr("summary_security_text"))
