@@ -518,3 +518,65 @@ def icon_eye_slash(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
         p.drawLine(_pt(5 * s, 19 * s), _pt(19 * s, 5 * s))
 
     return _scaled_icon(f"eyeslash:{color.name()}:{size}", draw, size)
+
+
+def icon_save(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Disket — kaydet."""
+    def draw(p: QPainter) -> None:
+        from PyQt6.QtCore import QRectF
+
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolyline(
+            _pt(4.5 * s, 4 * s), _pt(16 * s, 4 * s), _pt(20 * s, 8 * s),
+            _pt(20 * s, 20 * s), _pt(4.5 * s, 20 * s), _pt(4.5 * s, 4 * s),
+        )
+        p.drawRect(QRectF(8 * s, 4 * s, 7 * s, 5 * s))       # üst mandal
+        p.drawRoundedRect(QRectF(7 * s, 12.5 * s, 10 * s, 7.5 * s), 1 * s, 1 * s)
+
+    return _scaled_icon(f"save:{color.name()}:{size}", draw, size)
+
+
+def icon_users(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """İki kişi — kullanıcılar ve yetkiler."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.6 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(_pt(9 * s, 8.5 * s), 3.1 * s, 3.1 * s)          # ön kişi baş
+        p.drawArc(int(2.5 * s), int(13 * s), int(13 * s), int(11 * s), 0, 180 * 16)  # ön gövde
+        p.drawArc(int(14 * s), int(5.6 * s), int(5.8 * s), int(5.8 * s), -60 * 16, 300 * 16)  # arka baş
+        p.drawArc(int(15 * s), int(13.5 * s), int(7 * s), int(9 * s), 0, 150 * 16)   # arka gövde
+
+    return _scaled_icon(f"users:{color.name()}:{size}", draw, size)
+
+
+def icon_history(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Saat + geri ok — değişiklik geçmişi."""
+    def draw(p: QPainter) -> None:
+        from PyQt6.QtCore import QRectF
+
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.7 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawArc(QRectF(4 * s, 4 * s, 16 * s, 16 * s), 60 * 16, 280 * 16)
+        p.drawPolyline(
+            _pt(4 * s, 4.5 * s), _pt(4 * s, 8.5 * s), _pt(8 * s, 8.5 * s)
+        )
+        p.drawLine(_pt(12 * s, 8 * s), _pt(12 * s, 12.5 * s))
+        p.drawLine(_pt(12 * s, 12.5 * s), _pt(15 * s, 14 * s))
+
+    return _scaled_icon(f"history:{color.name()}:{size}", draw, size)
+
+
+def icon_search(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Büyüteç — arama."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(_pt(10.5 * s, 10.5 * s), 6 * s, 6 * s)
+        p.drawLine(_pt(15 * s, 15 * s), _pt(20 * s, 20 * s))
+
+    return _scaled_icon(f"search:{color.name()}:{size}", draw, size)

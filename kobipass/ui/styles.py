@@ -223,8 +223,8 @@ QWidget#vaultBody {
 }
 
 QFrame#recordsPanel {
-    background-color: #141a26;
-    border: 1px solid #283242;
+    background-color: #121826;
+    border: 1px solid #33456e;
     border-radius: 14px;
 }
 
@@ -236,8 +236,8 @@ QLabel#recordsPanelTitle {
 }
 
 QFrame#summaryPanel {
-    background-color: #141a26;
-    border: 1px solid #283242;
+    background-color: #121826;
+    border: 1px solid #33456e;
     border-radius: 14px;
 }
 
@@ -249,15 +249,14 @@ QLabel#summaryTitle {
 }
 
 QFrame#summaryStatRow {
-    background-color: #1a2130;
-    border: 1px solid #2a3446;
-    border-radius: 10px;
+    background-color: #161d2a;
+    border: 1px solid #232d40;
+    border-radius: 9px;
 }
 
 QLabel#summaryStatIcon {
-    background-color: rgba(75, 104, 244, 0.16);
-    border: 1px solid #3a4568;
-    border-radius: 8px;
+    background-color: rgba(75, 104, 244, 0.14);
+    border-radius: 7px;
 }
 
 QLabel#summaryStatLabel {
@@ -565,8 +564,8 @@ QPushButton#securityBadge:hover {
 }
 
 QFrame#vaultCommandSurface {
-    background-color: #1e2229;
-    border: 1px solid #303744;
+    background-color: #121826;
+    border: 1px solid #2c3a5c;
     border-radius: 13px;
 }
 

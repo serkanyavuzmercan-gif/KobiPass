@@ -81,12 +81,18 @@ from kobipass.backup import (
     set_read_only,
 )
 from kobipass.ui.icons import (
+    icon_history,
     icon_home,
     icon_info,
     icon_more,
+    icon_report,
+    icon_save,
+    icon_search,
     icon_shield,
     icon_sun,
     icon_theme,
+    icon_trash,
+    icon_users,
 )
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
@@ -301,31 +307,45 @@ class MainWindow(QMainWindow):
         self._btn_home.clicked.connect(self._go_home)
         toolbar.addWidget(self._btn_home, 0, Qt.AlignmentFlag.AlignVCenter)
 
+        _tb_icon = QColor("#c4ccdb")
         self._btn_save = QPushButton()
         self._btn_save.setObjectName("primaryBtn")
+        self._btn_save.setIcon(icon_save(QColor("#ffffff"), size=17))
+        self._btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_save.clicked.connect(self._save_vault)
         toolbar.addWidget(self._btn_save, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_users = QPushButton()
+        self._btn_users.setIcon(icon_users(_tb_icon, size=17))
+        self._btn_users.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_users.clicked.connect(self._manage_users)
         toolbar.addWidget(self._btn_users, 0, Qt.AlignmentFlag.AlignVCenter)
 
-
         self._btn_audit = QPushButton()
+        self._btn_audit.setIcon(icon_history(_tb_icon, size=17))
+        self._btn_audit.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_audit.clicked.connect(self._show_audit)
         toolbar.addWidget(self._btn_audit, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_report = QPushButton()
+        self._btn_report.setIcon(icon_report(_tb_icon, size=17))
+        self._btn_report.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_report.clicked.connect(self._show_password_report)
         toolbar.addWidget(self._btn_report, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_clear = QPushButton()
         self._btn_clear.setObjectName("clearBtn")
+        self._btn_clear.setIcon(icon_trash(QColor("#ffffff"), size=16))
+        self._btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_clear.clicked.connect(self._clear_vault)
         toolbar.addWidget(self._btn_clear, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._search_bar = QLineEdit()
         self._search_bar.setObjectName("toolbarSearch")
+        self._search_bar.addAction(
+            icon_search(QColor("#8a90a0"), size=16),
+            QLineEdit.ActionPosition.LeadingPosition,
+        )
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self._search_bar.setMinimumWidth(160)
         self._search_bar.setSizePolicy(
@@ -673,13 +693,12 @@ class MainWindow(QMainWindow):
             show_error(self, tr("lock_title"), tr("lock_wrong"))
 
     def _role_label(self) -> str:
-        if isinstance(self._session, AdminSession):
-            return tr("role_admin")
         if isinstance(self._session, UserSession):
             return tr("role_user", slot=self._session.user_slot)
-        # Yeni / kaydedilmemiş kasa: onu oluşturan kişi yöneticidir. Kasa
-        # görünümündeyken 'Yönetici' göster (karşılama ekranında değil).
-        if self._stacked_widget.currentWidget() is self._vault_view:
+        # Yönetici oturumu VEYA yeni/kaydedilmemiş kasa (onu oluşturan
+        # yöneticidir). Karşılama ekranında durum çubuğu gizli olduğundan
+        # kasa yokken (self._vault None) boş döneriz.
+        if isinstance(self._session, AdminSession) or self._vault is not None:
             return tr("role_admin")
         return ""
 
@@ -693,13 +712,12 @@ class MainWindow(QMainWindow):
         if not self._vault:
             return None
         if self._session is None:
-            # Yeni / kaydedilmemiş kasa: onu oluşturan kişi yöneticidir, kayıt
-            # görünümünde tam yetkiyle çalışır (alan ekle/sil, kaydet...).
-            if self._stacked_widget.currentWidget() is self._vault_view:
-                from kobipass.session import admin_permissions
+            # Yeni / kaydedilmemiş kasa: onu oluşturan kişi yöneticidir ve tam
+            # yetkiyle çalışır (alan ekle/sil, kaydet...). Karşılama ekranında
+            # durum çubuğu gizli olduğu için bu görünmez, sorun olmaz.
+            from kobipass.session import admin_permissions
 
-                return admin_permissions()
-            return None
+            return admin_permissions()
         return effective_permissions(self._session, self._vault)
 
     def _apply_row_permissions(self) -> None:
@@ -717,21 +735,21 @@ class MainWindow(QMainWindow):
         is_unlocked = self._session is not None
         is_admin = isinstance(self._session, AdminSession)
 
-        # Yönetici düğmeleri her zaman görünür; yetki yoksa pasif görünüp
-        # basılınca açıklama verir (gizlemek yerine kısıtlama).
+        # Yönetici düğmeleri her zaman görünür. Yalnızca alt kullanıcı
+        # oturumunda sönük (kısıtlı) görünür; yeni/kaydedilmemiş kasada aktif
+        # görünür ama basılınca 'önce kaydet' der (oluşturan yöneticidir).
+        is_sub_user = isinstance(self._session, UserSession)
         for btn in (
             self._btn_users,
             self._btn_audit,
             self._btn_report,
         ):
             btn.setVisible(True)
-            btn.setProperty("restricted", not is_admin)
-            if not is_admin:
-                btn.setToolTip(
-                    tr("admin_needed_new")
-                    if self._session is None
-                    else tr("admin_needed_user")
-                )
+            btn.setProperty("restricted", is_sub_user)
+            if is_sub_user:
+                btn.setToolTip(tr("admin_needed_user"))
+            elif self._session is None:
+                btn.setToolTip(tr("admin_needed_new"))
             else:
                 btn.setToolTip("")
             btn.style().unpolish(btn)
