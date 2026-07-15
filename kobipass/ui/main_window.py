@@ -95,7 +95,6 @@ from kobipass.ui.icons import (
     icon_shield,
     icon_sun,
     icon_theme,
-    icon_trash,
     icon_users,
 )
 from kobipass.ui.theme import theme_manager
@@ -349,13 +348,6 @@ class MainWindow(QMainWindow):
         self._btn_report.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_report.clicked.connect(self._show_password_report)
         toolbar.addWidget(self._btn_report, 0, Qt.AlignmentFlag.AlignVCenter)
-
-        self._btn_clear = QPushButton()
-        self._btn_clear.setObjectName("clearBtn")
-        self._btn_clear.setIcon(icon_trash(QColor("#ffffff"), size=16))
-        self._btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_clear.clicked.connect(self._clear_vault)
-        toolbar.addWidget(self._btn_clear, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._search_bar = QLineEdit()
         self._search_bar.setObjectName("toolbarSearch")
@@ -1082,8 +1074,6 @@ class MainWindow(QMainWindow):
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_report.setText(tr("btn_report"))
         self._btn_report.setToolTip(tr("btn_report_tip"))
-        self._btn_clear.setText(tr("btn_clear"))
-        self._btn_clear.setToolTip(tr("btn_clear_tip"))
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self.security_badge.setText(tr("security_badge"))
         self.security_badge.setToolTip(tr("security_badge_tip"))
@@ -1449,48 +1439,6 @@ class MainWindow(QMainWindow):
         from kobipass.ui.password_report_dialog import PasswordReportDialog
 
         PasswordReportDialog(self._vault, self).exec()
-
-    def _clear_vault(self) -> None:
-        """Yalnızca içi tamamen boş kayıt satırlarını kaldırır.
-
-        Güvenlik: eski davranış tüm kasayı sıfırlıyordu (çok tehlikeliydi).
-        Artık 'Temizle' hiçbir dolu satıra dokunmaz; sadece hiç veri
-        girilmemiş satırları toplar. Bu yüzden onay diyaloğuna da gerek yok.
-        """
-        if self._kilitli_mi:
-            return
-        empty_rows = [
-            row for row in self._row_widgets
-            if not row.to_entry().has_content()
-        ]
-        if not empty_rows:
-            return
-        removed_saved = False
-        for row in empty_rows:
-            if row not in self._row_widgets:
-                continue
-            removed_index = row.vault_index
-            self._row_widgets.remove(row)
-            self._entries_layout.removeWidget(row)
-            row.deleteLater()
-            if (
-                self._vault is not None
-                and removed_index is not None
-                and 0 <= removed_index < len(self._vault.entries)
-            ):
-                del self._vault.entries[removed_index]
-                removed_saved = True
-                for other in self._row_widgets:
-                    if (
-                        other.vault_index is not None
-                        and other.vault_index > removed_index
-                    ):
-                        other.vault_index -= 1
-        if removed_saved:
-            self._mark_dirty()
-        self._update_tab_order()
-        self._refresh_empty_state()
-        self._update_status()
 
     def _confirm_discard(self) -> bool:
         box = QMessageBox(self)
