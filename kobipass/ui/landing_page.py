@@ -294,17 +294,19 @@ class LandingPage(QWidget):
         ):
             card = self._make_feature_card(icon_fn, tkey, dkey)
             feat_row.addWidget(card["frame"], 1)
+        # Kartlar hero genişliğinin çoğunu kullansın; dar pencerede sıkışıp
+        # başlık/açıklamalar kırpılmasın (sağda küçük bir nefes payı kalır).
         feat_wrap = QHBoxLayout()
-        feat_wrap.addLayout(feat_row, 62)
-        feat_wrap.addStretch(38)
+        feat_wrap.addLayout(feat_row, 92)
+        feat_wrap.addStretch(8)
         hero_layout.addLayout(feat_wrap)
 
         wide = self._make_feature_card(
             icon_shield, "feature_trust_title", "feature_trust_desc", wide=True
         )
         wide_wrap = QHBoxLayout()
-        wide_wrap.addWidget(wide["frame"], 62)
-        wide_wrap.addStretch(38)
+        wide_wrap.addWidget(wide["frame"], 92)
+        wide_wrap.addStretch(8)
         hero_layout.addLayout(wide_wrap)
         hero_layout.addStretch(1)
 
@@ -496,7 +498,7 @@ class LandingPage(QWidget):
 
         text = QVBoxLayout()
         text.setSpacing(2)
-        title = QLabel()
+        title = ElidedLabel()
         title.setObjectName("landingFeatureTitle")
         desc = QLabel()
         desc.setObjectName("landingFeatureDesc")
