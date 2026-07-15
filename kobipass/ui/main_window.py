@@ -378,13 +378,7 @@ class MainWindow(QMainWindow):
         # Tema/dil düğmeleri artık üst başlık çubuğunda.
         command_layout.addLayout(toolbar)
 
-        # Rozet/ipucu satırının yerine Excel benzeri sekme çubuğu; sağda küçük
-        # AES-256 güvence rozeti kalır.
-        self.security_badge = QPushButton()
-        self.security_badge.setObjectName("securityBadge")
-        self.security_badge.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.security_badge.clicked.connect(self._open_security_dialog)
-
+        # Rozet/ipucu satırının yerine Excel benzeri sekme çubuğu.
         self._tab_bar = VaultTabBar()
         self._tab_bar.tab_selected.connect(self._on_tab_selected)
         self._tab_bar.add_requested.connect(self._on_add_tab)
@@ -396,7 +390,6 @@ class MainWindow(QMainWindow):
         badge_layout.setSpacing(8)
         badge_layout.setContentsMargins(0, 0, 0, 0)
         badge_layout.addWidget(self._tab_bar, 1)
-        badge_layout.addWidget(self.security_badge, 0)
         command_layout.addLayout(badge_layout)
 
         root.addWidget(self._command_surface)
@@ -1103,8 +1096,6 @@ class MainWindow(QMainWindow):
         self._btn_report.setText(tr("btn_report"))
         self._btn_report.setToolTip(tr("btn_report_tip"))
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
-        self.security_badge.setText(tr("security_badge"))
-        self.security_badge.setToolTip(tr("security_badge_tip"))
         self._refresh_tab_bar()
         self._records_panel_title.setText(tr("records_panel_title"))
         self._summary_reopen_btn.setToolTip(tr("summary_expand"))

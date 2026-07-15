@@ -160,21 +160,26 @@ class VaultTabBar(QWidget):
         self._scroll.setWidget(self._chips_host)
         outer.addWidget(self._scroll, 1)
 
-        # Düz, çerçevesiz '+' (tarayıcı/Excel usulü) — sekmelerden sonra sabit.
+        # Düz, çerçevesiz '+' (tarayıcı/Excel usulü) — son sekmenin hemen
+        # yanında durur, sekmelerle birlikte kayar. Şerit temizlenirken
+        # silinmemesi için ayrı tutulur.
         self._add_btn = QToolButton()
         self._add_btn.setObjectName("vaultTabAddBtn")
         self._add_btn.setIcon(icon_plus(QColor("#8f9bb3"), size=15))
         self._add_btn.setAutoRaise(True)
-        self._add_btn.setFixedSize(26, 24)
+        self._add_btn.setFixedSize(26, 26)
         self._add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_btn.setToolTip(tr("tab_add_tip"))
         self._add_btn.clicked.connect(self.add_requested.emit)
-        outer.addWidget(self._add_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._active_chip: _TabChip | None = None
 
     def set_tabs(self, tabs, active_id: str, *, is_admin: bool) -> None:
         """Çubuğu verilen (görünür) sekmelerle yeniden kurar."""
+        # '+' düğmesini korumak için önce şeritten ayır; ardından yalnızca
+        # çipleri sil.
+        self._chips_layout.removeWidget(self._add_btn)
+        self._add_btn.setParent(None)
         while self._chips_layout.count():
             item = self._chips_layout.takeAt(0)
             widget = item.widget()
@@ -202,9 +207,16 @@ class VaultTabBar(QWidget):
             if tab.id == active_id:
                 self._active_chip = chip
 
+        # '+' düğmesini son sekmenin hemen yanına yerleştir (yalnızca yönetici).
+        self._add_btn.setVisible(is_admin)
+        if is_admin:
+            self._chips_layout.addWidget(
+                self._add_btn, 0, Qt.AlignmentFlag.AlignVCenter
+            )
+            total_width += self._add_btn.width() + spacing
+
         # Host'u tam içerik genişliğinde sabitle → taşınca yatay kaydırma.
         self._chips_host.setFixedWidth(max(1, total_width))
         self._chips_host.setFixedHeight(26)
-        self._add_btn.setVisible(is_admin)
         if self._active_chip is not None:
             self._scroll.ensureWidgetVisible(self._active_chip, 40, 0)
