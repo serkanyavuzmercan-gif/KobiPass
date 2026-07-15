@@ -59,6 +59,10 @@ class CustomTitleBar(QWidget):
         super().__init__(parent)
         self._window = window
         self._drag_pos: QPoint | None = None
+        self._press_global: QPoint | None = None
+        self._press_local_y = 0
+        self._drag_started = False
+        self._manual_drag = False
         self._maximized = False
         self._restore_size: tuple[int, int] | None = None
         self._restore_pos: tuple[int, int] | None = None
@@ -331,32 +335,75 @@ class CustomTitleBar(QWidget):
             return True
         return not isinstance(child, QPushButton)
 
+    def _restore_under_cursor(self, global_pos: QPoint, local_y: int) -> None:
+        """Ekranı kaplı pencereyi, imleç başlık çubuğunda kalacak biçimde geri
+        al (sürükleyerek geri alma davranışı)."""
+        if self._restore_size is not None:
+            width, height = self._restore_size
+        else:
+            size = window_size_for_available(self._available_screen_geometry())
+            width, height = size.width(), size.height()
+        cur = self._window.geometry()
+        ratio_x = (global_pos.x() - cur.x()) / max(1, cur.width())
+        new_x = int(global_pos.x() - ratio_x * width)
+        new_y = int(global_pos.y() - local_y)
+        self._window.setGeometry(QRect(new_x, new_y, width, height))
+        self._maximized = False
+        self._refresh_maximize_button()
+
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if (
             event.button() == Qt.MouseButton.LeftButton
             and self._is_draggable_target(event.pos())
-            and not self._maximized
         ):
-            global_pos = event.globalPosition().toPoint()
-            self._drag_pos = global_pos - self._window.frameGeometry().topLeft()
+            # Taşımayı hemen başlatma; gerçek sürükleme olunca başlat ki tık ve
+            # çift tık (kapla/geri al) bozulmasın.
+            self._press_global = event.globalPosition().toPoint()
+            self._press_local_y = int(event.position().y())
+            self._drag_started = False
+            self._drag_pos = self._press_global - self._window.frameGeometry().topLeft()
             event.accept()
             return
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if (
-            self._drag_pos is not None
-            and event.buttons() & Qt.MouseButton.LeftButton
-            and not self._maximized
+        if self._press_global is None or not (
+            event.buttons() & Qt.MouseButton.LeftButton
         ):
-            global_pos = event.globalPosition().toPoint()
-            self._window.move(global_pos - self._drag_pos)
+            super().mouseMoveEvent(event)
+            return
+        global_pos = event.globalPosition().toPoint()
+        if self._drag_started:
+            # Native taşımada OS ilgilenir; yalnızca yedek elle taşımayı sürdür.
+            if self._manual_drag and self._drag_pos is not None:
+                self._window.move(global_pos - self._drag_pos)
+                event.accept()
+            return
+        moved = (global_pos - self._press_global).manhattanLength()
+        if moved < QApplication.startDragDistance():
+            return
+        # Eşik aşıldı → sürükleme başlat.
+        self._drag_started = True
+        if self._maximized:
+            self._restore_under_cursor(global_pos, self._press_local_y)
+        handle = self._window.windowHandle()
+        if handle is not None:
+            # Taşımayı OS'e devret: Windows Aero Snap (kenara/köşeye snap, üstte
+            # kapla, snap layout) yalnızca native taşımada çalışır.
+            handle.startSystemMove()
             event.accept()
             return
-        super().mouseMoveEvent(event)
+        # Yedek: pencere tanıtıcısı yoksa elle taşı.
+        self._manual_drag = True
+        self._drag_pos = global_pos - self._window.frameGeometry().topLeft()
+        self._window.move(global_pos - self._drag_pos)
+        event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        self._press_global = None
         self._drag_pos = None
+        self._drag_started = False
+        self._manual_drag = False
         if not self._maximized:
             self.capture_normal_geometry()
         super().mouseReleaseEvent(event)
