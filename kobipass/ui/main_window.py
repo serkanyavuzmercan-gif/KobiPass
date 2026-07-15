@@ -539,6 +539,10 @@ class MainWindow(QMainWindow):
             # Onboarding ekranı yerine doğrudan boş, odaklı bir kayıt satırı
             # sunulur — kullanıcı hiç ara adım görmeden yazmaya başlar.
             self._add_row(refresh_session=False)
+            # Otomatik eklenen satır da oturum yetkilerini almalı; aksi halde
+            # yönetici bile 'bilgi alanı ekle' (+) yapamaz (satır varsayılan
+            # olarak read yetkisiyle gelir).
+            self._apply_row_permissions()
             if self._row_widgets:
                 edits = self._row_widgets[-1].focus_edits()
                 if edits:

@@ -38,24 +38,24 @@ class VaultSummaryPanel(QFrame):
         super().__init__(parent)
         self.setObjectName("summaryPanel")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setMinimumWidth(272)
-        self.setMaximumWidth(312)
+        self.setMinimumWidth(286)
+        self.setMaximumWidth(320)
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(16, 15, 16, 15)
-        outer.setSpacing(7)
+        outer.setContentsMargins(14, 13, 14, 13)
+        outer.setSpacing(5)
 
         header = QHBoxLayout()
         header.setSpacing(7)
         header_icon = QLabel()
-        header_icon.setPixmap(icon_bar_chart(_STAT_ACCENT, size=15).pixmap(15, 15))
+        header_icon.setPixmap(icon_bar_chart(_STAT_ACCENT, size=14).pixmap(14, 14))
         header.addWidget(header_icon, 0)
         self._title = QLabel()
         self._title.setObjectName("summaryTitle")
         header.addWidget(self._title, 0)
         header.addStretch(1)
         outer.addLayout(header)
-        outer.addSpacing(2)
+        outer.addSpacing(1)
 
         self._row_total, self._value_total = self._make_stat_row(icon_layers)
         outer.addWidget(self._row_total)
@@ -66,7 +66,7 @@ class VaultSummaryPanel(QFrame):
         self._row_saved, self._value_saved = self._make_stat_row(icon_clock)
         outer.addWidget(self._row_saved)
 
-        outer.addStretch(1)
+        outer.addSpacing(2)
 
         security = QFrame()
         security.setObjectName("summarySecurityCard")
@@ -76,10 +76,10 @@ class VaultSummaryPanel(QFrame):
         security_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
         # assets/security_shield.png varsa onu kullan; yoksa çizili kalkan.
-        shield_art = security_shield_pixmap(236)
+        shield_art = security_shield_pixmap(280)
         if not shield_art.isNull():
             security.setObjectName("summarySecurityCardArt")
-            security_layout.setContentsMargins(10, 10, 10, 15)
+            security_layout.setContentsMargins(6, 6, 6, 12)
             art = QLabel()
             art.setObjectName("summarySecurityArt")
             art.setPixmap(shield_art)
@@ -104,7 +104,9 @@ class VaultSummaryPanel(QFrame):
         self._security_text.setWordWrap(True)
         self._security_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         security_layout.addWidget(self._security_text)
-        outer.addWidget(security)
+        # Kalkan kartı kalan dikey alanı doldurur — mockup'taki gibi görsele
+        # geniş bir alan bırakır, istatistikler üstte sıkışık kalır.
+        outer.addWidget(security, 1)
 
         self.retranslate()
 
@@ -113,14 +115,14 @@ class VaultSummaryPanel(QFrame):
         row.setObjectName("summaryStatRow")
         row.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         lay = QHBoxLayout(row)
-        lay.setContentsMargins(10, 7, 12, 7)
+        lay.setContentsMargins(9, 5, 11, 5)
         lay.setSpacing(9)
 
         icon_tile = QLabel()
         icon_tile.setObjectName("summaryStatIcon")
-        icon_tile.setFixedSize(26, 26)
+        icon_tile.setFixedSize(23, 23)
         icon_tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_tile.setPixmap(icon_fn(_STAT_ACCENT, size=15).pixmap(15, 15))
+        icon_tile.setPixmap(icon_fn(_STAT_ACCENT, size=14).pixmap(14, 14))
         lay.addWidget(icon_tile, 0)
 
         label = QLabel()

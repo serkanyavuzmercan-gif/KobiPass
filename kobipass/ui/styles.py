@@ -261,12 +261,12 @@ QLabel#summaryStatIcon {
 
 QLabel#summaryStatLabel {
     color: #c3cbdc;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 QLabel#summaryStatValue {
     color: #f2f4fa;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -296,7 +296,7 @@ QLabel#summarySecurityIcon {
 
 QLabel#summarySecurityText {
     color: #b9c5df;
-    font-size: 11px;
+    font-size: 10px;
 }
 
 QWidget#entryRow {
@@ -2075,12 +2075,12 @@ QLabel#summaryStatIcon {
 
 QLabel#summaryStatLabel {
     color: #4b5872;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 QLabel#summaryStatValue {
     color: #1b2740;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -2114,7 +2114,7 @@ QLabel#summarySecurityIcon {
 
 QLabel#summarySecurityText {
     color: #3e4d70;
-    font-size: 11px;
+    font-size: 10px;
 }
 
 QWidget#entryRow {
