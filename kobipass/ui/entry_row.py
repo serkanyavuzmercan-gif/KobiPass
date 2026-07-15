@@ -224,11 +224,14 @@ class CompactField(QWidget):
         self._primary_field = primary_field
         self.setProperty("primaryField", primary_field)
         if stacked:
-            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            self.setMinimumWidth(160)
-        else:
-            self.setFixedWidth(fixed_width)
-            self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            self._init_pair_layout(
+                fixed_width=fixed_width,
+                sensitive=sensitive,
+                with_delete_menu=with_delete_menu,
+            )
+            return
+        self.setFixedWidth(fixed_width)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         has_menu = sensitive or with_delete_menu
         has_eye = sensitive
@@ -351,6 +354,186 @@ class CompactField(QWidget):
         self._flash_timer.timeout.connect(self._clear_copy_flash)
         self.retranslate()
 
+    def _init_pair_layout(
+        self,
+        *,
+        fixed_width: int,
+        sensitive: bool,
+        with_delete_menu: bool,
+    ) -> None:
+        """Mockup: sol etiket kutusu + sağ değer kutusu."""
+        self.setObjectName("fieldPairRow")
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMinimumWidth(160)
+        self._pair_gap = 8
+        self._label_chrome = COPY_BTN_SIZE.width() + COPY_GROUP_INSET[0] + COPY_GROUP_INSET[2] + 40
+        self._value_chrome = COPY_BTN_SIZE.width() + COPY_GROUP_INSET[0] + COPY_GROUP_INSET[2] + 40
+
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(self._pair_gap)
+
+        self._label_group = QWidget()
+        self._label_group.setObjectName("copyGroup")
+        self._label_group.setProperty("cellRole", "label")
+        self._label_group.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._label_group.setFixedHeight(ROW_CONTROL_HEIGHT)
+        label_layout = QHBoxLayout(self._label_group)
+        label_layout.setContentsMargins(*COPY_GROUP_INSET)
+        label_layout.setSpacing(4)
+        inner_h = ROW_CONTROL_HEIGHT - COPY_GROUP_INSET[1] - COPY_GROUP_INSET[3]
+
+        self._label_copy_btn = _icon_button(icon_copy(), "", "copyBtn")
+        self._label_copy_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._label_copy_btn.clicked.connect(self._on_label_copy_clicked)
+        label_layout.addWidget(self._label_copy_btn, 0, _ROW_ALIGN)
+
+        self._label_edit = QLineEdit()
+        self._label_edit.setReadOnly(True)
+        self._label_edit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._label_edit.setFixedHeight(inner_h)
+        self._label_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        label_layout.addWidget(self._label_edit, 1, _ROW_ALIGN)
+
+        self._label_menu_btn: QToolButton | None = None
+        if with_delete_menu:
+            self._label_menu_btn = QToolButton()
+            self._label_menu_btn.setObjectName("fieldMenuBtn")
+            self._label_menu_btn.setIcon(icon_more())
+            self._label_menu_btn.setIconSize(_MENU_ICON_SIZE)
+            self._label_menu_btn.setFixedSize(_FIELD_MENU_BTN_SIZE)
+            self._label_menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._label_menu_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._label_menu_btn.setAutoRaise(True)
+            self._label_menu_btn.setPopupMode(
+                QToolButton.ToolButtonPopupMode.InstantPopup
+            )
+            label_menu = QMenu(self._label_menu_btn)
+            self._delete_action = label_menu.addAction("")
+            self._delete_action.triggered.connect(self.delete_requested.emit)
+            self._label_menu_btn.setMenu(label_menu)
+            label_layout.addWidget(self._label_menu_btn, 0, _ROW_ALIGN)
+            self._delete_shortcut = QShortcut(_DELETE_SHORTCUT, self)
+            self._delete_shortcut.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+            self._delete_shortcut.activated.connect(self.delete_requested.emit)
+
+        self._value_group = QWidget()
+        self._value_group.setObjectName("copyGroup")
+        self._value_group.setProperty("cellRole", "value")
+        self._value_group.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        if sensitive:
+            value_outer = QVBoxLayout(self._value_group)
+            value_outer.setContentsMargins(0, 0, 0, 0)
+            value_outer.setSpacing(0)
+            value_row_host = QWidget(self._value_group)
+            value_layout = QHBoxLayout(value_row_host)
+            self._value_group.setFixedHeight(ROW_CONTROL_HEIGHT + 3)
+        else:
+            value_layout = QHBoxLayout(self._value_group)
+            self._value_group.setFixedHeight(ROW_CONTROL_HEIGHT)
+
+        value_layout.setContentsMargins(*COPY_GROUP_INSET)
+        value_layout.setSpacing(4)
+        value_layout.setAlignment(_ROW_ALIGN)
+
+        self._copy_btn = _icon_button(icon_copy(), "", "copyBtn")
+        self._copy_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._copy_btn.clicked.connect(self._on_copy_clicked)
+        value_layout.addWidget(self._copy_btn, 0, _ROW_ALIGN)
+
+        trailing_btn_width = 0
+        if sensitive:
+            trailing_btn_width += _FIELD_EYE_BTN_SIZE.width() + _FIELD_MENU_BTN_SIZE.width()
+        gap_count = 1 + int(sensitive) * 2
+        edit_width = max(
+            72,
+            fixed_width
+            - COPY_BTN_SIZE.width()
+            - trailing_btn_width
+            - COPY_GROUP_INSET[0]
+            - COPY_GROUP_INSET[2]
+            - 4 * gap_count,
+        )
+        self._chrome_width = fixed_width - edit_width
+        self._edit = QLineEdit()
+        self._edit.setFixedHeight(inner_h)
+        self._edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        value_layout.addWidget(self._edit, 1, _ROW_ALIGN)
+
+        if sensitive:
+            self._eye_btn = QToolButton()
+            self._eye_btn.setObjectName("fieldEyeBtn")
+            self._eye_btn.setIconSize(_ICON_SIZE)
+            self._eye_btn.setFixedSize(_FIELD_EYE_BTN_SIZE)
+            self._eye_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._eye_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._eye_btn.setCheckable(True)
+            self._eye_btn.setAutoRaise(True)
+            self._eye_btn.setChecked(not self._hidden)
+            self._eye_btn.clicked.connect(self._on_eye_clicked)
+            value_layout.addWidget(self._eye_btn, 0, _ROW_ALIGN)
+
+            self._menu_btn = QToolButton()
+            self._menu_btn.setObjectName("fieldMenuBtn")
+            self._menu_btn.setIcon(icon_more())
+            self._menu_btn.setIconSize(_MENU_ICON_SIZE)
+            self._menu_btn.setFixedSize(_FIELD_MENU_BTN_SIZE)
+            self._menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._menu_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._menu_btn.setAutoRaise(True)
+            self._menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            self._field_menu = QMenu(self._menu_btn)
+            self._gen_action = self._field_menu.addAction(icon_key(), "")
+            self._gen_action.triggered.connect(self._on_generate)
+            self._field_remove_action = self._field_menu.addAction("")
+            self._field_remove_action.triggered.connect(
+                lambda: self.field_remove_requested.emit(self)
+            )
+            self._menu_btn.setMenu(self._field_menu)
+            value_layout.addWidget(self._menu_btn, 0, _ROW_ALIGN)
+
+            self._generate_shortcut = QShortcut(_GENERATE_SHORTCUT, self)
+            self._generate_shortcut.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+            self._generate_shortcut.activated.connect(self._on_generate)
+            self._field_remove_shortcut = QShortcut(_DELETE_SHORTCUT, self)
+            self._field_remove_shortcut.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+            self._field_remove_shortcut.activated.connect(self._request_field_remove)
+
+            value_outer.addWidget(value_row_host)
+            self._strength_meter = QFrame(self._value_group)
+            self._strength_meter.setFixedHeight(3)
+            self._strength_meter.setStyleSheet("background-color: transparent;")
+            value_outer.addWidget(self._strength_meter, 0, Qt.AlignmentFlag.AlignBottom)
+            self._edit.textChanged.connect(self._update_strength)
+
+        if self._primary_field:
+            self._label_group.setProperty("primaryField", True)
+            _restyle(self._label_group)
+
+        outer.addWidget(self._label_group, 42)
+        outer.addWidget(self._value_group, 58)
+
+        self.setFocusProxy(self._edit)
+        self._sync_echo()
+        self._flash_timer = QTimer(self)
+        self._flash_timer.setSingleShot(True)
+        self._flash_timer.timeout.connect(self._clear_copy_flash)
+        self.set_stacked_width(fixed_width * 2)
+        self.retranslate()
+
+    def _on_label_copy_clicked(self) -> None:
+        text = self._label_text()
+        copy_text(text)
+        _notify_copied(self, text, bool(text.strip()))
+
     def _label_text(self) -> str:
         if self._custom_label:
             return self._custom_label
@@ -396,11 +579,14 @@ class CompactField(QWidget):
         """Dikey kart düzeninde alanı satır genişliğine yayar."""
         if not self._stacked:
             return
-        target = max(self._chrome_width + 72, width)
-        if target == self.width():
+        if width <= 0 or width == self.width():
             return
-        self._edit.setFixedWidth(max(72, target - self._chrome_width))
-        self.setFixedWidth(target)
+        gap = getattr(self, "_pair_gap", 8)
+        label_w = max(120, int((width - gap) * 0.42))
+        value_w = max(120, width - gap - label_w)
+        self._label_group.setFixedWidth(label_w)
+        self._value_group.setFixedWidth(value_w)
+        self.setFixedWidth(width)
         self.width_changed.emit()
 
     def set_responsive_base_width(self, width: int) -> None:
@@ -411,6 +597,32 @@ class CompactField(QWidget):
 
     def retranslate(self) -> None:
         label = self._label_text()
+        if self._stacked:
+            self._label_edit.setText(label)
+            self._copy_tooltip_base = tr("copy_tooltip", field=label)
+            if not self._value_group.property("copied"):
+                self._copy_btn.setToolTip(self._copy_tooltip_base)
+            self._label_copy_btn.setToolTip(tr("copy_tooltip", field=label))
+            self._edit.setPlaceholderText(tr("field_value_placeholder"))
+            self._refresh_eye()
+            if self._menu_btn is not None:
+                self._menu_btn.setToolTip(tr("row_menu_tip"))
+            if self._label_menu_btn is not None:
+                self._label_menu_btn.setToolTip(tr("row_menu_tip"))
+            if self._gen_action is not None:
+                self._gen_action.setText(
+                    _menu_text(tr("gen_password_menu"), _GENERATE_SHORTCUT)
+                )
+            if self._field_remove_action is not None:
+                self._field_remove_action.setText(
+                    _menu_text(tr("btn_delete"), _DELETE_SHORTCUT)
+                )
+            if self._delete_action is not None:
+                self._delete_action.setText(
+                    _menu_text(tr("btn_delete"), _DELETE_SHORTCUT)
+                )
+            self._refresh_menu()
+            return
         self._copy_tooltip_base = tr("copy_tooltip", field=label)
         placeholder = (
             self._custom_label
@@ -504,6 +716,13 @@ class CompactField(QWidget):
         self.retranslate()
 
     def _refresh_menu(self) -> None:
+        if self._stacked and self._label_menu_btn is not None and self._delete_action is not None:
+            del_ok = self._can_delete and not self._view_only
+            self._delete_action.setVisible(del_ok)
+            self._delete_action.setEnabled(del_ok)
+            if self._delete_shortcut is not None:
+                self._delete_shortcut.setEnabled(del_ok)
+            self._label_menu_btn.setVisible(del_ok)
         if self._menu_btn is None:
             return
         show = False
@@ -610,18 +829,20 @@ class CompactField(QWidget):
 
     def _show_copy_flash(self) -> None:
         self._flash_timer.stop()
-        self.setProperty("copied", True)
-        _restyle(self)
+        target = self._value_group if self._stacked else self
+        target.setProperty("copied", True)
+        _restyle(target)
         self._copy_btn.setToolTip(tr("copied_tooltip", field=self._label_text()))
         self._flash_timer.start(_COPY_FLASH_MS)
 
     def _clear_copy_flash(self) -> None:
         global _active_copy_field
         self._flash_timer.stop()
-        if not self.property("copied"):
+        target = self._value_group if self._stacked else self
+        if not target.property("copied"):
             return
-        self.setProperty("copied", False)
-        _restyle(self)
+        target.setProperty("copied", False)
+        _restyle(target)
         self._copy_btn.setToolTip(self._copy_tooltip_base)
         if _active_copy_field is self:
             _active_copy_field = None

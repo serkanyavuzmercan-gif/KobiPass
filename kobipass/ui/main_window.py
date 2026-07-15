@@ -7,8 +7,16 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-from PyQt6.QtCore import QEvent, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QKeySequence, QScreen, QShortcut
+from PyQt6.QtCore import QEvent, QSize, Qt, QThread, QTimer, pyqtSignal
+from PyQt6.QtGui import (
+    QAction,
+    QColor,
+    QDragEnterEvent,
+    QDropEvent,
+    QKeySequence,
+    QScreen,
+    QShortcut,
+)
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -69,7 +77,17 @@ from kobipass.backup import (
     restore_backup,
     set_read_only,
 )
-from kobipass.ui.icons import icon_home, icon_sun, icon_theme
+from kobipass.ui.icons import (
+    icon_clock,
+    icon_home,
+    icon_report,
+    icon_save,
+    icon_search,
+    icon_sun,
+    icon_theme,
+    icon_trash,
+    icon_users,
+)
 from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
@@ -83,6 +101,7 @@ from kobipass.vault_model import KobiVault, UserPermissions, VaultEntry, utc_now
 
 _FILTER_PAGE_SIZE = 100
 _FILTER_DEBOUNCE_MS = 300
+_TOOLBAR_ICON_SIZE = 18
 
 
 class ClickableLabel(QLabel):
@@ -291,7 +310,6 @@ class MainWindow(QMainWindow):
         self._btn_users.clicked.connect(self._manage_users)
         toolbar.addWidget(self._btn_users, 0, Qt.AlignmentFlag.AlignVCenter)
 
-
         self._btn_audit = QPushButton()
         self._btn_audit.clicked.connect(self._show_audit)
         toolbar.addWidget(self._btn_audit, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -312,7 +330,13 @@ class MainWindow(QMainWindow):
         self._search_bar.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
+        search_icon = QAction(icon_search(), "", self._search_bar)
+        search_icon.setEnabled(False)
+        self._search_bar.addAction(
+            search_icon, QLineEdit.ActionPosition.LeadingPosition
+        )
         self._search_bar.textChanged.connect(self._filter_rows)
+        self._refresh_toolbar_icons()
         # Search fills leftover width; theme/lang stay right-aligned with fixed spacing.
         toolbar.addWidget(self._search_bar, 1, Qt.AlignmentFlag.AlignVCenter)
 
@@ -400,9 +424,25 @@ class MainWindow(QMainWindow):
         self._status_role.setObjectName("statusRole")
         self._status_role.clicked.connect(self._change_admin_password)
         status.addPermanentWidget(self._status_role)
-        self._status_right = QLabel("")
-        self._status_right.setObjectName("statusFile")
-        status.addPermanentWidget(self._status_right)
+        self._status_file_wrap = QWidget()
+        self._status_file_wrap.setObjectName("statusFileWrap")
+        self._status_file_wrap.setAttribute(
+            Qt.WidgetAttribute.WA_StyledBackground, True
+        )
+        file_status = QHBoxLayout(self._status_file_wrap)
+        file_status.setContentsMargins(0, 0, 0, 0)
+        file_status.setSpacing(6)
+        self._status_file_name = QLabel("")
+        self._status_file_name.setObjectName("statusFile")
+        self._status_unsaved_dot = QLabel()
+        self._status_unsaved_dot.setObjectName("statusUnsavedDot")
+        self._status_unsaved_dot.setFixedSize(7, 7)
+        self._status_unsaved_label = QLabel()
+        self._status_unsaved_label.setObjectName("statusUnsavedLabel")
+        file_status.addWidget(self._status_file_name)
+        file_status.addWidget(self._status_unsaved_dot)
+        file_status.addWidget(self._status_unsaved_label)
+        status.addPermanentWidget(self._status_file_wrap)
         self._refresh_empty_state()
 
         self.landing_page.btn_open_file.clicked.connect(self._mevcut_dosyayi_ac)
@@ -875,6 +915,24 @@ class MainWindow(QMainWindow):
         self._apply_session_ui()
         self._refresh_empty_state()
 
+    def _refresh_toolbar_icons(self) -> None:
+        icon_size = QSize(_TOOLBAR_ICON_SIZE, _TOOLBAR_ICON_SIZE)
+        for btn in (
+            self._btn_save,
+            self._btn_users,
+            self._btn_audit,
+            self._btn_report,
+            self._btn_clear,
+        ):
+            btn.setIconSize(icon_size)
+        self._btn_save.setIcon(icon_save(size=_TOOLBAR_ICON_SIZE))
+        self._btn_users.setIcon(icon_users(size=_TOOLBAR_ICON_SIZE))
+        self._btn_audit.setIcon(icon_clock(size=_TOOLBAR_ICON_SIZE))
+        self._btn_report.setIcon(icon_report(size=_TOOLBAR_ICON_SIZE))
+        self._btn_clear.setIcon(
+            icon_trash(QColor("#ffffff"), size=_TOOLBAR_ICON_SIZE)
+        )
+
     def _retranslate_ui(self) -> None:
         self._btn_home.setToolTip(tr("btn_home_tip"))
         self._btn_save.setText(tr("btn_save"))
@@ -944,11 +1002,15 @@ class MainWindow(QMainWindow):
                 self._status_left.setText(tr("status_records", count=filled_count))
 
         path_txt = self._current_path.name if self._current_path else tr("status_unsaved")
-        self._status_right.setToolTip(
+        self._status_file_wrap.setToolTip(
             str(self._current_path) if self._current_path else ""
         )
-        dirty_txt = tr("status_dirty") if self._dirty else ""
-        self._status_right.setText(tr("status_file", path=f"{path_txt}{dirty_txt}"))
+        self._status_file_name.setText(path_txt)
+        is_unsaved = bool(self._dirty or self._current_path is None)
+        self._status_unsaved_dot.setVisible(is_unsaved)
+        self._status_unsaved_label.setVisible(is_unsaved)
+        if is_unsaved:
+            self._status_unsaved_label.setText(tr("status_unsaved_short"))
 
         role_txt = self._role_label()
         self._status_role.setText(
