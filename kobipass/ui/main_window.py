@@ -1583,6 +1583,11 @@ class MainWindow(QMainWindow):
             except VaultCryptoError as exc:
                 show_error(self, tr("err_save_title"), crypto_message(str(exc)))
                 return
+            except OSError as exc:
+                show_error(
+                    self, tr("err_save_title"), tr("err_save_io", error=str(exc))
+                )
+                return
             self._protect_vault_file(self._current_path)  # type: ignore[arg-type]
             self._snapshot_entries = copy.deepcopy(new_entries)
             self._last_saved_at = datetime.now()
@@ -1649,6 +1654,9 @@ class MainWindow(QMainWindow):
         except VaultCryptoError as exc:
             show_error(self, tr("err_save_title"), crypto_message(str(exc)))
             return
+        except OSError as exc:
+            show_error(self, tr("err_save_title"), tr("err_save_io", error=str(exc)))
+            return
 
         self._current_path = path
         add_recent_file(path)
@@ -1697,6 +1705,9 @@ class MainWindow(QMainWindow):
                 self._pending_admin_password = None
         except VaultCryptoError as exc:
             show_error(self, tr("err_save_title"), crypto_message(str(exc)))
+            return
+        except OSError as exc:
+            show_error(self, tr("err_save_title"), tr("err_save_io", error=str(exc)))
             return
 
         self._protect_vault_file(path)

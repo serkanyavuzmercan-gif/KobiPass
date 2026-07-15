@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import hashlib
 import os
+import stat
 import struct
 import tempfile
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -81,13 +83,44 @@ def _atomic_write(path: Path, data: bytes) -> None:
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp_path, path)
+        _replace_with_retry(tmp_path, path)
     except BaseException:
         try:
             tmp_path.unlink()
         except OSError:
             pass
         raise
+
+
+def _replace_with_retry(tmp_path: Path, path: Path) -> None:
+    """os.replace'i Windows'a karşı dayanıklı uygular.
+
+    Hedef dosya salt-okunur olabilir (koruma katmanı) ya da Windows Defender /
+    indeksleyici gibi bir süreç kısa süreliğine kilitlemiş olabilir; her ikisi
+    de 'Erişim engellendi' (WinError 5) üretir. Salt-okunuru temizleyip birkaç
+    kez kısa aralıklarla yeniden deneriz.
+    """
+    try:
+        os.replace(tmp_path, path)
+        return
+    except PermissionError:
+        pass
+    # Hedefteki salt-okunur özniteliğini kaldır (kayıt öncesi zaten denenir ama
+    # geçici kilit nedeniyle atlanmış olabilir).
+    try:
+        if path.exists():
+            os.chmod(path, stat.S_IWRITE | stat.S_IREAD)
+    except OSError:
+        pass
+    for delay in (0.05, 0.1, 0.2, 0.4):
+        time.sleep(delay)
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError:
+            continue
+    # Son bir deneme; hâlâ başarısızsa hatayı yükselt (çağıran yakalar).
+    os.replace(tmp_path, path)
 
 
 class VaultCryptoError(Exception):
