@@ -499,9 +499,25 @@ class MainWindow(QMainWindow):
         self._status_role.setObjectName("statusRole")
         self._status_role.clicked.connect(self._change_admin_password)
         status.addPermanentWidget(self._status_role)
-        self._status_right = QLabel("")
-        self._status_right.setObjectName("statusFile")
-        status.addPermanentWidget(self._status_right)
+        self._status_file_wrap = QWidget()
+        self._status_file_wrap.setObjectName("statusFileWrap")
+        self._status_file_wrap.setAttribute(
+            Qt.WidgetAttribute.WA_StyledBackground, True
+        )
+        file_status = QHBoxLayout(self._status_file_wrap)
+        file_status.setContentsMargins(0, 0, 0, 0)
+        file_status.setSpacing(6)
+        self._status_file_name = QLabel("")
+        self._status_file_name.setObjectName("statusFile")
+        self._status_unsaved_dot = QLabel()
+        self._status_unsaved_dot.setObjectName("statusUnsavedDot")
+        self._status_unsaved_dot.setFixedSize(7, 7)
+        self._status_unsaved_label = QLabel()
+        self._status_unsaved_label.setObjectName("statusUnsavedLabel")
+        file_status.addWidget(self._status_file_name)
+        file_status.addWidget(self._status_unsaved_dot)
+        file_status.addWidget(self._status_unsaved_label)
+        status.addPermanentWidget(self._status_file_wrap)
         self._status_menu_btn = QPushButton()
         self._status_menu_btn.setObjectName("statusMenuBtn")
         self._status_menu_btn.setIcon(icon_more(QColor("#8994ad"), size=16))
@@ -1206,11 +1222,15 @@ class MainWindow(QMainWindow):
                 self._status_left.setText(tr("status_records", count=filled_count))
 
         path_txt = self._current_path.name if self._current_path else tr("status_unsaved")
-        self._status_right.setToolTip(
+        self._status_file_wrap.setToolTip(
             str(self._current_path) if self._current_path else ""
         )
-        dirty_txt = tr("status_dirty") if self._dirty else ""
-        self._status_right.setText(tr("status_file", path=f"{path_txt}{dirty_txt}"))
+        self._status_file_name.setText(path_txt)
+        is_unsaved = bool(self._dirty or self._current_path is None)
+        self._status_unsaved_dot.setVisible(is_unsaved)
+        self._status_unsaved_label.setVisible(is_unsaved)
+        if is_unsaved:
+            self._status_unsaved_label.setText(tr("status_unsaved_short"))
 
         role_txt = self._role_label()
         self._status_role.setText(

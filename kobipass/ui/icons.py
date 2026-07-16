@@ -322,6 +322,49 @@ def icon_home(color: QColor = NEUTRAL_COLOR, size: int = 20) -> QIcon:
     return _scaled_icon(f"home:{color.name()}:{size}", draw, size)
 
 
+def icon_save(color: QColor = QColor("#ffffff"), size: int = 18) -> QIcon:
+    """Disket — kaydet."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(int(5 * s), int(4 * s), int(14 * s), int(16 * s), 2, 2)
+        p.drawRect(int(7 * s), int(4 * s), int(10 * s), int(5 * s))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(color)
+        p.drawRect(int(7 * s), int(12 * s), int(10 * s), int(8 * s))
+
+    return _scaled_icon(f"save:{color.name()}:{size}", draw, size)
+
+
+def icon_users(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Kullanıcılar — alt kullanıcı yönetimi."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(color)
+        p.drawEllipse(_pt(8 * s, 6 * s), 3.2 * s, 3.2 * s)
+        p.drawEllipse(_pt(14 * s, 7 * s), 2.8 * s, 2.8 * s)
+        p.setPen(_line_pen(color, 1.6 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawArc(_pt(4.5 * s, 12 * s), 7 * s, 6 * s, 0, 180 * 16)
+        p.drawArc(_pt(12.5 * s, 12.5 * s), 6 * s, 5.5 * s, 0, 180 * 16)
+
+    return _scaled_icon(f"users:{color.name()}:{size}", draw, size)
+
+
+def icon_search(color: QColor = NEUTRAL_COLOR, size: int = 18) -> QIcon:
+    """Büyüteç — arama."""
+    def draw(p: QPainter) -> None:
+        s = size / 24.0
+        p.setPen(_line_pen(color, 1.8 * s))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(_pt(10 * s, 10 * s), 6.5 * s, 6.5 * s)
+        p.drawLine(_pt(14.5 * s, 14.5 * s), _pt(19 * s, 19 * s))
+
+    return _scaled_icon(f"search:{color.name()}:{size}", draw, size)
+
+
 def _pt(x: float, y: float):
     from PyQt6.QtCore import QPointF
 

@@ -320,6 +320,64 @@ QLabel#summarySecurityText {
     font-size: 10px;
 }
 
+QWidget#vaultWorkspaceSplit {
+    background-color: transparent;
+}
+
+QFrame#vaultRecordsPanel {
+    background-color: #171b22;
+    border: 1px solid #2f3745;
+    border-radius: 14px;
+}
+
+QLabel#vaultRecordsHeader {
+    color: #7f8aa0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+}
+
+QFrame#vaultRecordSummary {
+    background-color: #171b22;
+    border: 1px solid #2f3745;
+    border-radius: 14px;
+}
+
+QLabel#vaultSummaryTitle {
+    color: #7f8aa0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+}
+
+QFrame#vaultSummaryStats {
+    background-color: #1d2330;
+    border: 1px solid #313a4a;
+    border-radius: 10px;
+}
+
+QLabel#vaultSummaryStatLabel {
+    color: #8b96a8;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+QLabel#vaultSummaryStatValue {
+    color: #eef2fb;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+QLabel#vaultSummaryCaption {
+    color: #7d89a0;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+QWidget#entryFieldsStack {
+    background: transparent;
+}
+
 QWidget#entryRow {
     background-color: #1b2231;
     border: 1px solid #2e3849;
@@ -380,6 +438,26 @@ QWidget#copyGroup {
 QWidget#copyGroup[copied="true"] {
     border-color: #4b68f4;
     background-color: #252d3d;
+}
+
+QWidget#fieldPairRow {
+    min-height: 38px;
+}
+
+QWidget#copyGroup[cellRole="label"] {
+    background-color: #171b22;
+    border: 2px solid #2f3744;
+}
+
+QWidget#copyGroup[cellRole="label"] QLineEdit {
+    color: #9aa3b5;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+QWidget#copyGroup[cellRole="value"] {
+    background-color: #1e2229;
+    border: 2px solid #3d4450;
 }
 
 QWidget#copyGroup[primaryField="true"] {
@@ -1054,10 +1132,17 @@ QStatusBar#vaultStatusBar QLabel#statusRole[clickable="true"] {
 
 QStatusBar#vaultStatusBar QLabel#statusFile {
     color: #abb4c3;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    font-size: 10px;
+    padding: 0;
+}
+
+QWidget#statusFileWrap {
     background-color: #20252e;
     border: 1px solid #303845;
     border-radius: 10px;
-    font-size: 10px;
     padding: 3px 9px;
 }
 
@@ -1070,6 +1155,24 @@ QStatusBar#vaultStatusBar QPushButton#statusMenuBtn {
 QStatusBar#vaultStatusBar QPushButton#statusMenuBtn:hover {
     background-color: #2a303c;
     border-color: #4b68f4;
+}
+
+QLabel#statusUnsavedDot {
+    background-color: #ef4444;
+    border-radius: 4px;
+    min-width: 7px;
+    max-width: 7px;
+    min-height: 7px;
+    max-height: 7px;
+}
+
+QLabel#statusUnsavedLabel {
+    color: #f87171;
+    background-color: transparent;
+    border: none;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0;
 }
 
 QMessageBox {
@@ -2287,6 +2390,10 @@ QLabel#summarySecurityText {
     font-size: 10px;
 }
 
+QWidget#entryFieldsStack {
+    background: transparent;
+}
+
 QWidget#entryRow {
     background-color: #ffffff;
     border: 1px solid #dde3f0;
@@ -2346,6 +2453,26 @@ QWidget#copyGroup {
 QWidget#copyGroup[copied="true"] {
     border-color: #4b68f4;
     background-color: #eff6ff;
+}
+
+QWidget#fieldPairRow {
+    min-height: 38px;
+}
+
+QWidget#copyGroup[cellRole="label"] {
+    background-color: #f3f5fa;
+    border: 2px solid #d5dbe8;
+}
+
+QWidget#copyGroup[cellRole="label"] QLineEdit {
+    color: #5a6478;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+QWidget#copyGroup[cellRole="value"] {
+    background-color: #ffffff;
+    border: 2px solid #dde3f0;
 }
 
 QWidget#copyGroup[primaryField="true"] {
@@ -3015,10 +3142,17 @@ QStatusBar#vaultStatusBar QLabel#statusRole[clickable="true"] {
 
 QStatusBar#vaultStatusBar QLabel#statusFile {
     color: #536077;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    font-size: 10px;
+    padding: 0;
+}
+
+QWidget#statusFileWrap {
     background-color: #ffffff;
     border: 1px solid #dce2ec;
     border-radius: 10px;
-    font-size: 10px;
     padding: 3px 9px;
 }
 
@@ -3031,6 +3165,24 @@ QStatusBar#vaultStatusBar QPushButton#statusMenuBtn {
 QStatusBar#vaultStatusBar QPushButton#statusMenuBtn:hover {
     background-color: #f4f7ff;
     border-color: #4b68f4;
+}
+
+QLabel#statusUnsavedDot {
+    background-color: #dc2626;
+    border-radius: 4px;
+    min-width: 7px;
+    max-width: 7px;
+    min-height: 7px;
+    max-height: 7px;
+}
+
+QLabel#statusUnsavedLabel {
+    color: #dc2626;
+    background-color: transparent;
+    border: none;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0;
 }
 
 QMessageBox {
