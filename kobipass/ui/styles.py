@@ -739,12 +739,18 @@ QToolButton#vaultTabAddBtn:hover {
 
 /* Kilit örtüsü */
 QWidget#lockOverlay {
-    background-color: rgba(6, 10, 18, 0.86);
+    background-color: #070b14;
 }
 QFrame#lockCard {
-    background-color: #121a2b;
-    border: 1px solid #26344d;
-    border-radius: 14px;
+    background-color: rgba(18, 26, 43, 0.92);
+    border: 1px solid #2b3a58;
+    border-radius: 16px;
+}
+QLabel#lockBrand {
+    color: #5b6a8f;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
 }
 QLabel#lockCardTitle {
     color: #eef2fb;
@@ -2776,36 +2782,44 @@ QToolButton#vaultTabAddBtn:hover {
 }
 
 /* Kilit örtüsü */
+/* Kilit ekranı her iki temada da bilinçli olarak KOYU/mühürlü görünür —
+   arkaplan paintEvent ile çizilir; kart ve kontroller onunla uyumlu kalır. */
 QWidget#lockOverlay {
-    background-color: rgba(224, 231, 245, 0.88);
+    background-color: #070b14;
 }
 QFrame#lockCard {
-    background-color: #ffffff;
-    border: 1px solid #d3ddf0;
-    border-radius: 14px;
+    background-color: rgba(18, 26, 43, 0.92);
+    border: 1px solid #2b3a58;
+    border-radius: 16px;
+}
+QLabel#lockBrand {
+    color: #5b6a8f;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
 }
 QLabel#lockCardTitle {
-    color: #16223d;
+    color: #eef2fb;
     font-size: 18px;
     font-weight: 700;
 }
 QLabel#lockCardSubtitle {
-    color: #5a6580;
+    color: #9aa7c2;
     font-size: 12px;
 }
 QLineEdit#lockPwd {
-    background-color: #f4f7fc;
-    border: 1px solid #c9d5ec;
+    background-color: #0d1420;
+    border: 1px solid #2a3a56;
     border-radius: 8px;
     padding: 8px 12px;
-    color: #16223d;
+    color: #eef2fb;
     font-size: 13px;
 }
 QLineEdit#lockPwd:focus {
     border-color: #4b68f4;
 }
 QLabel#lockError {
-    color: #c0392b;
+    color: #f08080;
     font-size: 12px;
 }
 QPushButton#lockUnlockBtn {
@@ -2822,11 +2836,11 @@ QPushButton#lockUnlockBtn:hover {
 QPushButton#lockHomeBtn {
     background: transparent;
     border: none;
-    color: #6b7690;
+    color: #8f9bb3;
     font-size: 12px;
 }
 QPushButton#lockHomeBtn:hover {
-    color: #16223d;
+    color: #cdd6e6;
     text-decoration: underline;
 }
 
