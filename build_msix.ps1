@@ -1,4 +1,4 @@
-# KobiPass — Microsoft Store (MSIX) paketi
+# KobiPass - Microsoft Store (MSIX) paketi
 # Kullanim: .\build_msix.ps1  [-Version 1.1.0.0] [-LayoutOnly] [-SkipSign]
 #
 # Store, surumun 4. bolumunun (revision) 0 olmasini ister: 1.1.0.0 (1.1.0.3 degil).
@@ -124,7 +124,7 @@ Write-Host ""
 Write-Host "MSIX paketi hazir:"
 Write-Host "  $MsixOutput"
 Write-Host ""
-Write-Host "Partner Center'a yukleme:"
-Write-Host "  1. Paketi 'Manage packages' altinda yukleyin."
-Write-Host "  2. Kimlik degerleri msix\identity.json'dan okunur — GERCEK Publisher (CN) ve PackageName ile guncelleyin."
+Write-Host "Partner Center yukleme:"
+Write-Host "  1. Paketi Manage packages altinda yukleyin."
+Write-Host "  2. Kimlik degerleri msix\identity.json dosyasindan okunur - GERCEK Publisher (CN) ve PackageName ile guncelleyin."
 Write-Host "  3. Yerelde imzalama basarisiz olursa, yukleme sirasinda Partner Center imzalasin."
