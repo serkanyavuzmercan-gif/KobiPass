@@ -9,9 +9,10 @@ sinyallerle ana pencereyi haberdar eder.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QMouseEvent
+from PyQt6.QtCore import QMimeData, QPoint, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QDrag, QMouseEvent
 from PyQt6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QMenu,
@@ -24,10 +25,14 @@ from PyQt6.QtWidgets import (
 from kobipass.i18n import tr
 from kobipass.ui.icons import icon_lock, icon_plus
 
+# Sürükle-bırak ile sekme sıralama için MIME türü.
+_TAB_MIME = "application/x-kobipass-tab"
+
 
 class _TabChip(QPushButton):
     """Tek bir sekme çipi. Sol tık → seç, çift tık → yeniden adlandır,
-    sağ tık → menü, sağdaki '×' → kaldır (yöneticide)."""
+    sağ tık → menü, sağdaki '×' → kaldır (yöneticide). Yöneticide sürüklenerek
+    yeniden sıralanabilir."""
 
     selected = pyqtSignal(str)
     rename_requested = pyqtSignal(str)
@@ -84,6 +89,9 @@ class _TabChip(QPushButton):
             )
             self._close_btn = btn
 
+        self._press_pos: QPoint | None = None
+        self._dragging = False
+
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         if self._close_btn is not None:
@@ -92,6 +100,34 @@ class _TabChip(QPushButton):
             self._close_btn.move(
                 self.width() - size - 8, (self.height() - size) // 2
             )
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._press_pos = event.position().toPoint()
+            self._dragging = False
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        # Yönetici sekmeyi sürükleyerek yeniden sıralayabilir.
+        if (
+            self._is_admin
+            and self._press_pos is not None
+            and event.buttons() & Qt.MouseButton.LeftButton
+        ):
+            dist = (event.position().toPoint() - self._press_pos).manhattanLength()
+            if dist >= QApplication.startDragDistance():
+                self._dragging = True
+                self.setChecked(True)  # tıklama işareti geri kalmasın
+                drag = QDrag(self)
+                mime = QMimeData()
+                mime.setData(_TAB_MIME, self._tab_id.encode("utf-8"))
+                drag.setMimeData(mime)
+                drag.setPixmap(self.grab())
+                drag.setHotSpot(event.position().toPoint())
+                drag.exec(Qt.DropAction.MoveAction)
+                self._press_pos = None
+                return
+        super().mouseMoveEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:  # noqa: N802
         if self._is_admin and event.button() == Qt.MouseButton.LeftButton:
@@ -117,6 +153,34 @@ class _TabChip(QPushButton):
             self.delete_requested.emit(self._tab_id)
 
 
+class _ChipsHost(QWidget):
+    """Çipleri taşıyan şerit; sürüklenen sekmenin bırakıldığı konumu hesaplar."""
+
+    reorder_requested = pyqtSignal(str, int)  # kaynak_id, hedef_index
+
+    def dragEnterEvent(self, event) -> None:  # noqa: N802
+        if event.mimeData().hasFormat(_TAB_MIME):
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event) -> None:  # noqa: N802
+        if event.mimeData().hasFormat(_TAB_MIME):
+            event.acceptProposedAction()
+
+    def dropEvent(self, event) -> None:  # noqa: N802
+        if not event.mimeData().hasFormat(_TAB_MIME):
+            return
+        source_id = bytes(event.mimeData().data(_TAB_MIME)).decode("utf-8")
+        x = int(event.position().x())
+        chips = sorted(self.findChildren(_TabChip), key=lambda c: c.x())
+        insert_index = len(chips)
+        for i, chip in enumerate(chips):
+            if x < chip.x() + chip.width() / 2:
+                insert_index = i
+                break
+        event.acceptProposedAction()
+        self.reorder_requested.emit(source_id, insert_index)
+
+
 class VaultTabBar(QWidget):
     """Sekme çipleri + (yöneticiye) sekme ekle düğmesi."""
 
@@ -125,6 +189,7 @@ class VaultTabBar(QWidget):
     rename_requested = pyqtSignal(str)
     toggle_hidden_requested = pyqtSignal(str)
     delete_requested = pyqtSignal(str)
+    reordered = pyqtSignal(list)  # yeni sekme id sırası
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -152,8 +217,9 @@ class VaultTabBar(QWidget):
         )
         self._scroll.viewport().setAutoFillBackground(False)
         self._scroll.setFixedHeight(34)  # ince şerit
-        self._chips_host = QWidget()
+        self._chips_host = _ChipsHost()
         self._chips_host.setObjectName("vaultTabChipsHost")
+        self._chips_host.reorder_requested.connect(self._handle_reorder)
         self._chips_layout = QHBoxLayout(self._chips_host)
         self._chips_layout.setContentsMargins(0, 0, 0, 0)
         self._chips_layout.setSpacing(5)
@@ -174,8 +240,27 @@ class VaultTabBar(QWidget):
 
         self._active_chip: _TabChip | None = None
 
+    def _handle_reorder(self, source_id: str, insert_index: int) -> None:
+        chips = sorted(
+            self._chips_host.findChildren(_TabChip), key=lambda c: c.x()
+        )
+        ids = [chip._tab_id for chip in chips]
+        if source_id not in ids:
+            return
+        original = list(ids)
+        src = ids.index(source_id)
+        ids.pop(src)
+        if src < insert_index:
+            insert_index -= 1
+        insert_index = max(0, min(insert_index, len(ids)))
+        ids.insert(insert_index, source_id)
+        if ids != original:
+            self.reordered.emit(ids)
+
     def set_tabs(self, tabs, active_id: str, *, is_admin: bool) -> None:
         """Çubuğu verilen (görünür) sekmelerle yeniden kurar."""
+        # Sürükle-bırak sıralama yalnızca yöneticide.
+        self._chips_host.setAcceptDrops(is_admin)
         # '+' düğmesini korumak için önce şeritten çıkar ve gizle. DİKKAT:
         # burada setParent(None) ÇAĞIRMA — görünür bir düğmeyi bir an üst-seviye
         # pencereye çevirir ve ekranın sol-üstünde boş bir kutu olarak

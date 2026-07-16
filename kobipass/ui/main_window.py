@@ -388,6 +388,7 @@ class MainWindow(QMainWindow):
         self._tab_bar.rename_requested.connect(self._on_rename_tab)
         self._tab_bar.toggle_hidden_requested.connect(self._on_toggle_hidden_tab)
         self._tab_bar.delete_requested.connect(self._on_delete_tab)
+        self._tab_bar.reordered.connect(self._on_tabs_reordered)
 
         badge_layout = QHBoxLayout()
         badge_layout.setSpacing(8)
@@ -1625,6 +1626,23 @@ class MainWindow(QMainWindow):
             self._apply_active_index()
         self._mark_dirty()
         self._apply_session_ui()
+
+    def _on_tabs_reordered(self, new_ids: list) -> None:
+        """Yönetici sekmeleri sürükleyerek yeniden sıraladı: modeli buna göre diz."""
+        if not self._tab_mgmt_allowed() or self._vault is None:
+            return
+        id_to_tab = {t.id: t for t in self._vault.tabs}
+        reordered = [id_to_tab[i] for i in new_ids if i in id_to_tab]
+        # Güvenlik: listede olmayan sekmeler (olmamalı) sona eklensin, kaybolmasın.
+        for tab in self._vault.tabs:
+            if tab not in reordered:
+                reordered.append(tab)
+        if [t.id for t in reordered] == [t.id for t in self._vault.tabs]:
+            return  # sıra değişmedi
+        self._vault.tabs = reordered
+        self._apply_active_index()
+        self._mark_dirty()
+        self._refresh_tab_bar()
 
     def _open_security_dialog(self) -> None:
         if self._security_dialog is None:
