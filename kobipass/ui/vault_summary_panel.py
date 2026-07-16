@@ -7,8 +7,8 @@ istatistiklerini ve küçük bir güvenlik kartını gösterir. Salt görsel bir
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QPainter
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.i18n import tr
-from kobipass.ui.brand import paint_brand_mark
+from kobipass.resources import asset_path
 from kobipass.ui.icons import (
     icon_bar_chart,
     icon_chevron_right,
@@ -29,37 +29,42 @@ from kobipass.ui.icons import (
     icon_layers,
     icon_save,
 )
-from kobipass.ui.theme import theme_manager
 
 _STAT_ACCENT = QColor("#8296ff")
 
 
-class _BrandArt(QWidget):
-    """KobiPass amblemini (KP + kilit) vektörel çizen, temaya uyan pano."""
+class _BrandArt(QLabel):
+    """KobiPass resmi logosunu (logo2.png) kartın içinde oranı koruyarak,
+    ortalı gösterir; genişlikle birlikte yumuşakça ölçeklenir."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._source = QPixmap(str(asset_path("logo2.png")))
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
         self.setMinimumHeight(140)
-        theme_manager.theme_changed.connect(self.update)
 
-    def paintEvent(self, event) -> None:  # noqa: N802
-        painter = QPainter(self)
-        # Güvenlik kartı her iki temada da koyu arka planlıdır; amblem her
-        # durumda okunur kalsın diye açık mavi tonda çizilir (gece/gündüz uyumlu).
-        color = QColor("#9db0ff") if theme_manager.is_dark() else QColor("#8ba0ff")
-        side = min(self.width(), self.height()) * 0.82
-        rect = QRectF(
-            (self.width() - side) / 2.0,
-            (self.height() - side) / 2.0,
-            side,
-            side,
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._rescale()
+
+    def _rescale(self) -> None:
+        if self._source.isNull():
+            return
+        side = int(min(self.width(), self.height()) * 0.86)
+        if side < 8:
+            return
+        super().setPixmap(
+            self._source.scaled(
+                side,
+                side,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
         )
-        paint_brand_mark(painter, rect, color, opacity=0.95)
-        painter.end()
 
 
 class VaultSummaryPanel(QFrame):
