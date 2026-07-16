@@ -7,8 +7,8 @@ istatistiklerini ve küçük bir güvenlik kartını gösterir. Salt görsel bir
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QPixmap
+from PyQt6.QtCore import QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.i18n import tr
-from kobipass.resources import security_shield_pixmap
+from kobipass.ui.brand import paint_brand_mark
 from kobipass.ui.icons import (
     icon_bar_chart,
     icon_chevron_right,
@@ -28,51 +28,38 @@ from kobipass.ui.icons import (
     icon_grid,
     icon_layers,
     icon_save,
-    icon_shield,
 )
+from kobipass.ui.theme import theme_manager
 
 _STAT_ACCENT = QColor("#8296ff")
 
 
-class _ScalingShield(QLabel):
-    """Kalkan görselini kartın tüm alanını dolduracak şekilde ölçekler.
-
-    Oran korunur ama alanı doldurmak için (KeepAspectRatioByExpanding) taşan
-    kısım merkezden kırpılır; böylece tam ekranda kalkan boş alanı doldurur,
-    dikey ölü boşluk kalmaz. Görsel yatay ve düşük çözünürlüklü (393×207)
-    olduğu için bir miktar yumuşama olur.
-    """
+class _BrandArt(QWidget):
+    """KobiPass amblemini (KP + kilit) vektörel çizen, temaya uyan pano."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._source = QPixmap()
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
-        self.setMinimumHeight(150)
+        self.setMinimumHeight(140)
+        theme_manager.theme_changed.connect(self.update)
 
-    def set_source(self, pixmap: QPixmap) -> None:
-        self._source = pixmap
-        self._rescale()
-
-    def resizeEvent(self, event) -> None:  # noqa: N802
-        super().resizeEvent(event)
-        self._rescale()
-
-    def _rescale(self) -> None:
-        if self._source.isNull():
-            return
-        w, h = max(1, self.width()), max(1, self.height())
-        big = self._source.scaled(
-            w,
-            h,
-            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-            Qt.TransformationMode.SmoothTransformation,
+    def paintEvent(self, event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        # Güvenlik kartı her iki temada da koyu arka planlıdır; amblem her
+        # durumda okunur kalsın diye açık mavi tonda çizilir (gece/gündüz uyumlu).
+        color = QColor("#9db0ff") if theme_manager.is_dark() else QColor("#8ba0ff")
+        side = min(self.width(), self.height()) * 0.82
+        rect = QRectF(
+            (self.width() - side) / 2.0,
+            (self.height() - side) / 2.0,
+            side,
+            side,
         )
-        x = max(0, (big.width() - w) // 2)
-        y = max(0, (big.height() - h) // 2)
-        super().setPixmap(big.copy(x, y, w, h))
+        paint_brand_mark(painter, rect, color, opacity=0.95)
+        painter.end()
 
 
 class VaultSummaryPanel(QFrame):
@@ -134,32 +121,14 @@ class VaultSummaryPanel(QFrame):
         self._security_text.setWordWrap(True)
         self._security_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # assets/security_shield.png varsa: kalkan kartın tüm boş alanını
-        # doldurur (kırparak). Yoksa: küçük çizili kalkan ikonu, ortalanır.
-        shield_source = security_shield_pixmap(None)
-        if not shield_source.isNull():
-            security.setObjectName("summarySecurityCardArt")
-            security_layout.setContentsMargins(14, 14, 14, 14)
-            art = _ScalingShield()
-            art.setObjectName("summarySecurityArt")
-            art.set_source(shield_source)
-            security_layout.addWidget(art, 1)
-            security_layout.addWidget(self._security_text, 0)
-        else:
-            security_layout.setContentsMargins(20, 26, 20, 22)
-            security_layout.addStretch(1)
-            shield_icon = QLabel()
-            shield_icon.setObjectName("summarySecurityIcon")
-            shield_icon.setFixedSize(56, 56)
-            shield_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            shield_icon.setPixmap(
-                icon_shield(QColor("#aeb9ff"), size=30).pixmap(30, 30)
-            )
-            security_layout.addWidget(
-                shield_icon, 0, Qt.AlignmentFlag.AlignHCenter
-            )
-            security_layout.addWidget(self._security_text, 0)
-            security_layout.addStretch(1)
+        # KobiPass amblemi (KP + kilit) vektörel çizilir; boş alanı doldurur,
+        # gündüz/gece temasına uyar (raster görsel yerine).
+        security.setObjectName("summarySecurityCardArt")
+        security_layout.setContentsMargins(16, 16, 16, 14)
+        self._brand_art = _BrandArt()
+        self._brand_art.setObjectName("summarySecurityArt")
+        security_layout.addWidget(self._brand_art, 1)
+        security_layout.addWidget(self._security_text, 0)
         outer.addWidget(security, 1)
 
         self.retranslate()

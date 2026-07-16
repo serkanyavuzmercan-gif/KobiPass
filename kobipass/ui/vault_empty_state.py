@@ -105,13 +105,12 @@ class VaultWatermarkPane(QWidget):
 
 
 class VaultBody(QWidget):
-    """Filigran + scroll üst üste; filigran her zaman görünür."""
+    """Kayıt listesi çalışma alanı (arka plan filigranı kaldırıldı)."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("vaultBody")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.watermark = VaultWatermarkPane(self)
         self.scroll = QScrollArea(self)
         self.scroll.setObjectName("vaultEntriesScroll")
         self.scroll.setWidgetResizable(True)
@@ -121,10 +120,7 @@ class VaultBody(QWidget):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        self.watermark.setGeometry(self.rect())
         self.scroll.setGeometry(self.rect())
-        self.watermark.lower()
-        self.scroll.raise_()
 
 
 class VaultEmptyState(QWidget):
