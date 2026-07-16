@@ -39,7 +39,7 @@ class _BrandArt(QLabel):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._source = QPixmap(str(asset_path("logo2.png")))
+        self._source = QPixmap(str(asset_path("logo3.png")))
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setSizePolicy(
