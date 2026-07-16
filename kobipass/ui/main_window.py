@@ -856,18 +856,20 @@ class MainWindow(QMainWindow):
         self._lock_overlay.setGeometry(self._stacked_widget.geometry())
 
     def _kilit_ekranini_goster(self) -> None:
-        """Kilit örtüsünü gösterir; alttaki kasa tümüyle etkisiz olur.
+        """Kilit örtüsünü gösterir; opak örtü alttaki kasayı görsel ve fare
+        olarak kapatır.
 
-        Örtü açıkken tek çıkış: doğru parolayla açmak ya da ana ekrana dönmek.
-        Böylece 'iptal edip çalışmaya devam etme' mümkün değildir.
+        NOT: Çalışma alanı ARTIK setEnabled(False) ile devre dışı bırakılmıyor.
+        Opak, en üste alınmış örtü fareyi zaten yutar; disabled bırakmak,
+        kullanıcı başlık/durum çubuğundaki düğmelerle (örtü dışında) başka bir
+        görünüme geçtiğinde çalışma alanının 'kilitli/yazılamaz' kalmasına yol
+        açıyordu. Örtü açıkken tek çıkış: doğru parola ya da 'Ana ekrana dön'.
         """
         if not self._kilitli_mi or self._session is None:
             return
         if getattr(self._session, "keys", None) is None:
             self._clear_lock_state()
             return
-        # Alttaki çalışma alanını klavye/fare olaylarına karşı kapat.
-        self._stacked_widget.setEnabled(False)
         self._lock_overlay.prepare()
         self._position_lock_overlay()
         self._lock_overlay.show()
