@@ -15,7 +15,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="MSIX için AppxManifest.xml üretir")
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--layout", type=Path, required=True)
-    parser.add_argument("--version", default="1.1.1.0")
+    parser.add_argument("--version", default="1.2.0.0")
     args = parser.parse_args()
 
     identity = json.loads(
