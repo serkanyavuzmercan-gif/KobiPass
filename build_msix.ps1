@@ -1,13 +1,13 @@
 # KobiPass - Microsoft Store (MSIX) paketi
-# Kullanim: .\build_msix.ps1  [-Version 1.1.0.0] [-LayoutOnly] [-SkipSign]
+# Kullanim: .\build_msix.ps1  [-Version 1.1.1.0] [-LayoutOnly] [-SkipSign]
 #
-# Store, surumun 4. bolumunun (revision) 0 olmasini ister: 1.1.0.0 (1.1.0.3 degil).
+# Store, surumun 4. bolumunun (revision) 0 olmasini ister: 1.1.1.0 (1.1.1.3 degil).
 
 param(
     [string]$PackageName = "",
     [string]$Publisher = "",
     [string]$PublisherDisplayName = "",
-    [string]$Version = "1.1.0.0",
+    [string]$Version = "1.1.1.0",
     [switch]$SkipSign,
     [switch]$LayoutOnly
 )
