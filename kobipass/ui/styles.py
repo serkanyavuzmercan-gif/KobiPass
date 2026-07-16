@@ -3888,9 +3888,9 @@ QCheckBox {
 }
 
 QCheckBox::indicator {
-    width: 16px;
-    height: 16px;
-    border: 1px solid #cdd4ee;
+    width: 17px;
+    height: 17px;
+    border: 2px solid #9098b8;
     border-radius: 4px;
     background-color: #ffffff;
 }
@@ -3902,23 +3902,30 @@ QCheckBox::indicator:hover {
 QCheckBox::indicator:checked {
     background-color: #4b68f4;
     border-color: #4b68f4;
+    image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M3.5 8.5l3 3 6-6.5' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
 }
 
 QComboBox {
     background-color: #ffffff;
     color: #1f2937;
-    border: 1px solid #dde3f0;
+    border: 1px solid #aab5d6;
     border-radius: 6px;
     padding: 5px 8px;
     min-height: 18px;
 }
 
 QComboBox:hover {
-    border-color: #b9c4f6;
+    border-color: #6c86f0;
 }
 
 QComboBox:focus {
     border-color: #4b68f4;
+}
+
+QComboBox::down-arrow {
+    image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1.5l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    width: 10px;
+    height: 7px;
 }
 
 QComboBox::drop-down {
@@ -4037,7 +4044,7 @@ QLabel#permissionTitle {
 }
 
 QLabel#permissionDescription {
-    color: #788397;
+    color: #5c6880;
     font-size: 10px;
 }
 
