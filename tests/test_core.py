@@ -12,12 +12,12 @@ from kobipass.crypto import (
     VERSION_ARGON2,
     VERSION_PBKDF2,
     build_vault_file,
+    password_matches_admin,
     password_matches_user_slot,
     passwords_are_unique,
     read_vault_file,
     try_unlock_vault,
     update_admin_wrap,
-    verify_password_against_keys,
     write_vault_file,
     write_vault_file_updated,
 )
@@ -394,8 +394,8 @@ def test_update_admin_wrap_and_verify(tmp_path: Path) -> None:
     unlocked = read_vault_file(path, "old-admin")
     new_keys = update_admin_wrap(unlocked.keys, "new-admin")
     write_vault_file_updated(path, vault, new_keys)
-    assert verify_password_against_keys(new_keys, "new-admin")
-    assert not verify_password_against_keys(new_keys, "old-admin")
+    assert password_matches_admin(new_keys, "new-admin")
+    assert not password_matches_admin(new_keys, "old-admin")
     again = read_vault_file(path, "new-admin")
     assert again.role == "admin"
 
@@ -408,8 +408,6 @@ def test_lock_unlock_is_role_scoped_no_privilege_escalation() -> None:
     yönetici yetkisi kazandırıyordu (yetki yükselmesi). Bu testin amacı bu
     sınırın kalıcı olarak korunmasıdır.
     """
-    from kobipass.crypto import password_matches_admin
-
     vault = mkvault(entries=[VaultEntry(name="Site", info1="pass")])
     raw = build_vault_file(
         vault,

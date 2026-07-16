@@ -620,25 +620,6 @@ def write_vault_file(
     )
 
 
-def verify_password_against_keys(keys: VaultFileKeys, password: str) -> bool:
-    """Mevcut oturum anahtarlarına karşı parola doğrular (kilit açma)."""
-    try:
-        dek = _unwrap_dek(keys.admin_wrap, password, keys.version)
-        return dek == keys.dek
-    except WrongPasswordError:
-        pass
-    for slot in keys.user_slots:
-        if not slot.enabled:
-            continue
-        try:
-            dek = _unwrap_dek(slot.wrap, password, keys.version)
-            if dek == keys.dek:
-                return True
-        except WrongPasswordError:
-            continue
-    return False
-
-
 def passwords_are_unique(
     admin_password: str,
     user_passwords: list[tuple[bool, str]],
