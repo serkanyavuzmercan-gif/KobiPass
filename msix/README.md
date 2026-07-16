@@ -28,8 +28,8 @@ StoreLogo, splash) **tek kaynaktan** — `assets/logo2.png` — otomatik üretil
 # 1) Yeni logoyu ekleyin
 #    assets/logo2.png  (kare, şeffaf veya düz zeminli PNG)
 
-# 2) Store paketini üretin (revision = 0: 1.1.0.0)
-.\build_msix.ps1 -Version 1.1.0.0
+# 2) Store paketini üretin (revision = 0: 1.1.1.0)
+.\build_msix.ps1 -Version 1.1.1.0
 
 # makeappx.exe yoksa yalnızca yerleşimi hazırlar:
 .\build_msix.ps1 -LayoutOnly

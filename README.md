@@ -60,10 +60,10 @@ cd C:\path\to\KobiPass   # repo kökü
 #   PublisherDisplayName: Hidroteknik
 
 # Store paketi uret (4. hane / revision her zaman 0)
-.\build_msix.ps1 -Version 1.1.0.0 -SkipSign
+.\build_msix.ps1 -Version 1.1.1.0 -SkipSign
 ```
 
-Çıktı: `dist\KobiPass-1.1.0.0.msix`
+Çıktı: `dist\KobiPass-1.1.1.0.msix`
 
 **Partner Center’a yükleme**
 
