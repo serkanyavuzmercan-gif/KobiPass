@@ -984,10 +984,16 @@ class MainWindow(QMainWindow):
         self._btn_save.style().unpolish(self._btn_save)
         self._btn_save.style().polish(self._btn_save)
 
+        # Satır sıralama: yönetici + kaydı değiştirme yetkisi olan (düzenleme /
+        # ekleme / silme) alt kullanıcılar sürükleyerek sıralayabilir; yalnızca
+        # görüntüleyen kullanıcı sıralayamaz.
+        can_reorder = (
+            is_admin or bool(perms and perms.can_mutate())
+        ) and not self._kilitli_mi
         self._apply_row_permissions()
         for row in self._row_widgets:
             row.set_can_delete(can_delete and not self._kilitli_mi)
-            row.set_can_reorder(is_admin and not self._kilitli_mi)
+            row.set_can_reorder(can_reorder)
 
         self._update_tab_order()
 
