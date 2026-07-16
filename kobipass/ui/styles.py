@@ -1127,7 +1127,6 @@ QStatusBar#vaultStatusBar QLabel#statusRole[clickable="true"] {
     color: #c7d2fe;
     background-color: #2b3550;
     border-color: #4b68f4;
-    text-decoration: underline;
 }
 
 QStatusBar#vaultStatusBar QLabel#statusFile {
@@ -1143,7 +1142,7 @@ QWidget#statusFileWrap {
     background-color: #20252e;
     border: 1px solid #303845;
     border-radius: 10px;
-    padding: 3px 9px;
+    padding: 0;
 }
 
 QStatusBar#vaultStatusBar QPushButton#statusMenuBtn {
@@ -1680,6 +1679,20 @@ QLabel#premiumInfoCardTitle {
 QLabel#premiumInfoCardText {
     color: #939dac;
     font-size: 11px;
+}
+
+QScrollArea#aboutManualScroll {
+    background-color: #10141d;
+    border: 1px solid #283044;
+    border-radius: 10px;
+}
+QLabel#aboutManualBody {
+    background-color: #10141d;
+    color: #aeb7c7;
+    font-family: "Consolas", "Cascadia Mono", "Courier New", monospace;
+    font-size: 11px;
+    line-height: 150%;
+    padding: 12px 14px;
 }
 
 QFrame#premiumCredits {
@@ -3137,7 +3150,6 @@ QStatusBar#vaultStatusBar QLabel#statusRole[clickable="true"] {
     color: #2f43a8;
     background-color: #dfe6ff;
     border-color: #4b68f4;
-    text-decoration: underline;
 }
 
 QStatusBar#vaultStatusBar QLabel#statusFile {
@@ -3153,7 +3165,7 @@ QWidget#statusFileWrap {
     background-color: #ffffff;
     border: 1px solid #dce2ec;
     border-radius: 10px;
-    padding: 3px 9px;
+    padding: 0;
 }
 
 QStatusBar#vaultStatusBar QPushButton#statusMenuBtn {
@@ -3684,6 +3696,20 @@ QLabel#premiumInfoCardTitle {
 QLabel#premiumInfoCardText {
     color: #687386;
     font-size: 11px;
+}
+
+QScrollArea#aboutManualScroll {
+    background-color: #f4f6fb;
+    border: 1px solid #d7deec;
+    border-radius: 10px;
+}
+QLabel#aboutManualBody {
+    background-color: #f4f6fb;
+    color: #404a5e;
+    font-family: "Consolas", "Cascadia Mono", "Courier New", monospace;
+    font-size: 11px;
+    line-height: 150%;
+    padding: 12px 14px;
 }
 
 QFrame#premiumCredits {

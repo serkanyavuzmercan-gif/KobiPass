@@ -499,7 +499,9 @@ class MainWindow(QMainWindow):
             Qt.WidgetAttribute.WA_StyledBackground, True
         )
         file_status = QHBoxLayout(self._status_file_wrap)
-        file_status.setContentsMargins(0, 0, 0, 0)
+        # İç boşluğu düzen kenar boşluğuyla ver (QSS padding, düzeni içeri
+        # itmediği için dosya adı kenarlığa taşıp kırpılıyordu).
+        file_status.setContentsMargins(9, 3, 9, 3)
         file_status.setSpacing(6)
         self._status_file_name = QLabel("")
         self._status_file_name.setObjectName("statusFile")

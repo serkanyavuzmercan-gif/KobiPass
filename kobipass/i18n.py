@@ -311,6 +311,50 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "about_us_website": "Web sayfası",
         "about_us_footer": "© 2026  Hidroteknik",
+        "about_manual_title": "KULLANIM VE SORUMLULUK ŞARTNAMESİ",
+        "about_manual_body": (
+            "1. VERİ SORUMLULUĞU\n"
+            "1.1. Kasa dosyası (.enc) yereldir. Dosyanın konumu, taşınması, "
+            "yedeklenmesi, erişim denetimi ve fiziksel/mantıksal güvenliği "
+            "münhasıran kullanıcının sorumluluğundadır.\n"
+            "1.2. Uygulama, her kayıtta atomik yazım (geçici dosya + yer değiştirme) "
+            "ve dönüşümlü şifreli yedek üretir. Bu mekanizmalar veri kaybı riskini "
+            "azaltır; ortadan kaldırmaz.\n"
+            "1.3. Kayıt anında elektrik kesintisi, donanım/disk arızası, kötü amaçlı "
+            "yazılım veya kullanıcı hatası kaynaklı kayıplara karşı nihai sorumluluk "
+            "kullanıcıdadır. Kritik veri için bağımsız yedek almak zorunludur.\n"
+            "1.4. Yönetici ve alt kullanıcı parolaları kurtarılamaz. Parola kaybı, "
+            "ilgili kapsamdaki verinin kalıcı kaybıdır.\n"
+            "\n"
+            "2. ŞİFRELEME\n"
+            "2.1. İçerik AES-256-GCM ile şifrelenir. Anahtar türetme Argon2id (yeni "
+            "kasalar) veya PBKDF2-HMAC-SHA256 ile yapılır.\n"
+            "2.2. Veri anahtarı (DEK) yönetici ve her alt kullanıcı için ayrı sarılır. "
+            "Gizli sekmeler yönetici-özel anahtarla (AEK) ayrıca şifrelenir; alt "
+            "kullanıcı parolası bunları çözemez.\n"
+            "\n"
+            "3. ROLLER VE ALT KULLANICI\n"
+            "3.1. Kasayı oluşturan yöneticidir ve tam yetkilidir.\n"
+            "3.2. Alt kullanıcı: 'Kullanıcılar ve Yetkiler' > 'Alt Kullanıcı Ekle'. "
+            "Her alt kullanıcıya benzersiz parola ve alan bazlı yetki atanır.\n"
+            "3.3. Alan yetkileri (Kayıt adları / Değer alanları): Görüntüleyebilir, "
+            "Maskeli görüntüleyebilir, Değiştirebilir. Ayrıca kayıt ekleme/silme "
+            "yetkileri. 'Maskeli görüntüleyebilir'de değer maskeli kalır, açığa "
+            "çıkarılamaz.\n"
+            "3.4. Yetki değişiklikleri Kaydet ile kalıcı olur.\n"
+            "\n"
+            "4. SEKMELER\n"
+            "4.1. Kasa bir veya daha fazla sekmeden oluşur; her sekme bağımsız bir "
+            "kayıt kümesidir. Sekme ekleme/silme/yeniden adlandırma yalnızca "
+            "yöneticidedir ('+' ile eklenir).\n"
+            "4.2. Gizli sekme yalnızca yönetici tarafından görülür ve çözülür; alt "
+            "kullanıcı sekmenin adını da içeriğini de göremez (kriptografik ayrım).\n"
+            "\n"
+            "5. KAYIT YAPISI\n"
+            "5.1. Her kayıt tek satırdır: sabit 'İsim' alanı ve yanında yatay olarak "
+            "eklenen değer hücreleri ('+' ile hücre eklenir).\n"
+            "5.2. Değer hücreleri maskelenebilir; parola gücü satırda renkle gösterilir."
+        ),
         "about_tab_security": "Güvenlik Protokolü",
         "about_tab_credits": "Açık Kaynak & Lisanslar",
         "security_window_eyebrow": "KOBIPASS GÜVENLİK MİMARİSİ",
@@ -734,6 +778,50 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "about_us_website": "Website",
         "about_us_footer": "© 2026  Hidroteknik",
+        "about_manual_title": "USAGE AND RESPONSIBILITY SPECIFICATION",
+        "about_manual_body": (
+            "1. DATA RESPONSIBILITY\n"
+            "1.1. The vault file (.enc) is local. Its location, transfer, backup, "
+            "access control and physical/logical security are solely the user's "
+            "responsibility.\n"
+            "1.2. On every save the application performs an atomic write (temporary "
+            "file + replace) and produces rolling encrypted backups. These mechanisms "
+            "reduce, but do not eliminate, the risk of data loss.\n"
+            "1.3. Final responsibility for losses caused by power failure during a "
+            "save, hardware/disk fault, malware or user error rests with the user. "
+            "Independent backups of critical data are mandatory.\n"
+            "1.4. Administrator and sub-user passwords are unrecoverable. Loss of a "
+            "password means permanent loss of the data in its scope.\n"
+            "\n"
+            "2. ENCRYPTION\n"
+            "2.1. Content is encrypted with AES-256-GCM. Key derivation uses Argon2id "
+            "(new vaults) or PBKDF2-HMAC-SHA256.\n"
+            "2.2. The data key (DEK) is wrapped separately for the administrator and "
+            "each sub-user. Hidden tabs are additionally encrypted with an "
+            "administrator-only key (AEK); a sub-user password cannot decrypt them.\n"
+            "\n"
+            "3. ROLES AND SUB-USERS\n"
+            "3.1. The creator of the vault is the administrator and has full rights.\n"
+            "3.2. Sub-user: 'Users and Permissions' > 'Add Sub-user'. Each sub-user is "
+            "assigned a unique password and per-field permissions.\n"
+            "3.3. Field permissions (Record names / Value fields): Can view, Can view "
+            "masked, Can view and edit. Plus add/delete record rights. Under 'Can view "
+            "masked' the value stays masked and cannot be revealed.\n"
+            "3.4. Permission changes take effect on Save.\n"
+            "\n"
+            "4. TABS\n"
+            "4.1. A vault consists of one or more tabs; each tab is an independent set "
+            "of records. Adding/removing/renaming tabs is administrator-only (add with "
+            "'+').\n"
+            "4.2. A hidden tab is visible and decryptable only by the administrator; a "
+            "sub-user cannot see its name or its content (cryptographic separation).\n"
+            "\n"
+            "5. RECORD STRUCTURE\n"
+            "5.1. Each record is a single row: a fixed 'Name' field and value cells "
+            "added horizontally beside it (add a cell with '+').\n"
+            "5.2. Value cells can be masked; password strength is shown by color in the "
+            "row."
+        ),
         "about_tab_security": "Security Protocol",
         "about_tab_credits": "Open Source & Licenses",
         "security_window_eyebrow": "KOBIPASS SECURITY ARCHITECTURE",

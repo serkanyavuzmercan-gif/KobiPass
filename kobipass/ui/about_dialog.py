@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -34,8 +35,8 @@ class AboutDialog(QDialog):
         self.setObjectName("premiumInfoDialog")
         self.setWindowIcon(app_icon())
         self.setModal(True)
-        self.setMinimumSize(520, 460)
-        self.resize(560, 500)
+        self.setMinimumSize(560, 600)
+        self.resize(600, 700)
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
         )
@@ -107,7 +108,29 @@ class AboutDialog(QDialog):
         maker_layout.addWidget(self._website_btn, 0, Qt.AlignmentFlag.AlignLeft)
         outer.addWidget(maker_card)
 
-        outer.addStretch(1)
+        # ── Kullanım ve sorumluluk şartnamesi (kaydırılabilir) ──────────────
+        self._manual_title = QLabel()
+        self._manual_title.setObjectName("premiumInfoEyebrow")
+        outer.addWidget(self._manual_title)
+
+        manual_scroll = QScrollArea()
+        manual_scroll.setObjectName("aboutManualScroll")
+        manual_scroll.setWidgetResizable(True)
+        manual_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        manual_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._manual_body = QLabel()
+        self._manual_body.setObjectName("aboutManualBody")
+        self._manual_body.setWordWrap(True)
+        self._manual_body.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        )
+        self._manual_body.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        manual_scroll.setWidget(self._manual_body)
+        outer.addWidget(manual_scroll, 1)
 
         # ── Künye + teknoloji ───────────────────────────────────────────────
         credits = QFrame()
@@ -146,5 +169,7 @@ class AboutDialog(QDialog):
         self._lead.setText(tr("about_us_lead"))
         self._tagline.setText(tr("about_us_tagline"))
         self._website_btn.setText(tr("about_us_website"))
+        self._manual_title.setText(tr("about_manual_title"))
+        self._manual_body.setText(tr("about_manual_body"))
         self._footer.setText(tr("about_us_footer"))
         self.close_btn.setText(tr("help_close"))
