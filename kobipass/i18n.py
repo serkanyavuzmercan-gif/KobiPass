@@ -4,6 +4,8 @@ kobiPass arayüz çevirileri (TR / EN).
 
 from __future__ import annotations
 
+import re
+
 from PyQt6.QtCore import QObject, pyqtSignal
 
 MIN_PASSWORD_LENGTH = 6
@@ -616,7 +618,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "users_applied_text": "Sub-user and permission changes were applied. Save the changes by pressing the Save button.",
         "user_pwd_repeat": "User {n} repeat:",
         "perm_section": "User permissions",
-        "perm_none": "Hidden",
+        "perm_none": "Cannot view",
         "perm_read": "Can view",
         "perm_hidden_read": "Can view masked",
         "perm_write": "Can view and edit",
@@ -889,6 +891,28 @@ i18n = I18n()
 
 def tr(key: str, **kwargs: object) -> str:
     return i18n.t(key, **kwargs)
+
+
+def localize_default_tab_name(name: str) -> str:
+    """Varsayılan sekme adını (ör. 'Sekme', 'Sekme (2)') aktif dile çevirir.
+
+    Sekme adları kasada veri olarak saklanır; başka bir dilde oluşturulmuş
+    varsayılan bir sekme ('Sekme'), İngilizce görünümde 'Sheet' olarak
+    gösterilsin diye her iki dilin varsayılan kalıpları aktif dile eşlenir.
+    Kullanıcının kendi verdiği adlar olduğu gibi bırakılır.
+    """
+    for lang in ("tr", "en"):
+        table = _STRINGS.get(lang, {})
+        if name == table.get("tab_default_name"):
+            return tr("tab_default_name")
+        template = table.get("tab_new_name", "")
+        if "{n}" in template:
+            prefix, _, suffix = template.partition("{n}")
+            pattern = re.escape(prefix) + r"(\d+)" + re.escape(suffix)
+            match = re.fullmatch(pattern, name)
+            if match:
+                return tr("tab_new_name", n=int(match.group(1)))
+    return name
 
 
 def crypto_message(key_or_text: str) -> str:

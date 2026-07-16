@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 from PyQt6.QtCore import QEvent, QThread, QTimer, QUrl, Qt, pyqtSignal
 from PyQt6.QtGui import (
@@ -49,7 +50,7 @@ from kobipass.crypto import (
     write_vault_file,
     write_vault_file_updated,
 )
-from kobipass.i18n import crypto_message, i18n, tr
+from kobipass.i18n import crypto_message, i18n, localize_default_tab_name, tr
 from kobipass.permissions import (
     diff_entries_for_audit,
     effective_permissions,
@@ -1465,8 +1466,18 @@ class MainWindow(QMainWindow):
             self._tab_bar.set_tabs([], "", is_admin=False)
             return
         self._apply_active_index()
+        # Sekme adları veri olarak saklanır; varsayılan adları ('Sekme'/'Sheet')
+        # aktif dile çevirerek göster (kullanıcının verdiği adlar korunur).
+        display = [
+            SimpleNamespace(
+                id=tab.id,
+                name=localize_default_tab_name(tab.name),
+                hidden=tab.hidden,
+            )
+            for tab in self._visible_tabs()
+        ]
         self._tab_bar.set_tabs(
-            self._visible_tabs(),
+            display,
             self._active_tab_id or "",
             is_admin=self._tab_mgmt_allowed(),
         )
@@ -1519,7 +1530,7 @@ class MainWindow(QMainWindow):
             self,
             tr("tab_rename_title"),
             tr("tab_rename_label"),
-            text=tab.name,
+            text=localize_default_tab_name(tab.name),
         )
         if ok and text.strip():
             tab.name = text.strip()
