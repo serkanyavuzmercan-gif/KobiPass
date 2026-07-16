@@ -390,9 +390,13 @@ QWidget#entryFieldsStack {
 }
 
 QWidget#entryRow {
-    background-color: #1b2231;
-    border: 1px solid #2e3849;
+    background-color: transparent;
+    border: 1px solid transparent;
     border-radius: 10px;
+}
+QWidget#entryRow[hovered="true"] {
+    background-color: #212c44;
+    border: 1px solid #45619f;
 }
 
 QLabel#rowDragHandle {
@@ -2450,9 +2454,13 @@ QWidget#entryFieldsStack {
 }
 
 QWidget#entryRow {
-    background-color: #ffffff;
-    border: 1px solid #dde3f0;
+    background-color: transparent;
+    border: 1px solid transparent;
     border-radius: 10px;
+}
+QWidget#entryRow[hovered="true"] {
+    background-color: #eef3ff;
+    border: 1px solid #c3d2f2;
 }
 
 QLabel#rowDragHandle {

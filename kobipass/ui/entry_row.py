@@ -5,8 +5,9 @@ Tek vault kaydı satırı — İsim sabit; 1. Bilgi ve ek alanlar yatay scroll i
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QMimeData, QPoint, QTimer, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QMimeData, QPoint, QTimer, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import (
+    QCursor,
     QDrag,
     QKeySequence,
     QMouseEvent,
@@ -730,6 +731,10 @@ class EntryRowWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("entryRow")
+        # Fareyle üzerine gelince satır vurgulansın (doğru satırdaki şifreyi
+        # almayı kolaylaştırır). QSS arkaplanının boyanması için gerekli.
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setProperty("hovered", False)
         self._can_delete = True
         self._can_reorder = False
         self._view_only = False
@@ -849,6 +854,39 @@ class EntryRowWidget(QWidget):
         self._update_field_step_buttons()
         self._update_info_remove_actions()
         self._schedule_info_field_layout()
+        self._install_hover_tracking()
+
+    # ---- fare-üzeri vurgusu -------------------------------------------
+    def _install_hover_tracking(self) -> None:
+        """Satırın herhangi bir yerinde (çocuk hücreler dahil) fare varken
+        vurgulamak için tüm alt bileşenlerin Enter/Leave olaylarını dinler.
+        Salt QSS ':hover' bir çocuk üstündeyken üst bileşende güvenilmezdir;
+        bu yüzden 'hovered' durumunu imlecin satır dikdörtgeninde olup
+        olmadığına göre elle güncelliyoruz."""
+        for child in self.findChildren(QWidget):
+            child.removeEventFilter(self)
+            child.installEventFilter(self)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if event.type() in (QEvent.Type.Enter, QEvent.Type.Leave):
+            self._refresh_hover()
+        return False
+
+    def enterEvent(self, event) -> None:  # noqa: N802
+        self._refresh_hover()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        self._refresh_hover()
+        super().leaveEvent(event)
+
+    def _refresh_hover(self) -> None:
+        inside = self.rect().contains(self.mapFromGlobal(QCursor.pos()))
+        if inside == bool(self.property("hovered")):
+            return
+        self.setProperty("hovered", inside)
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     def _confirm_and_remove(self) -> None:
         if self._view_only:
@@ -986,6 +1024,7 @@ class EntryRowWidget(QWidget):
         self._wire_tab_order()
         self._update_field_step_buttons()
         self._update_info_remove_actions()
+        self._install_hover_tracking()  # yeni hücre de fare-üzeri takibine girsin
         self._emit_changed()
 
     def _update_info_remove_actions(self) -> None:
