@@ -70,6 +70,7 @@ from kobipass.ui.audit_log_dialog import AuditLogDialog
 from kobipass.ui.dialogs import (
     OpenPasswordDialog,
     SetupVaultDialog,
+    ask_yes_no,
     show_error,
     show_info,
     show_restriction as show_restriction_dialog,
@@ -1596,17 +1597,11 @@ class MainWindow(QMainWindow):
         tab = self._find_tab(tab_id)
         if tab is None:
             return
+        # İçinde kayıt olan sekme doğrudan silinemez: kaza ile veri kaybını
+        # önlemek için kullanıcı önce tüm kayıtları tek tek kaldırmalı.
         if any(e.has_content() for e in tab.entries):
-            box = QMessageBox(self)
-            box.setWindowTitle(tr("tab_delete_title"))
-            box.setText(tr("tab_delete_text", name=tab.name))
-            box.setIcon(QMessageBox.Icon.Warning)
-            box.setStandardButtons(
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            box.setDefaultButton(QMessageBox.StandardButton.No)
-            if box.exec() != QMessageBox.StandardButton.Yes:
-                return
+            show_info(self, tr("tab_delete_title"), tr("tab_delete_needs_empty"))
+            return
         # Silinen sekmenin görünür sekmeler içindeki konumu → silince en yakın
         # (aynı konuma kayan sonraki, o da yoksa önceki) sekmeye geç.
         visible_before = [t.id for t in self._visible_tabs()]
@@ -1779,18 +1774,12 @@ class MainWindow(QMainWindow):
             if not backups:
                 continue
             latest = backups[0]
-            answer = QMessageBox.question(
+            if not ask_yes_no(
                 self,
                 tr("backup_missing_title"),
-                tr(
-                    "backup_missing_text",
-                    path=str(path),
-                    backup=latest.name,
-                ),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.Yes,
-            )
-            if answer != QMessageBox.StandardButton.Yes:
+                tr("backup_missing_text", path=str(path), backup=latest.name),
+                default_yes=True,
+            ):
                 continue
             try:
                 restore_backup(latest, path)
@@ -2004,21 +1993,39 @@ class MainWindow(QMainWindow):
         self._unlock_path(Path(path_str))
 
     def _unlock_path(self, path: Path) -> None:
-        dlg = OpenPasswordDialog(path.name, self)
-        if dlg.exec() != dlg.DialogCode.Accepted:
-            return
-        password = dlg.password()
-        if not password:
-            return
-
-        try:
-            unlock = read_vault_file(path, password)
-        except AccessDeniedError:
-            show_error(self, tr("denied_title"), tr("denied_text"))
-            return
-        except VaultCryptoError as exc:
-            show_error(self, tr("file_err_title"), crypto_message(str(exc)))
-            return
+        # Yanlış parola girene karşı nazik önlem: boş parola ekranı tekrar gelir;
+        # üst üste 3 hatalı denemede program kapanır (yeniden açılabilir). Güçlü
+        # KDF (Argon2/PBKDF2) zaten her denemeyi yavaşlatır; bu sayaç caydırıcı.
+        max_attempts = 3
+        attempts = 0
+        password = None
+        unlock = None
+        while True:
+            dlg = OpenPasswordDialog(path.name, self)
+            if dlg.exec() != dlg.DialogCode.Accepted:
+                return  # kullanıcı vazgeçti
+            password = dlg.password()
+            if not password:
+                return
+            try:
+                unlock = read_vault_file(path, password)
+                break  # doğru parola
+            except AccessDeniedError:
+                attempts += 1
+                remaining = max_attempts - attempts
+                if remaining <= 0:
+                    show_error(self, tr("denied_title"), tr("denied_lockout"))
+                    app = QApplication.instance()
+                    if app is not None:
+                        app.quit()
+                    return
+                show_error(
+                    self, tr("denied_title"), tr("denied_retry", remaining=remaining)
+                )
+                continue  # boş parola ekranını yeniden göster
+            except VaultCryptoError as exc:
+                show_error(self, tr("file_err_title"), crypto_message(str(exc)))
+                return
 
         session = session_from_unlock(unlock, password, unlock.vault)
         if isinstance(session, AdminSession):

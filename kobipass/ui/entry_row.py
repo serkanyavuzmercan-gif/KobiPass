@@ -452,14 +452,11 @@ class CompactField(QWidget):
         from kobipass.password_tools import generate_password
 
         if self._edit.text().strip():
-            answer = QMessageBox.question(
-                self,
-                tr("gen_overwrite_title"),
-                tr("gen_overwrite_text"),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            if answer != QMessageBox.StandardButton.Yes:
+            from kobipass.ui.dialogs import ask_yes_no
+
+            if not ask_yes_no(
+                self, tr("gen_overwrite_title"), tr("gen_overwrite_text")
+            ):
                 return
         self.set_generated(generate_password())
 

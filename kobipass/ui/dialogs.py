@@ -351,19 +351,10 @@ class OpenPasswordDialog(QDialog):
         label.setWordWrap(True)
         layout.addWidget(label)
 
-        self._pwd = QLineEdit()
-        self._pwd.setEchoMode(QLineEdit.EchoMode.Password)
-        self._pwd.setPlaceholderText(tr("pwd_placeholder"))
+        # Alan-içi göz ikonlu parola kutusu (uygulamanın geri kalanıyla tutarlı).
+        self._pwd = _password_edit(tr("pwd_placeholder"))
         self._pwd.returnPressed.connect(self._on_accept)
         layout.addWidget(self._pwd)
-
-        row = QHBoxLayout()
-        self._toggle = QPushButton(tr("show"))
-        self._toggle.setCheckable(True)
-        self._toggle.toggled.connect(self._on_toggle_visibility)
-        row.addWidget(self._toggle)
-        row.addStretch()
-        layout.addLayout(row)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -377,11 +368,6 @@ class OpenPasswordDialog(QDialog):
             ok_btn.setText(tr("ok"))
         if cancel_btn:
             cancel_btn.setText(tr("cancel"))
-
-    def _on_toggle_visibility(self, checked: bool) -> None:
-        mode = QLineEdit.EchoMode.Password if not checked else QLineEdit.EchoMode.Normal
-        self._pwd.setEchoMode(mode)
-        self._toggle.setText(tr("hide") if checked else tr("show"))
 
     def _on_accept(self) -> None:
         text = self._pwd.text()
@@ -522,6 +508,34 @@ def show_error(parent: QWidget | None, title: str, message: str) -> None:
 
 def show_info(parent: QWidget | None, title: str, message: str) -> None:
     _message_box(parent, QMessageBox.Icon.Information, title, message)
+
+
+def ask_yes_no(
+    parent: QWidget | None,
+    title: str,
+    message: str,
+    *,
+    default_yes: bool = False,
+) -> bool:
+    """Türkçe/İngilizce Evet-Hayır onay kutusu (QMessageBox.question, standart
+    butonları yerelleştiremediği için)."""
+    box = QMessageBox(parent)
+    box.setWindowTitle(title)
+    box.setText(message)
+    box.setIcon(QMessageBox.Icon.Question)
+    box.setStandardButtons(
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+    )
+    box.setDefaultButton(
+        QMessageBox.StandardButton.Yes if default_yes else QMessageBox.StandardButton.No
+    )
+    yes_btn = box.button(QMessageBox.StandardButton.Yes)
+    no_btn = box.button(QMessageBox.StandardButton.No)
+    if yes_btn:
+        yes_btn.setText(tr("yes"))
+    if no_btn:
+        no_btn.setText(tr("no"))
+    return box.exec() == QMessageBox.StandardButton.Yes
 
 
 def show_restriction(parent: QWidget | None, message: str) -> None:
