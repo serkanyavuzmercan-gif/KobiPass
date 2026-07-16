@@ -551,16 +551,34 @@ class CompactField(QWidget):
                 self._view_only,
             )
         if self._eye_btn is not None:
-            self._eye_btn.setEnabled(can_view(effective))
+            # Göz düğmesi yalnızca maske kaldırma yetkisi olanlarda (read/write)
+            # etkin; 'Maskeli görüntüleyebilir'de kapalı → parola gizli kalır.
+            reveal = self._can_reveal()
+            if not reveal:
+                self._hidden = True
+            self._eye_btn.setEnabled(reveal)
+            self._eye_btn.blockSignals(True)
+            self._eye_btn.setChecked(reveal and not self._hidden)
+            self._eye_btn.blockSignals(False)
+            self._refresh_eye()
             self._eye_btn.setAttribute(
                 Qt.WidgetAttribute.WA_TransparentForMouseEvents,
-                False,
+                not reveal,
             )
         self._refresh_menu()
         self._sync_echo()
 
+    def _can_reveal(self) -> bool:
+        """Maske kaldırılabilir mi? 'Maskeli görüntüleyebilir' (hidden_read)
+        alanlarda parola ASLA açığa çıkarılamaz — yalnızca 'read'/'write'."""
+        return self._sensitive and self._permission in ("read", "write")
+
     def _sync_echo(self) -> None:
         if not self.isVisible() and self._permission == "hidden":
+            return
+        # Maskeli seviye her şeyin önünde: göz düğmesi ne derse desin gizli kalır.
+        if self._permission == "hidden_read":
+            self._edit.setEchoMode(QLineEdit.EchoMode.Password)
             return
         if self._sensitive and self._eye_btn is not None:
             self._edit.setEchoMode(
@@ -569,9 +587,7 @@ class CompactField(QWidget):
                 else QLineEdit.EchoMode.Normal
             )
             return
-        if self._permission == "hidden_read":
-            self._edit.setEchoMode(QLineEdit.EchoMode.Password)
-        elif self._sensitive:
+        if self._sensitive:
             self._edit.setEchoMode(
                 QLineEdit.EchoMode.Password
                 if self._hidden
@@ -607,6 +623,10 @@ class CompactField(QWidget):
             _active_copy_field = None
 
     def set_hidden(self, hidden: bool) -> None:
+        # Maskeli seviye açığa çıkarılamaz: genel 'Bilgileri göster' bile
+        # hidden_read alanı gösteremez.
+        if not self._can_reveal():
+            hidden = True
         self._hidden = hidden
         if self._eye_btn is not None:
             self._eye_btn.blockSignals(True)
@@ -617,6 +637,15 @@ class CompactField(QWidget):
 
     def _on_eye_clicked(self) -> None:
         if self._eye_btn is None:
+            return
+        if not self._can_reveal():
+            # Maskeli seviyede göz düğmesi maske kaldıramaz.
+            self._hidden = True
+            self._eye_btn.blockSignals(True)
+            self._eye_btn.setChecked(False)
+            self._eye_btn.blockSignals(False)
+            self._refresh_eye()
+            self._sync_echo()
             return
         self._hidden = not self._eye_btn.isChecked()
         self._refresh_eye()
