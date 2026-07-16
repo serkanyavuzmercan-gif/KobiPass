@@ -136,3 +136,30 @@ def humanize_age(iso: str) -> str:
     if days < 365:
         return tr("pw_age_months", n=days // 30)
     return tr("pw_age_years", n=days // 365)
+
+
+def format_date(iso: str) -> str:
+    """ISO damgasını yerel 'GG.AA.YYYY' biçimine çevirir; geçersizse boş."""
+    if not iso:
+        return ""
+    from datetime import datetime, timezone
+
+    try:
+        when = datetime.fromisoformat(iso.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return when.astimezone().strftime("%d.%m.%Y")
+
+
+def pw_freshness_color(iso: str) -> str:
+    """Parola yaşına göre tazelik rengi (görsel uyarı)."""
+    days = age_days(iso)
+    if days is None:
+        return "#8a94a8"  # bilinmiyor — nötr gri
+    if days < 90:
+        return "#3ddc84"  # taze — yeşil
+    if days < 365:
+        return "#e0b64a"  # eskiyor — amber
+    return "#e0685f"  # eski — kırmızı

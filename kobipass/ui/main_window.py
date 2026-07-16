@@ -415,7 +415,9 @@ class MainWindow(QMainWindow):
         )
         self._entries_host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._entries_layout = QVBoxLayout(self._entries_host)
-        self._entries_layout.setContentsMargins(0, 0, 0, 0)
+        # Yatay boşluk: satırlar/ekle çubuğu kart kenarına yapışmasın, başlıkla
+        # (16px) hizalı dursun.
+        self._entries_layout.setContentsMargins(16, 6, 16, 10)
         self._entries_layout.setSpacing(4)
         self._entries_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 

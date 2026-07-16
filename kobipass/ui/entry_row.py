@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QMenu,
     QMessageBox,
@@ -32,7 +33,7 @@ ROW_MIME = "application/x-kobipass-row-index"
 ROW_CONTROL_HEIGHT = 38
 COPY_BTN_SIZE = QSize(32, 32)
 COPY_GROUP_INSET = (5, 3, 0, 3)
-ROW_MARGINS = (0, 4, 12, 4)
+ROW_MARGINS = (0, 4, 0, 4)  # yatay boşluk kapsayıcıdan verilir (kart kenarına yapışmasın)
 ROW_LAYOUT_SPACING = 8
 
 NAME_FIELD_WIDTH = 200
@@ -661,6 +662,35 @@ class CompactField(QWidget):
         return self._edit
 
 
+class _DragHandle(QLabel):
+    """Satırın solunda görünür sürükleme tutamağı. Basılı tutup sürükleyince
+    kaydı yeniden sıralamayı başlatır (yalnızca yetkili kullanıcıda görünür)."""
+
+    def __init__(self, on_drag, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._on_drag = on_drag
+        self._press: QPoint | None = None
+        self.setObjectName("rowDragHandle")
+        self.setText("⠇⠇")  # ⠇⠇ — çift sütun nokta ızgarası
+        self.setFixedWidth(20)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.setToolTip(tr("drag_row_tip"))
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._press = event.position().toPoint()
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if self._press is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            if (event.position().toPoint() - self._press).manhattanLength() >= 6:
+                self._press = None
+                self._on_drag()
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        self._press = None
+
+
 class EntryRowWidget(QWidget):
     """Bir kasa kaydı — İsim sabit; 1. Bilgi + ek alanlar yatay scroll içinde."""
 
@@ -686,6 +716,11 @@ class EntryRowWidget(QWidget):
         row.setContentsMargins(*ROW_MARGINS)
         row.setSpacing(ROW_LAYOUT_SPACING)
         row.setAlignment(_ROW_ALIGN)
+
+        # Sürükleme tutamağı (görünür) — sıralama yetkisi olunca gösterilir.
+        self._drag_handle = _DragHandle(self._start_drag)
+        self._drag_handle.setVisible(False)
+        row.addWidget(self._drag_handle, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._name = CompactField(
             field_key="field_name",
@@ -760,10 +795,19 @@ class EntryRowWidget(QWidget):
         self._scroll.setWidget(self._extras_host)
         row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
 
+        # Parola tazeliği: son değişiklik tarihi, satırın sağında sabit durur
+        # (kaydırmayla kaymaz). Renk yaşa göre değişir; boşsa gizli.
+        self._age_label = QLabel()
+        self._age_label.setObjectName("rowAgeLabel")
+        self._age_label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self._age_label.setVisible(False)
+        row.addWidget(self._age_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
         self.retranslate()
 
         self._name.textChanged().connect(self._emit_changed)
         self._info1.textChanged().connect(self._emit_changed)
+        self._info1.textChanged().connect(lambda _="": self._refresh_age_label())
 
         self._wire_tab_order()
         self._update_field_step_buttons()
@@ -1038,6 +1082,7 @@ class EntryRowWidget(QWidget):
 
     def set_can_reorder(self, allowed: bool) -> None:
         self._can_reorder = allowed
+        self._drag_handle.setVisible(allowed)
         self.setToolTip(
             tr("drag_row_tip") if allowed else tr("restricted_reorder")
         )
@@ -1070,6 +1115,7 @@ class EntryRowWidget(QWidget):
         self._sync_scroll_width()
         self.set_sensitive_shown(False)
         self._apply_pw_age_tooltip()
+        self._refresh_age_label()
 
     def _apply_pw_age_tooltip(self) -> None:
         """info1 alanına parola yaşını tooltip olarak yazar."""
@@ -1078,6 +1124,29 @@ class EntryRowWidget(QWidget):
         tip = tr("pw_age_tip", age=humanize_age(self._pw_updated_at))
         self._info1.setToolTip(tip)
         self._info1._edit.setToolTip(tip)
+
+    def _refresh_age_label(self) -> None:
+        """Parolanın son değişiklik tarihini satırın sağında gösterir; tazelik
+        rengiyle. Parola boşsa ya da tarih bilinmiyorsa gizlenir."""
+        from kobipass.password_tools import (
+            age_days,
+            format_date,
+            humanize_age,
+            pw_freshness_color,
+        )
+
+        has_pw = bool(self._info1.text().strip())
+        if not has_pw or age_days(self._pw_updated_at) is None:
+            self._age_label.setVisible(False)
+            return
+        self._age_label.setText(format_date(self._pw_updated_at))
+        self._age_label.setStyleSheet(
+            f"color: {pw_freshness_color(self._pw_updated_at)};"
+        )
+        self._age_label.setToolTip(
+            tr("pw_age_tip", age=humanize_age(self._pw_updated_at))
+        )
+        self._age_label.setVisible(True)
 
     def block_change_signals(self, block: bool) -> None:
         self._name._edit.blockSignals(block)

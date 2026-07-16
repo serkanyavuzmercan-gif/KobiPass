@@ -384,6 +384,21 @@ QWidget#entryRow {
     border-radius: 10px;
 }
 
+QLabel#rowDragHandle {
+    color: #66738c;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -3px;
+}
+QLabel#rowDragHandle:hover {
+    color: #aeb9cf;
+}
+QLabel#rowAgeLabel {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0 8px;
+}
+
 QLabel {
     color: #9aa0a8;
     font-size: 11px;
@@ -2411,6 +2426,21 @@ QWidget#entryRow {
     background-color: #ffffff;
     border: 1px solid #dde3f0;
     border-radius: 10px;
+}
+
+QLabel#rowDragHandle {
+    color: #9aa6bd;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -3px;
+}
+QLabel#rowDragHandle:hover {
+    color: #5b6880;
+}
+QLabel#rowAgeLabel {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0 8px;
 }
 
 QLabel {
