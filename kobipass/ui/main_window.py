@@ -45,8 +45,10 @@ from PyQt6.QtWidgets import (
 from kobipass.crypto import (
     AccessDeniedError,
     VaultCryptoError,
+    VaultFileKeys,
+    password_matches_admin,
+    password_matches_user_slot,
     read_vault_file,
-    verify_password_against_keys,
     write_vault_file,
     write_vault_file_updated,
 )
@@ -881,7 +883,12 @@ class MainWindow(QMainWindow):
         if keys is None:
             self._on_lock_home()
             return
-        if verify_password_against_keys(keys, password or ""):
+        # GÜVENLİK: Kilit YALNIZCA oturumun kendi kimliğiyle açılabilir.
+        # Yönetici kilidi yalnızca yönetici parolasıyla; alt kullanıcı kilidi
+        # yalnızca O kullanıcının slot parolasıyla açılır. Aksi halde,
+        # kilitli bir yönetici oturumu bir alt kullanıcı parolasıyla açılıp
+        # o kullanıcıya yönetici yetkisi kazandırırdı (yetki yükselmesi).
+        if self._lock_password_matches_session(keys, password or ""):
             self._kilitli_mi = False
             self._lock_overlay.hide()
             self._stacked_widget.setEnabled(True)
@@ -890,6 +897,21 @@ class MainWindow(QMainWindow):
             self._apply_session_ui()
         else:
             self._lock_overlay.show_error(tr("lock_wrong"))
+
+    def _lock_password_matches_session(
+        self, keys: VaultFileKeys, password: str
+    ) -> bool:
+        """Girilen parola, kilitli oturumun KENDİ kimliğiyle eşleşiyor mu?"""
+        if not password:
+            return False
+        if isinstance(self._session, UserSession):
+            return password_matches_user_slot(
+                keys, password, self._session.user_slot - 1
+            )
+        # Yönetici oturumu (veya keys taşıyan tek olası diğer durum).
+        if isinstance(self._session, AdminSession):
+            return password_matches_admin(keys, password)
+        return False
 
     def _on_lock_home(self) -> None:
         """Kilitliyken 'Ana ekrana dön': oturumu bırakıp karşılamaya döner.

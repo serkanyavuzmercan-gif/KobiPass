@@ -668,3 +668,18 @@ def password_matches_user_slot(
         return _unwrap_dek(slot.wrap, password, keys.version) == keys.dek
     except WrongPasswordError:
         return False
+
+
+def password_matches_admin(keys: VaultFileKeys, password: str) -> bool:
+    """Parola YALNIZCA yönetici sarmalayıcısını açıyor mu?
+
+    Kilit açarken rol yükselmesini önlemek için kullanılır: yönetici
+    oturumu yalnızca yönetici parolasıyla açılmalı; herhangi bir alt
+    kullanıcı parolası (DEK'i açsa bile) yöneticiyi açmamalı.
+    """
+    if not password:
+        return False
+    try:
+        return _unwrap_dek(keys.admin_wrap, password, keys.version) == keys.dek
+    except WrongPasswordError:
+        return False

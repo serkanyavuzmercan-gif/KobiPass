@@ -400,6 +400,37 @@ def test_update_admin_wrap_and_verify(tmp_path: Path) -> None:
     assert again.role == "admin"
 
 
+def test_lock_unlock_is_role_scoped_no_privilege_escalation() -> None:
+    """Kilit açma rol-özeldir: alt kullanıcı parolası yönetici kilidini AÇMAZ.
+
+    Geçmişte kilit açma herhangi bir geçerli parolayı kabul ediyordu; kilitli
+    bir yönetici oturumu alt kullanıcı parolasıyla açılıp o kullanıcıya
+    yönetici yetkisi kazandırıyordu (yetki yükselmesi). Bu testin amacı bu
+    sınırın kalıcı olarak korunmasıdır.
+    """
+    from kobipass.crypto import password_matches_admin
+
+    vault = mkvault(entries=[VaultEntry(name="Site", info1="pass")])
+    raw = build_vault_file(
+        vault,
+        "admin-secret",
+        [(True, "user-one"), (True, "user-two"), (False, "")],
+    )
+    keys = try_unlock_vault(raw, "admin-secret").keys
+
+    # Yönetici kilidi: yalnızca yönetici parolası açar.
+    assert password_matches_admin(keys, "admin-secret")
+    assert not password_matches_admin(keys, "user-one")
+    assert not password_matches_admin(keys, "user-two")
+    assert not password_matches_admin(keys, "")
+
+    # Alt kullanıcı kilidi: yalnızca O slotun parolası açar.
+    assert password_matches_user_slot(keys, "user-one", 0)
+    assert not password_matches_user_slot(keys, "admin-secret", 0)
+    assert not password_matches_user_slot(keys, "user-two", 0)
+    assert not password_matches_user_slot(keys, "user-one", 1)
+
+
 def test_write_updated_preserves_version(tmp_path: Path) -> None:
     vault = mkvault(entries=[VaultEntry(name="A", info1="1")])
     path = tmp_path / "keep.enc"
