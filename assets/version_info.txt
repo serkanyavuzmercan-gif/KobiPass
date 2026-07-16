@@ -16,11 +16,11 @@ VSVersionInfo(
         StringTable(
           '040904B0',
           [
-            StringStruct('CompanyName', 'Mercan Software'),
+            StringStruct('CompanyName', 'Hidroteknik'),
             StringStruct('FileDescription', 'KobiPass Parola Kasasi'),
             StringStruct('FileVersion', '1.1.0'),
             StringStruct('InternalName', 'KobiPass'),
-            StringStruct('LegalCopyright', 'Mercan Software'),
+            StringStruct('LegalCopyright', 'Hidroteknik'),
             StringStruct('OriginalFilename', 'kobiPass.exe'),
             StringStruct('ProductName', 'KobiPass'),
             StringStruct('ProductVersion', '1.1.0'),
