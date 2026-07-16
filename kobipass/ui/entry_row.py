@@ -875,10 +875,17 @@ class EntryRowWidget(QWidget):
         default_width = four_column_default_width(row_content_width)
         self._name.set_responsive_base_width(default_width)
 
-        scroll_width = (
-            row_content_width - self._name.width() - ROW_LAYOUT_SPACING
-        )
-        width = three_column_info_width(scroll_width)
+        # Bilgi kolonları GERÇEK viewport genişliğine göre bölünür. Satır
+        # geometrisinden yeniden hesaplamak (isim + boşluk) sürükleme tutamağı
+        # ve sağdaki tarih etiketinin payını görmez; birkaç piksellik bu fazlalık
+        # tek alanlık satırlarda bile gereksiz bir yatay kaydırma çubuğu
+        # doğuruyordu. Viewport'u doğrudan ölçmek bunu kökten çözer.
+        viewport_width = self._scroll.viewport().width()
+        if viewport_width <= 0:
+            viewport_width = (
+                row_content_width - self._name.width() - ROW_LAYOUT_SPACING
+            )
+        width = three_column_info_width(viewport_width)
         fields = [self._info1, *self._extra_fields]
         for field in fields:
             field.set_compact_width(width)
@@ -888,7 +895,7 @@ class EntryRowWidget(QWidget):
             + FIELD_STEP_BTN_WIDTH
             + len(fields) * ROW_LAYOUT_SPACING
         )
-        self._extras_host.setMinimumWidth(max(scroll_width, content_width))
+        self._extras_host.setMinimumWidth(max(viewport_width, content_width))
         self._extras_layout.invalidate()
 
     def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
@@ -1139,9 +1146,15 @@ class EntryRowWidget(QWidget):
         if not has_pw or age_days(self._pw_updated_at) is None:
             self._age_label.setVisible(False)
             return
-        self._age_label.setText(format_date(self._pw_updated_at))
-        self._age_label.setStyleSheet(
-            f"color: {pw_freshness_color(self._pw_updated_at)};"
+        # İki tonlu zengin metin: soluk "Parola değişimi" başlığı + yaşa göre
+        # renklenen tarih. Böylece kullanıcı tarihin ne olduğunu bilir.
+        color = pw_freshness_color(self._pw_updated_at)
+        caption = tr("row_last_change")
+        date = format_date(self._pw_updated_at)
+        self._age_label.setTextFormat(Qt.TextFormat.RichText)
+        self._age_label.setText(
+            f'<span style="color:#8a94a8;font-weight:500">{caption}</span>'
+            f'<br><span style="color:{color};font-weight:700">{date}</span>'
         )
         self._age_label.setToolTip(
             tr("pw_age_tip", age=humanize_age(self._pw_updated_at))
