@@ -756,12 +756,27 @@ class MainWindow(QMainWindow):
             self._guvenlik_kilidini_aktif_et()
             self._kilit_ekranini_goster()
 
+    def _clear_lock_state(self) -> None:
+        """Kilit örtüsünü kapatır ve çalışma alanını yeniden etkinleştirir.
+
+        Kilitliyken durum/başlık çubuğundaki düğmeler (Yeni kasa, Ana sayfa…)
+        hâlâ tıklanabildiği için, kasa/görünüm değiştiren her yol bu temizliği
+        çağırmalı; aksi halde stacked widget 'disabled' kalır ve kullanıcı
+        alanlara yazamaz."""
+        self._kilitli_mi = False
+        if hasattr(self, "_lock_overlay"):
+            self._lock_overlay.hide()
+        if hasattr(self, "_stacked_widget"):
+            self._stacked_widget.setEnabled(True)
+
     def _show_landing_page(self) -> None:
+        self._clear_lock_state()
         self._stacked_widget.setCurrentWidget(self._landing_page)
         self.statusBar().hide()
         self._landing_page.refresh_recent()
 
     def _show_vault_view(self) -> None:
+        self._clear_lock_state()
         self._stacked_widget.setCurrentWidget(self._vault_view)
         self.statusBar().show()
 
@@ -849,7 +864,7 @@ class MainWindow(QMainWindow):
         if not self._kilitli_mi or self._session is None:
             return
         if getattr(self._session, "keys", None) is None:
-            self._kilitli_mi = False
+            self._clear_lock_state()
             return
         # Alttaki çalışma alanını klavye/fare olaylarına karşı kapat.
         self._stacked_widget.setEnabled(False)
