@@ -176,10 +176,12 @@ class VaultTabBar(QWidget):
 
     def set_tabs(self, tabs, active_id: str, *, is_admin: bool) -> None:
         """Çubuğu verilen (görünür) sekmelerle yeniden kurar."""
-        # '+' düğmesini korumak için önce şeritten ayır; ardından yalnızca
-        # çipleri sil.
+        # '+' düğmesini korumak için önce şeritten çıkar ve gizle. DİKKAT:
+        # burada setParent(None) ÇAĞIRMA — görünür bir düğmeyi bir an üst-seviye
+        # pencereye çevirir ve ekranın sol-üstünde boş bir kutu olarak
+        # parlar. removeWidget zaten düzenden çıkarır; ebeveyni host kalır.
         self._chips_layout.removeWidget(self._add_btn)
-        self._add_btn.setParent(None)
+        self._add_btn.hide()
         while self._chips_layout.count():
             item = self._chips_layout.takeAt(0)
             widget = item.widget()
