@@ -92,7 +92,6 @@ from kobipass.ui.icons import (
     icon_home,
     icon_info,
     icon_more,
-    icon_report,
     icon_save,
     icon_search,
     icon_shield,
@@ -362,11 +361,6 @@ class MainWindow(QMainWindow):
         self._btn_audit.clicked.connect(self._show_audit)
         toolbar.addWidget(self._btn_audit, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._btn_report = QPushButton()
-        self._btn_report.setIcon(icon_report(_tb_icon, size=17))
-        self._btn_report.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_report.clicked.connect(self._show_password_report)
-        toolbar.addWidget(self._btn_report, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._search_bar = QLineEdit()
         self._search_bar.setObjectName("toolbarSearch")
@@ -960,7 +954,6 @@ class MainWindow(QMainWindow):
         for btn in (
             self._btn_users,
             self._btn_audit,
-            self._btn_report,
         ):
             btn.setVisible(True)
             btn.setProperty("restricted", is_sub_user)
@@ -1176,8 +1169,6 @@ class MainWindow(QMainWindow):
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
-        self._btn_report.setText(tr("btn_report"))
-        self._btn_report.setToolTip(tr("btn_report_tip"))
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self._refresh_tab_bar()
         self._records_panel_title.setText(tr("records_panel_title"))
@@ -1750,14 +1741,6 @@ class MainWindow(QMainWindow):
             return
         dlg = AuditLogDialog(self._vault, self)
         dlg.exec()
-
-    def _show_password_report(self) -> None:
-        if not self._require_admin("restricted_report"):
-            return
-        self._sync_vault_entries()
-        from kobipass.ui.password_report_dialog import PasswordReportDialog
-
-        PasswordReportDialog(self._vault, self).exec()
 
     def _confirm_discard(self) -> bool:
         box = QMessageBox(self)
