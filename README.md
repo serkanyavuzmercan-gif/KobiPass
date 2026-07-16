@@ -44,6 +44,33 @@ pytest
 
 Çıktı: `dist\kobiPass.exe` ve `C:\kobiPass\kobiPass.exe`
 
+## Microsoft Store (MSIX) paketi
+
+Store’a yüklemek için Windows’ta PowerShell ile:
+
+```powershell
+cd C:\path\to\KobiPass   # repo kökü
+
+# Windows SDK yoksa (makeappx için):
+# winget install --id Microsoft.WindowsSDK.10.0.18362 --accept-package-agreements --accept-source-agreements
+
+# Partner Center kimliğini kontrol et (msix\identity.json)
+# PackageName + Publisher (CN=...) gerçek Product Identity ile aynı olmalı
+
+# Store paketi üret (4. hane / revision her zaman 0)
+.\build_msix.ps1 -Version 1.1.0.0 -SkipSign
+```
+
+Çıktı: `dist\KobiPass-1.1.0.0.msix`
+
+**Partner Center’a yükleme**
+
+1. **Packages** altında bu `.msix` dosyasını yükleyin.
+2. Yerelde imza yoksa (`-SkipSign`) Store yükleme sırasında imzalar.
+3. Her yeni yüklemede sürümü artırın: `1.1.1.0`, `1.2.0.0` … (4. hane her zaman `0`).
+
+Detaylar: [`msix/README.md`](msix/README.md)
+
 ## Lisans
 
 Hidroteknik Yazılım — dahili kullanım.
