@@ -8,7 +8,7 @@ istatistiklerini ve küçük bir güvenlik kartını gösterir. Salt görsel bir
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QPixmap
+from PyQt6.QtGui import QColor, QImage, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -29,36 +29,57 @@ from kobipass.ui.icons import (
     icon_layers,
     icon_save,
 )
+from kobipass.ui.theme import theme_manager
 
 _STAT_ACCENT = QColor("#8296ff")
 
 
 class _BrandArt(QLabel):
-    """KobiPass resmi logosunu (logo2.png) kartın içinde oranı koruyarak,
-    ortalı gösterir; genişlikle birlikte yumuşakça ölçeklenir."""
+    """KobiPass resmi logosunu (logo3.png) kartın içinde oranı koruyarak,
+    ortalı gösterir. Amblem şeffaf zeminde açık renklidir; gece modunda (koyu
+    kart) olduğu gibi, gündüz modunda (açık kart) rengi ters çevrilmiş koyu
+    haliyle kullanılır ki her iki temada da okunur olsun."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._source = QPixmap(str(asset_path("logo3.png")))
+        base = QPixmap(str(asset_path("logo3.png")))
+        self._light_logo = base  # açık amblem → koyu kart (gece)
+        self._dark_logo = self._invert_rgb(base)  # koyu amblem → açık kart (gündüz)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
         self.setMinimumHeight(140)
+        theme_manager.theme_changed.connect(self._rescale)
+
+    @staticmethod
+    def _invert_rgb(pixmap: QPixmap) -> QPixmap:
+        """RGB'yi ters çevirir (alfa korunur → şeffaflık bozulmaz)."""
+        if pixmap.isNull():
+            return pixmap
+        image = pixmap.toImage().convertToFormat(
+            QImage.Format.Format_ARGB32
+        )
+        image.invertPixels(QImage.InvertMode.InvertRgb)
+        return QPixmap.fromImage(image)
+
+    def _current_source(self) -> QPixmap:
+        return self._light_logo if theme_manager.is_dark() else self._dark_logo
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         self._rescale()
 
     def _rescale(self) -> None:
-        if self._source.isNull():
+        source = self._current_source()
+        if source.isNull():
             return
         side = int(min(self.width(), self.height()) * 0.86)
         if side < 8:
             return
         super().setPixmap(
-            self._source.scaled(
+            source.scaled(
                 side,
                 side,
                 Qt.AspectRatioMode.KeepAspectRatio,

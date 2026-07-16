@@ -2367,13 +2367,13 @@ QFrame#summarySecurityCard {
 }
 
 QFrame#summarySecurityCardArt {
-    background-color: #0a0e1a;
+    background-color: #eef2ff;
     border: 1px solid #cbd5f0;
     border-radius: 14px;
 }
 
 QFrame#summarySecurityCardArt QLabel#summarySecurityText {
-    color: #b9c5df;
+    color: #3e4d70;
 }
 
 QLabel#summarySecurityArt {
@@ -3085,7 +3085,7 @@ QWidget#copyGroup QToolButton#fieldMenuBtn::menu-indicator {
 }
 
 QMenu {
-    background-color: #1f2937;
+    background-color: #ffffff;
     color: #1f2937;
     border: 1px solid #dde3f0;
     border-radius: 6px;
