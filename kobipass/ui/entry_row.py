@@ -824,16 +824,20 @@ class EntryRowWidget(QWidget):
             self._field_step_column, 0, Qt.AlignmentFlag.AlignTop
         )
 
-        self._scroll.setWidget(self._extras_host)
-        row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
-
-        # Parola tazeliği: son değişiklik tarihi, satırın sağında sabit durur
-        # (kaydırmayla kaymaz). Renk yaşa göre değişir; boşsa gizli.
+        # Parola tazeliği: son değişiklik tarihi. Sabit sağda değil, kaydırılan
+        # alanın İÇİNDE, en sağdaki hücrenin ('+' düğmesinin) hemen yanında
+        # durur; yeni hücre eklendikçe onunla birlikte sağa kayar. Renk yaşa
+        # göre değişir; boşsa gizli.
         self._age_label = QLabel()
         self._age_label.setObjectName("rowAgeLabel")
         self._age_label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self._age_label.setVisible(False)
-        row.addWidget(self._age_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._extras_layout.addWidget(
+            self._age_label, 0, Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self._scroll.setWidget(self._extras_host)
+        row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
 
         self.retranslate()
 
