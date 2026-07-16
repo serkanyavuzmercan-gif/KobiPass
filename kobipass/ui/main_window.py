@@ -945,8 +945,16 @@ class MainWindow(QMainWindow):
     def _on_lock_home(self) -> None:
         """Kilitliyken 'Ana ekrana dön': oturumu bırakıp karşılamaya döner.
 
-        Kaydedilmemiş değişiklik varsa uyarır (kilitliyken içerik görünmez ama
-        veri kaybı olmaması için sorulur)."""
+        GÜVENLİK: Normal kilitte (anahtar var) kaydedilmemiş değişiklikler
+        ATILAMAZ — önce kilit açılmalı. Böylece kasa kilitliyken masaya gelen
+        biri bu düğmeyle sahibinin çalışmasını silemez. Anahtarın olmadığı
+        dejenere durumda kilit zaten açılamayacağı için kullanıcıyı
+        hapsetmemek adına eski onaylı-atma akışına düşülür."""
+        keys = getattr(self._session, "keys", None)
+        if self._kilitli_mi and self._dirty and keys is not None:
+            self._lock_overlay.show_error(tr("lock_unlock_first"))
+            self._lock_overlay.focus_password()
+            return
         if self._dirty and not self._confirm_discard():
             return
         self._kilitli_mi = False
@@ -2135,6 +2143,22 @@ class MainWindow(QMainWindow):
         )
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        # GÜVENLİK: Kilitliyken kaydedilmemiş değişiklik varken kapatmayı
+        # ENGELLE. Aksi halde kasa kilitliyken masaya gelen, kimliği
+        # doğrulanmamış biri 'Kaydetmeden çık' ile sahibinin çalışmasını
+        # silebilir (ya da rızası olmadan kaydedebilir). Kaydet/çık kararı
+        # yalnızca kilidi açan sahibe aittir. (Anahtar yoksa kilit açılamaz;
+        # o dejenere durumda kullanıcıyı hapsetmemek için normal akışa düşülür.)
+        if (
+            self._kilitli_mi
+            and self._dirty
+            and getattr(self._session, "keys", None) is not None
+        ):
+            event.ignore()
+            self._lock_overlay.show_error(tr("lock_unlock_first"))
+            self._lock_overlay.raise_()
+            self._lock_overlay.focus_password()
+            return
         if self._dirty:
             box = QMessageBox(self)
             box.setWindowIcon(app_icon())
