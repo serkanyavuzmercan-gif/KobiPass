@@ -178,6 +178,17 @@ QWidget#fieldStepColumn {
     background-color: transparent;
 }
 
+/* Sürükle-bırak ekleme göstergeleri (satır ve sekme) — parlak ki bitişik
+   mavi aktif çip/öğe yanında bile net bir 'ekleme imleci' olarak okunsun. */
+QFrame#rowDropMarker {
+    background-color: #9db4ff;
+    border-radius: 1px;
+}
+QFrame#tabDropMarker {
+    background-color: #9db4ff;
+    border-radius: 1px;
+}
+
 QToolButton#addFieldBtn,
 QToolButton#removeFieldBtn {
     background-color: #2d3340;
@@ -2275,6 +2286,16 @@ QWidget#entryExtrasHost {
 
 QWidget#fieldStepColumn {
     background-color: transparent;
+}
+
+/* Sürükle-bırak ekleme göstergeleri (satır ve sekme) */
+QFrame#rowDropMarker {
+    background-color: #3b5bfd;
+    border-radius: 1px;
+}
+QFrame#tabDropMarker {
+    background-color: #3b5bfd;
+    border-radius: 1px;
 }
 
 QToolButton#addFieldBtn,

@@ -10,7 +10,7 @@ sinyallerle ana pencereyi haberdar eder.
 from __future__ import annotations
 
 from PyQt6.QtCore import QMimeData, QPoint, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QDrag, QMouseEvent
+from PyQt6.QtGui import QColor, QDrag, QMouseEvent, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
@@ -27,6 +27,22 @@ from kobipass.ui.icons import icon_lock, icon_plus
 
 # Sürükle-bırak ile sekme sıralama için MIME türü.
 _TAB_MIME = "application/x-kobipass-tab"
+
+
+def _drag_pixmap(widget: QWidget, opacity: float = 0.85) -> QPixmap:
+    """Sürükleme sırasında imlecin altında taşınan yarı saydam görüntü.
+
+    Ham `grab()` tam opak ve sert görünür; hafif saydamlık sürüklenen öğeyi
+    'kaldırılmış' hissettirip profesyonel bir dokunuş verir."""
+    src = widget.grab()
+    pm = QPixmap(src.size())
+    pm.setDevicePixelRatio(src.devicePixelRatio())
+    pm.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pm)
+    painter.setOpacity(opacity)
+    painter.drawPixmap(0, 0, src)
+    painter.end()
+    return pm
 
 
 class _TabChip(QPushButton):
@@ -122,7 +138,7 @@ class _TabChip(QPushButton):
                 mime = QMimeData()
                 mime.setData(_TAB_MIME, self._tab_id.encode("utf-8"))
                 drag.setMimeData(mime)
-                drag.setPixmap(self.grab())
+                drag.setPixmap(_drag_pixmap(self))
                 drag.setHotSpot(event.position().toPoint())
                 drag.exec(Qt.DropAction.MoveAction)
                 self._press_pos = None
@@ -154,29 +170,62 @@ class _TabChip(QPushButton):
 
 
 class _ChipsHost(QWidget):
-    """Çipleri taşıyan şerit; sürüklenen sekmenin bırakıldığı konumu hesaplar."""
+    """Çipleri taşıyan şerit; sürüklenen sekmenin bırakılacağı konumu hesaplar
+    ve o konumu dikey bir 'ekleme çizgisi' ile net biçimde gösterir."""
 
     reorder_requested = pyqtSignal(str, int)  # kaynak_id, hedef_index
 
-    def dragEnterEvent(self, event) -> None:  # noqa: N802
-        if event.mimeData().hasFormat(_TAB_MIME):
-            event.acceptProposedAction()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        # Bırakma göstergesi: çipler arasında beliren ince dikey çizgi. Düzene
+        # dahil değildir; sürükleme sırasında elle konumlanır.
+        self._marker = QFrame(self)
+        self._marker.setObjectName("tabDropMarker")
+        self._marker.hide()
 
-    def dragMoveEvent(self, event) -> None:  # noqa: N802
-        if event.mimeData().hasFormat(_TAB_MIME):
-            event.acceptProposedAction()
-
-    def dropEvent(self, event) -> None:  # noqa: N802
-        if not event.mimeData().hasFormat(_TAB_MIME):
-            return
-        source_id = bytes(event.mimeData().data(_TAB_MIME)).decode("utf-8")
-        x = int(event.position().x())
+    def _insert_index_at(self, x: int) -> tuple[int, list["_TabChip"]]:
         chips = sorted(self.findChildren(_TabChip), key=lambda c: c.x())
         insert_index = len(chips)
         for i, chip in enumerate(chips):
             if x < chip.x() + chip.width() / 2:
                 insert_index = i
                 break
+        return insert_index, chips
+
+    def _show_marker(self, x: int) -> None:
+        insert_index, chips = self._insert_index_at(x)
+        if not chips:
+            self._marker.hide()
+            return
+        if insert_index < len(chips):
+            mx = chips[insert_index].x() - 4
+        else:
+            last = chips[-1]
+            mx = last.x() + last.width() + 1
+        mx = max(0, mx)
+        self._marker.setGeometry(mx, 2, 3, max(2, self.height() - 4))
+        self._marker.show()
+        self._marker.raise_()
+
+    def dragEnterEvent(self, event) -> None:  # noqa: N802
+        if event.mimeData().hasFormat(_TAB_MIME):
+            self._show_marker(int(event.position().x()))
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event) -> None:  # noqa: N802
+        if event.mimeData().hasFormat(_TAB_MIME):
+            self._show_marker(int(event.position().x()))
+            event.acceptProposedAction()
+
+    def dragLeaveEvent(self, event) -> None:  # noqa: N802
+        self._marker.hide()
+
+    def dropEvent(self, event) -> None:  # noqa: N802
+        self._marker.hide()
+        if not event.mimeData().hasFormat(_TAB_MIME):
+            return
+        source_id = bytes(event.mimeData().data(_TAB_MIME)).decode("utf-8")
+        insert_index, _ = self._insert_index_at(int(event.position().x()))
         event.acceptProposedAction()
         self.reorder_requested.emit(source_id, insert_index)
 

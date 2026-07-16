@@ -6,7 +6,15 @@ Tek vault kaydı satırı — İsim sabit; 1. Bilgi ve ek alanlar yatay scroll i
 from __future__ import annotations
 
 from PyQt6.QtCore import QMimeData, QPoint, QTimer, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QDrag, QKeySequence, QMouseEvent, QShortcut, QWheelEvent
+from PyQt6.QtGui import (
+    QDrag,
+    QKeySequence,
+    QMouseEvent,
+    QPainter,
+    QPixmap,
+    QShortcut,
+    QWheelEvent,
+)
 from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
@@ -55,6 +63,22 @@ _GENERATE_SHORTCUT = QKeySequence("Ctrl+G")
 _DELETE_SHORTCUT = QKeySequence("Ctrl+Shift+Delete")
 
 _active_copy_field: "CompactField | None" = None
+
+
+def _drag_pixmap(widget: QWidget, opacity: float = 0.85) -> QPixmap:
+    """Sürükleme sırasında imlecin altında taşınan yarı saydam görüntü.
+
+    Ham `grab()` tam opak ve sert görünür; hafif saydamlık sürüklenen satırı
+    'kaldırılmış' hissettirir."""
+    src = widget.grab()
+    pixmap = QPixmap(src.size())
+    pixmap.setDevicePixelRatio(src.devicePixelRatio())
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setOpacity(opacity)
+    painter.drawPixmap(0, 0, src)
+    painter.end()
+    return pixmap
 
 
 def _notify_copied(source: QWidget, field_label: str, has_text: bool) -> None:
@@ -1076,6 +1100,12 @@ class EntryRowWidget(QWidget):
         mime = QMimeData()
         mime.setData(ROW_MIME, str(self.vault_index).encode("utf-8"))
         drag.setMimeData(mime)
+        # Yarı saydam satır hayaleti; tutamağın hizasından tutulmuş gibi taşınır.
+        pixmap = _drag_pixmap(self)
+        drag.setPixmap(pixmap)
+        drag.setHotSpot(
+            QPoint(self._drag_handle.x() + 10, pixmap.height() // 2)
+        )
         drag.exec(Qt.DropAction.MoveAction)
 
     def set_sensitive_shown(self, shown: bool) -> None:

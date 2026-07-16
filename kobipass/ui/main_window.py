@@ -168,20 +168,49 @@ class EntriesHost(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setAcceptDrops(True)
+        # Bırakma göstergesi: satırların arasında beliren ince yatay çizgi.
+        # Düzene dahil değildir; sürükleme sırasında elle konumlanır.
+        self._marker = QFrame(self)
+        self._marker.setObjectName("rowDropMarker")
+        self._marker.hide()
+
+    def _show_marker(self, pos) -> None:
+        rows = sorted(
+            (w for w in self.findChildren(EntryRowWidget) if w.isVisible()),
+            key=lambda w: w.y(),
+        )
+        if not rows:
+            self._marker.hide()
+            return
+        y = pos.y()
+        marker_y = rows[-1].geometry().bottom() + 1
+        for row in rows:
+            if y < row.y() + row.height() / 2:
+                marker_y = max(0, row.y() - 2)
+                break
+        self._marker.setGeometry(6, marker_y, max(2, self.width() - 12), 3)
+        self._marker.show()
+        self._marker.raise_()
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
         if event.mimeData().hasFormat(ROW_MIME):
+            self._show_marker(event.position().toPoint())
             event.acceptProposedAction()
         else:
             event.ignore()
 
     def dragMoveEvent(self, event) -> None:  # noqa: N802
         if event.mimeData().hasFormat(ROW_MIME):
+            self._show_marker(event.position().toPoint())
             event.acceptProposedAction()
         else:
             event.ignore()
 
+    def dragLeaveEvent(self, event) -> None:  # noqa: N802
+        self._marker.hide()
+
     def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802
+        self._marker.hide()
         if event.mimeData().hasFormat(ROW_MIME):
             self.row_drop.emit(event)
             event.acceptProposedAction()
