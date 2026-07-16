@@ -34,7 +34,12 @@ from kobipass.clipboard import copy_text
 from kobipass.i18n import tr
 from kobipass.permissions import can_copy, can_edit, can_view
 from kobipass.ui.icons import icon_copy, icon_eye, icon_eye_off, icon_key, icon_more
-from kobipass.vault_model import FieldLevel, UserPermissions, VaultEntry
+from kobipass.vault_model import (
+    FieldLevel,
+    UserPermissions,
+    VaultEntry,
+    new_entry_uid,
+)
 
 ROW_MIME = "application/x-kobipass-row-index"
 
@@ -729,6 +734,9 @@ class EntryRowWidget(QWidget):
         self._can_reorder = False
         self._view_only = False
         self._pw_updated_at = ""
+        # Kararlı kayıt kimliği: audit farkı sıradan bağımsız olsun diye satırla
+        # taşınır (yeni satır taze uid; load_entry ile kayıttan gelen uid).
+        self._uid = new_entry_uid()
         self._permissions = UserPermissions()
         self._extra_fields: list[CompactField] = []
         self._field_labels: dict[str, str] = {}
@@ -1140,12 +1148,14 @@ class EntryRowWidget(QWidget):
             info1=self._info1.text(),
             more_infos=[field.text() for field in self._extra_fields],
             pw_updated_at=self._pw_updated_at,
+            uid=self._uid,
         )
 
     def load_entry(self, entry: VaultEntry) -> None:
         self._name.setText(entry.name)
         self._info1.setText(entry.info1)
         self._pw_updated_at = entry.pw_updated_at
+        self._uid = entry.uid or new_entry_uid()
         self._clear_extra_fields()
         for value in entry.more_infos:
             self._add_extra_field(initial_text=value, block_signals=True)

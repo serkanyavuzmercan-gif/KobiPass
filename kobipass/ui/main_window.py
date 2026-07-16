@@ -1172,13 +1172,14 @@ class MainWindow(QMainWindow):
         event.ignore()
 
     def _handle_row_drop(self, event: QDropEvent) -> None:
-        # Sürükle-bırak sıralama yalnızca yönetici: satır sırası indeks bazlı
-        # audit karşılaştırmasını bozup sahte "değişti" kayıtları üretir.
-        if (
-            self._vault is None
-            or not isinstance(self._session, AdminSession)
-            or self._kilitli_mi
-        ):
+        # Sıralama: yönetici + kaydı değiştirme yetkisi olan alt kullanıcılar.
+        # (Audit farkı artık KİMLİK bazlı olduğundan yeniden sıralama sahte
+        # "değişti" kaydı üretmez; sıra değişimi tek bir kayıtla belirtilir.)
+        perms = self._row_permissions()
+        can_reorder = isinstance(self._session, AdminSession) or bool(
+            perms and perms.can_mutate()
+        )
+        if self._vault is None or not can_reorder or self._kilitli_mi:
             return
         raw = bytes(event.mimeData().data(ROW_MIME)).decode("utf-8")
         try:

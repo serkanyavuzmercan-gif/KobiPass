@@ -487,6 +487,56 @@ def test_audit_masks_sensitive_fields(tmp_path: Path) -> None:
     assert "•" in mask_audit_value("secret", "info1")
 
 
+def _diff_session() -> UserSession:
+    # diff_entries_for_audit yalnızca slot/label kullanır; keys gerekmez.
+    return UserSession(
+        user_slot=1, user_label="U1", user_password="p", keys=None
+    )
+
+
+def test_audit_reorder_is_not_counted_as_field_edits() -> None:
+    """Yeniden sıralama sahte 'değişti' üretmez; tek bir 'sıra değiştirildi'
+    kaydı düşer. (Kimlik/uid bazlı eşleştirmenin amacı budur.)"""
+    a = VaultEntry(name="A", info1="pa", uid="uidA")
+    b = VaultEntry(name="B", info1="pb", uid="uidB")
+    old = [a, b]
+    # Aynı kayıtlar (aynı uid), yalnızca sıra ters.
+    new = [
+        VaultEntry(name="B", info1="pb", uid="uidB"),
+        VaultEntry(name="A", info1="pa", uid="uidA"),
+    ]
+    perms = UserPermissions(name="write", info="write")
+    logs = diff_entries_for_audit(old, new, _diff_session(), perms)
+    assert not [item for item in logs if item.action == "field_edit"]
+    assert len([item for item in logs if item.action == "reorder"]) == 1
+    assert len([item for item in logs if item.action == "vault_save"]) == 1
+
+
+def test_audit_real_edit_still_logged_without_reorder() -> None:
+    old = [VaultEntry(name="A", info1="pa", uid="uidA")]
+    new = [VaultEntry(name="A-yeni", info1="pa", uid="uidA")]
+    perms = UserPermissions(name="write", info="write")
+    logs = diff_entries_for_audit(old, new, _diff_session(), perms)
+    name_edits = [
+        item
+        for item in logs
+        if item.action == "field_edit" and item.field == "name"
+    ]
+    assert len(name_edits) == 1
+    assert not [item for item in logs if item.action == "reorder"]
+
+
+def test_entry_uid_roundtrip_and_migration() -> None:
+    e = VaultEntry(name="A", info1="x", uid="fixed-uid")
+    assert e.to_dict()["uid"] == "fixed-uid"
+    assert VaultEntry.from_dict(e.to_dict()).uid == "fixed-uid"
+    # Eski dosya (uid yok) → taze, boş olmayan bir kimlik atanır.
+    migrated = VaultEntry.from_dict({"name": "B", "info1": "y"})
+    assert migrated.uid
+    # İçerik eşitliği uid'den bağımsızdır (compare=False).
+    assert VaultEntry(name="A", uid="x") == VaultEntry(name="A", uid="y")
+
+
 def test_no_export_module() -> None:
     """Güvenlik: dışa aktarma özelliği kaldırıldı — geri gelmediğini doğrula."""
     import importlib.util

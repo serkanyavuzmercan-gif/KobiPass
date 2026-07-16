@@ -97,15 +97,20 @@ def diff_entries_for_audit(
     permissions: UserPermissions,
     vault: KobiVault | None = None,
 ) -> list[AuditEntry]:
-    """Kullanıcı kaydında değişen alanları audit kaydına çevirir."""
+    """Kullanıcı kaydında değişen alanları audit kaydına çevirir.
+
+    Kayıtlar İNDEKSE göre değil KİMLİĞE (uid) göre eşleştirilir; böylece bir
+    yeniden sıralama, taşınan her satırı sahte 'değişti' saymaz. Yalnızca
+    gerçek alan düzenlemeleri, eklemeler ve silmeler kaydedilir; sıra değişimi
+    ayrı ve tek bir 'sıra değiştirildi' kaydıyla belirtilir.
+    """
     logs: list[AuditEntry] = []
-    pair_count = max(len(old_entries), len(new_entries))
+    old_by_uid = {e.uid: e for e in old_entries}
+    new_by_uid = {e.uid: e for e in new_entries}
+    empty = VaultEntry(name="")
 
-    for index in range(pair_count):
-        old = old_entries[index] if index < len(old_entries) else VaultEntry(name="")
-        new = new_entries[index] if index < len(new_entries) else VaultEntry(name="")
+    def diff_pair(old: VaultEntry, new: VaultEntry) -> None:
         entry_name = new.name or old.name or tr("audit_unknown_entry")
-
         field_names = set(_entry_field_names(old)) | set(_entry_field_names(new))
         for field_name in sorted(field_names, key=_field_sort_key):
             if field_name == "name":
@@ -144,6 +149,33 @@ def diff_entries_for_audit(
                     new_value=stored_new,
                 )
             )
+
+    # Eklenen + düzenlenen kayıtlar (yeni listedeki sırayla).
+    for new in new_entries:
+        diff_pair(old_by_uid.get(new.uid, empty), new)
+    # Silinen kayıtlar (eski listede olup yenide olmayan).
+    for old in old_entries:
+        if old.uid not in new_by_uid:
+            diff_pair(old, empty)
+
+    # Sıra değişimi: yalnızca her iki listede de bulunan kayıtların göreli
+    # sırası değiştiyse tek bir kayıt düş.
+    old_order = [e.uid for e in old_entries if e.uid in new_by_uid]
+    new_order = [e.uid for e in new_entries if e.uid in old_by_uid]
+    if old_order and old_order != new_order:
+        logs.append(
+            AuditEntry(
+                at=utc_now_iso(),
+                user_slot=session.user_slot,
+                user_label=session.user_label,
+                action="reorder",
+                entry_name="",
+                field="",
+                summary=tr("audit_reordered"),
+                old_value="",
+                new_value="",
+            )
+        )
 
     if logs:
         logs.append(

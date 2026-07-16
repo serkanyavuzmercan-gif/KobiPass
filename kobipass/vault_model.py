@@ -24,6 +24,16 @@ DEFAULT_TAB_NAME = "Sekme"
 def new_tab_id() -> str:
     """Sekmeler için kararlı benzersiz kimlik (izin/audit/sıralama için)."""
     return uuid.uuid4().hex
+
+
+def new_entry_uid() -> str:
+    """Kayıtlar için kararlı benzersiz kimlik.
+
+    Audit farkının SIRADAN bağımsız olması için gerekir: kayıtlar yeniden
+    sıralandığında (indeks değişince) sahte 'değişti' kayıtları üretmemek için
+    eski/yeni kayıtlar bu kimlikle eşleştirilir.
+    """
+    return uuid.uuid4().hex
 DEFAULT_FIELD_LABELS: dict[str, str] = {
     "name": "",
     "info1": "",
@@ -49,6 +59,11 @@ class VaultEntry:
     more_infos: list[str] = field(default_factory=list)
     # info1 (parola) en son ne zaman değişti — ISO 8601 UTC; boş = bilinmiyor.
     pw_updated_at: str = ""
+    # Kararlı kimlik: audit farkının sıradan bağımsız olması için. İçerik
+    # eşitliğini etkilemesin diye compare=False (iki kayıt aynı içerikteyse
+    # farklı uid'e rağmen eşit sayılır — mevcut test/karşılaştırma semantiği
+    # korunur).
+    uid: str = field(default_factory=new_entry_uid, compare=False)
 
     @property
     def info2(self) -> str:
@@ -68,6 +83,7 @@ class VaultEntry:
             data[f"info{index}"] = value
         if self.pw_updated_at:
             data["pw_updated_at"] = self.pw_updated_at
+        data["uid"] = self.uid
         return data
 
     @classmethod
@@ -77,11 +93,14 @@ class VaultEntry:
         while f"info{index}" in data:
             more.append(str(data.get(f"info{index}", "")))
             index += 1
+        # Eski dosyalarda uid yok → göç: taze bir kimlik ata.
+        uid = str(data.get("uid", "")) or new_entry_uid()
         return cls(
             name=str(data.get("name", "")),
             info1=str(data.get("info1", "")),
             more_infos=more,
             pw_updated_at=str(data.get("pw_updated_at", "")),
+            uid=uid,
         )
 
     def field_value(self, field_name: str) -> str:
