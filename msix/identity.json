@@ -1,7 +1,10 @@
 {
-  "PackageName": "MercanSoftware.KobiPass",
-  "Publisher": "CN=Mercan Software",
-  "PublisherDisplayName": "Mercan Software",
+  "PackageName": "Hidroteknik.KobiPass",
+  "Publisher": "CN=119D3611-306D-4F5E-B28C-3904B4C07374",
+  "PublisherDisplayName": "Hidroteknik",
   "DisplayName": "KobiPass",
-  "_NOT": "Publisher (CN=...) ve PackageName degerlerini Partner Center > Urun Kimligi (Product Identity) sayfasindaki GERCEK degerlerle degistirin; aksi halde Store paketi reddedilir. StoreId/PackageFamilyName gibi alanlar da oradan alinir."
+  "PackageFamilyName": "Hidroteknik.KobiPass_6pstm0akswvb8",
+  "StoreId": "9NV97JWHB0LN",
+  "StoreUrl": "https://apps.microsoft.com/detail/9NV97JWHB0LN",
+  "_NOTE": "Partner Center Product Identity degerleri. PackageName + Publisher + PublisherDisplayName manifestte kullanilir; StoreId/PFN referans icindir."
 }

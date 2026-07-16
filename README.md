@@ -54,10 +54,12 @@ cd C:\path\to\KobiPass   # repo kökü
 # Windows SDK yoksa (makeappx için):
 # winget install --id Microsoft.WindowsSDK.10.0.18362 --accept-package-agreements --accept-source-agreements
 
-# Partner Center kimliğini kontrol et (msix\identity.json)
-# PackageName + Publisher (CN=...) gerçek Product Identity ile aynı olmalı
+# Partner Center Product Identity (msix\identity.json icinde sabittir):
+#   Name: Hidroteknik.KobiPass
+#   Publisher: CN=119D3611-306D-4F5E-B28C-3904B4C07374
+#   PublisherDisplayName: Hidroteknik
 
-# Store paketi üret (4. hane / revision her zaman 0)
+# Store paketi uret (4. hane / revision her zaman 0)
 .\build_msix.ps1 -Version 1.1.0.0 -SkipSign
 ```
 
