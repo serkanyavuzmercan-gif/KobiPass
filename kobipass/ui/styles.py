@@ -642,6 +642,61 @@ QToolButton#vaultTabAddBtn:hover {
     background-color: #1e2740;
 }
 
+/* Kilit örtüsü */
+QWidget#lockOverlay {
+    background-color: rgba(6, 10, 18, 0.86);
+}
+QFrame#lockCard {
+    background-color: #121a2b;
+    border: 1px solid #26344d;
+    border-radius: 14px;
+}
+QLabel#lockCardTitle {
+    color: #eef2fb;
+    font-size: 18px;
+    font-weight: 700;
+}
+QLabel#lockCardSubtitle {
+    color: #9aa7c2;
+    font-size: 12px;
+}
+QLineEdit#lockPwd {
+    background-color: #0d1420;
+    border: 1px solid #2a3a56;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #eef2fb;
+    font-size: 13px;
+}
+QLineEdit#lockPwd:focus {
+    border-color: #4b68f4;
+}
+QLabel#lockError {
+    color: #f08080;
+    font-size: 12px;
+}
+QPushButton#lockUnlockBtn {
+    background-color: #3b5bfd;
+    color: #ffffff;
+    border: none;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: 13px;
+}
+QPushButton#lockUnlockBtn:hover {
+    background-color: #4b68f4;
+}
+QPushButton#lockHomeBtn {
+    background: transparent;
+    border: none;
+    color: #8f9bb3;
+    font-size: 12px;
+}
+QPushButton#lockHomeBtn:hover {
+    color: #cdd6e6;
+    text-decoration: underline;
+}
+
 QScrollArea#vaultTabScroll QScrollBar:horizontal {
     height: 5px;
     background: transparent;
@@ -2544,6 +2599,61 @@ QToolButton#vaultTabAddBtn {
 
 QToolButton#vaultTabAddBtn:hover {
     background-color: #e4eaf7;
+}
+
+/* Kilit örtüsü */
+QWidget#lockOverlay {
+    background-color: rgba(224, 231, 245, 0.88);
+}
+QFrame#lockCard {
+    background-color: #ffffff;
+    border: 1px solid #d3ddf0;
+    border-radius: 14px;
+}
+QLabel#lockCardTitle {
+    color: #16223d;
+    font-size: 18px;
+    font-weight: 700;
+}
+QLabel#lockCardSubtitle {
+    color: #5a6580;
+    font-size: 12px;
+}
+QLineEdit#lockPwd {
+    background-color: #f4f7fc;
+    border: 1px solid #c9d5ec;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #16223d;
+    font-size: 13px;
+}
+QLineEdit#lockPwd:focus {
+    border-color: #4b68f4;
+}
+QLabel#lockError {
+    color: #c0392b;
+    font-size: 12px;
+}
+QPushButton#lockUnlockBtn {
+    background-color: #3b5bfd;
+    color: #ffffff;
+    border: none;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: 13px;
+}
+QPushButton#lockUnlockBtn:hover {
+    background-color: #4b68f4;
+}
+QPushButton#lockHomeBtn {
+    background: transparent;
+    border: none;
+    color: #6b7690;
+    font-size: 12px;
+}
+QPushButton#lockHomeBtn:hover {
+    color: #16223d;
+    text-decoration: underline;
 }
 
 QScrollArea#vaultTabScroll QScrollBar:horizontal {

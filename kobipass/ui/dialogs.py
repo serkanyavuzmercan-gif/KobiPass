@@ -29,6 +29,7 @@ from kobipass.i18n import MIN_PASSWORD_LENGTH, i18n, tr
 from kobipass.resources import app_icon
 from kobipass.ui.strength import attach_strength_label
 from kobipass.ui.user_admin_dialog import (
+    _NAME_PERM_LEVELS,
     _action_permission_block,
     _field_permission_block,
     _password_edit,
@@ -204,7 +205,7 @@ class SetupVaultDialog(QDialog):
         fields_row = QHBoxLayout()
         fields_row.setSpacing(8)
         name_block, perm_name = _field_permission_block(
-            "perm_name_label", "perm_name_desc", defaults.name
+            "perm_name_label", "perm_name_desc", defaults.name, _NAME_PERM_LEVELS
         )
         info_block, perm_info = _field_permission_block(
             "perm_info_label", "perm_info_desc", defaults.info

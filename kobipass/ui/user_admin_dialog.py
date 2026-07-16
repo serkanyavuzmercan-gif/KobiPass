@@ -40,6 +40,14 @@ _PERM_LEVELS: list[tuple[str, FieldLevel]] = [
     ("perm_write", "write"),
 ]
 
+# Kayıt adları hiçbir zaman gizlenmez/maskelenmez: ad, kaydı tanımlayan
+# etikettir. Bu yüzden 'İsim' alanı yalnızca Görür / Değiştirir sunar
+# ('Görmez' ve 'Maskeli' seçenekleri kaldırıldı).
+_NAME_PERM_LEVELS: list[tuple[str, FieldLevel]] = [
+    ("perm_read", "read"),
+    ("perm_write", "write"),
+]
+
 
 def _password_edit(placeholder: str = "") -> QLineEdit:
     """Sağ kenarında göz düğmesi olan parola kutusu."""
@@ -63,11 +71,18 @@ def _password_edit(placeholder: str = "") -> QLineEdit:
     return edit
 
 
-def _perm_combo(current: FieldLevel) -> QComboBox:
+def _perm_combo(
+    current: FieldLevel,
+    levels: list[tuple[str, FieldLevel]] = _PERM_LEVELS,
+) -> QComboBox:
     combo = QComboBox()
-    for label_key, value in _PERM_LEVELS:
+    for label_key, value in levels:
         combo.addItem(tr(label_key), value)
     idx = combo.findData(current)
+    if idx < 0:
+        # Eski kasada 'İsim' için 'Görmez/Maskeli' seçilmişse artık sunulmuyor;
+        # en yakın geçerli seviyeye (Görür) düş.
+        idx = combo.findData("read")
     if idx >= 0:
         combo.setCurrentIndex(idx)
     return combo
@@ -77,6 +92,7 @@ def _field_permission_block(
     title_key: str,
     description_key: str,
     current: FieldLevel,
+    levels: list[tuple[str, FieldLevel]] = _PERM_LEVELS,
 ) -> tuple[QWidget, QComboBox]:
     block = QWidget()
     block.setObjectName("permissionBlock")
@@ -86,10 +102,10 @@ def _field_permission_block(
     top = QHBoxLayout()
     title = QLabel(tr(title_key))
     title.setObjectName("permissionTitle")
-    combo = _perm_combo(current)
-    combo.setMinimumWidth(190)
     top.addWidget(title)
     top.addStretch()
+    combo = _perm_combo(current, levels)
+    combo.setMinimumWidth(190)
     top.addWidget(combo)
     description = QLabel(tr(description_key))
     description.setObjectName("permissionDescription")
@@ -307,7 +323,7 @@ class UserAdminDialog(QDialog):
         fields_row = QHBoxLayout()
         fields_row.setSpacing(8)
         name_block, perm_name = _field_permission_block(
-            "perm_name_label", "perm_name_desc", perms.name
+            "perm_name_label", "perm_name_desc", perms.name, _NAME_PERM_LEVELS
         )
         info_block, perm_info = _field_permission_block(
             "perm_info_label", "perm_info_desc", perms.info

@@ -69,13 +69,13 @@ from kobipass.ui.audit_log_dialog import AuditLogDialog
 from kobipass.ui.dialogs import (
     OpenPasswordDialog,
     SetupVaultDialog,
-    UnlockDialog,
     show_error,
     show_info,
     show_restriction as show_restriction_dialog,
 )
 from kobipass.ui.entry_row import ROW_MIME, EntryRowWidget
 from kobipass.ui.landing_page import LandingPage
+from kobipass.ui.lock_overlay import LockOverlay
 from kobipass.ui.security_dialog import SecurityDialog
 from kobipass.ui.vault_summary_panel import VaultSummaryPanel
 from kobipass.backup import (
@@ -302,6 +302,13 @@ class MainWindow(QMainWindow):
 
         self._stacked_widget = QStackedWidget()
         outer.addWidget(self._stacked_widget, stretch=1)
+
+        # Kilit örtüsü: çalışma alanının üzerini tam kapatır (başlık çubuğu
+        # açıkta kalır → kapat/küçült çalışır). Başlangıçta gizli.
+        self._lock_overlay = LockOverlay(central)
+        self._lock_overlay.unlock_requested.connect(self._on_lock_unlock)
+        self._lock_overlay.home_requested.connect(self._on_lock_home)
+        self._lock_overlay.hide()
 
         self._landing_page = LandingPage()
         self._stacked_widget.addWidget(self._landing_page)
@@ -786,6 +793,11 @@ class MainWindow(QMainWindow):
             # show sonrası oran kilidini yenile (restore sonrası vs.)
             self._title_bar.apply_screen_ratio_geometry(recenter=False)
             self._title_bar.capture_normal_geometry()
+        self._position_lock_overlay()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._position_lock_overlay()
 
     def changeEvent(self, event: QEvent) -> None:
         if event.type() == QEvent.Type.WindowStateChange:
@@ -805,27 +817,64 @@ class MainWindow(QMainWindow):
             row.set_sensitive_shown(False)
         self._update_status()
 
+    def _position_lock_overlay(self) -> None:
+        """Örtüyü çalışma alanını (stacked widget) tam kaplayacak konumla."""
+        if not hasattr(self, "_lock_overlay"):
+            return
+        self._lock_overlay.setGeometry(self._stacked_widget.geometry())
+
     def _kilit_ekranini_goster(self) -> None:
+        """Kilit örtüsünü gösterir; alttaki kasa tümüyle etkisiz olur.
+
+        Örtü açıkken tek çıkış: doğru parolayla açmak ya da ana ekrana dönmek.
+        Böylece 'iptal edip çalışmaya devam etme' mümkün değildir.
+        """
         if not self._kilitli_mi or self._session is None:
             return
-        keys = getattr(self._session, "keys", None)
-        if keys is None:
+        if getattr(self._session, "keys", None) is None:
             self._kilitli_mi = False
             return
+        # Alttaki çalışma alanını klavye/fare olaylarına karşı kapat.
+        self._stacked_widget.setEnabled(False)
+        self._lock_overlay.prepare()
+        self._position_lock_overlay()
+        self._lock_overlay.show()
+        self._lock_overlay.raise_()
+        self._lock_overlay.focus_password()
 
-        while self._kilitli_mi:
-            dlg = UnlockDialog(self)
-            if dlg.exec() != dlg.DialogCode.Accepted:
-                # Kullanıcı iptal ederse kilitli kalır; hassas alanlar gizli.
-                self._update_status()
-                return
-            password = dlg.password() or ""
-            if verify_password_against_keys(keys, password):
-                self._kilitli_mi = False
-                self._reset_idle_timer()
-                self._update_status()
-                return
-            show_error(self, tr("lock_title"), tr("lock_wrong"))
+    def _on_lock_unlock(self, password: str) -> None:
+        keys = getattr(self._session, "keys", None)
+        if keys is None:
+            self._on_lock_home()
+            return
+        if verify_password_against_keys(keys, password or ""):
+            self._kilitli_mi = False
+            self._lock_overlay.hide()
+            self._stacked_widget.setEnabled(True)
+            self._reset_idle_timer()
+            self._update_status()
+            self._apply_session_ui()
+        else:
+            self._lock_overlay.show_error(tr("lock_wrong"))
+
+    def _on_lock_home(self) -> None:
+        """Kilitliyken 'Ana ekrana dön': oturumu bırakıp karşılamaya döner.
+
+        Kaydedilmemiş değişiklik varsa uyarır (kilitliyken içerik görünmez ama
+        veri kaybı olmaması için sorulur)."""
+        if self._dirty and not self._confirm_discard():
+            return
+        self._kilitli_mi = False
+        self._lock_overlay.hide()
+        self._stacked_widget.setEnabled(True)
+        self._session = None
+        self._vault = None
+        self._current_path = None
+        self._snapshot_entries = []
+        self._pending_user_passwords = None
+        self._pending_admin_password = None
+        self._clear_dirty()
+        self._show_landing_page()
 
     def _role_label(self) -> str:
         if isinstance(self._session, UserSession):
@@ -1102,6 +1151,7 @@ class MainWindow(QMainWindow):
         self._summary_panel.retranslate()
         self._title_bar.retranslate()
         self._landing_page.retranslate()
+        self._lock_overlay.retranslate()
         self._add_bar.retranslate()
         self._empty_state.retranslate()
         for row in self._row_widgets:
