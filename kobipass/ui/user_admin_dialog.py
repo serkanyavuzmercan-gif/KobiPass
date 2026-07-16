@@ -151,8 +151,9 @@ class UserAdminDialog(QDialog):
         self.setWindowIcon(app_icon())
         self.setModal(True)
         self.setObjectName("userAdminDialog")
-        self.setMinimumSize(900, 560)
-        self.resize(920, 600)
+        # Tek alt kullanıcı kartı scroll'suz sığsın, izin kutuları kırpılmasın.
+        self.setMinimumSize(1060, 720)
+        self.resize(1120, 760)
         self._vault = vault
         self._enabled_flags = list(enabled_flags)
         self._passwords_changed = False
@@ -184,7 +185,7 @@ class UserAdminDialog(QDialog):
         slots_scroll.setWidgetResizable(True)
         slots_scroll.setFrameShape(QFrame.Shape.NoFrame)
         slots_scroll.setWidget(self._slots_host)
-        slots_scroll.setMinimumHeight(280)
+        slots_scroll.setMinimumHeight(500)
         slots_scroll.setStyleSheet(
             "QScrollArea { background: transparent; border: none; }"
             "QScrollArea > QWidget > QWidget { background: transparent; }"

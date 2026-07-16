@@ -61,8 +61,10 @@ class SetupVaultDialog(QDialog):
         self.setWindowIcon(app_icon())
         self.setModal(True)
         self.setObjectName("userAdminDialog")
-        self.setMinimumSize(900, 560)
-        self.resize(920, 600)
+        # Tek bir alt kullanıcı kartı (ad + parola + tekrar + Alan erişimi +
+        # İşlem yetkileri) scroll'suz sığsın, izin kutuları kırpılmasın.
+        self.setMinimumSize(1060, 720)
+        self.resize(1120, 760)
         self._result: dict | None = None
         self._slot_cards: list[dict] = []
 
@@ -97,7 +99,7 @@ class SetupVaultDialog(QDialog):
         slots_scroll.setWidgetResizable(True)
         slots_scroll.setFrameShape(QFrame.Shape.NoFrame)
         slots_scroll.setWidget(self._slots_host)
-        slots_scroll.setMinimumHeight(280)
+        slots_scroll.setMinimumHeight(500)
         slots_scroll.setStyleSheet(
             "QScrollArea { background: transparent; border: none; }"
             "QScrollArea > QWidget > QWidget { background: transparent; }"
@@ -112,7 +114,10 @@ class SetupVaultDialog(QDialog):
             self._add_user_btn, 0, Qt.AlignmentFlag.AlignLeft
         )
         left.addWidget(users_group, 1)
-        columns.addLayout(left, 3)
+        # Sol sütun geniş: alt kullanıcı kartı iki sütunlu izin bloklarını
+        # (Alan erişimi / İşlem yetkileri) kırpmadan taşısın. Sağ (Yönetici)
+        # yalnızca iki parola kutusu, dar yeter.
+        columns.addLayout(left, 5)
 
         # ── SAĞ: yönetici parola/tekrar (üstte ilk) + ortak İsim/Bilgiler ───
         right = QVBoxLayout()
