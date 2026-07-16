@@ -61,15 +61,15 @@ class _TabChip(QPushButton):
 
         # Genişliği içeriğe göre sabitle: çok sekme olunca ezilip metin
         # kırpılmasın (fazlası kaydırma çubuğuyla kayar). Font metriği QSS'ten
-        # bağımsız güvenli bir üst sınır verir.
-        width = self.fontMetrics().horizontalAdvance(name) + 26
+        # bağımsız güvenli bir üst sınır verir. (14px yatay dolgu × 2 + pay.)
+        width = self.fontMetrics().horizontalAdvance(name) + 32
         if hidden:
-            width += 18
+            width += 22  # kilit ikonu + boşluk
         if is_admin:
-            width += 22  # '×' kaldır düğmesi için pay
+            width += 24  # '×' kaldır düğmesi için pay
         self.chip_width = width
         self.setFixedWidth(width)
-        self.setFixedHeight(26)
+        self.setFixedHeight(30)
 
         self._close_btn: QToolButton | None = None
         if is_admin:
@@ -90,7 +90,7 @@ class _TabChip(QPushButton):
             size = 16
             self._close_btn.setFixedSize(size, size)
             self._close_btn.move(
-                self.width() - size - 6, (self.height() - size) // 2
+                self.width() - size - 8, (self.height() - size) // 2
             )
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:  # noqa: N802
@@ -151,12 +151,12 @@ class VaultTabBar(QWidget):
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
         self._scroll.viewport().setAutoFillBackground(False)
-        self._scroll.setFixedHeight(30)  # ince şerit
+        self._scroll.setFixedHeight(34)  # ince şerit
         self._chips_host = QWidget()
         self._chips_host.setObjectName("vaultTabChipsHost")
         self._chips_layout = QHBoxLayout(self._chips_host)
         self._chips_layout.setContentsMargins(0, 0, 0, 0)
-        self._chips_layout.setSpacing(3)
+        self._chips_layout.setSpacing(5)
         self._scroll.setWidget(self._chips_host)
         outer.addWidget(self._scroll, 1)
 
@@ -167,7 +167,7 @@ class VaultTabBar(QWidget):
         self._add_btn.setObjectName("vaultTabAddBtn")
         self._add_btn.setIcon(icon_plus(QColor("#8f9bb3"), size=15))
         self._add_btn.setAutoRaise(True)
-        self._add_btn.setFixedSize(26, 26)
+        self._add_btn.setFixedSize(28, 30)
         self._add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_btn.setToolTip(tr("tab_add_tip"))
         self._add_btn.clicked.connect(self.add_requested.emit)
@@ -217,6 +217,6 @@ class VaultTabBar(QWidget):
 
         # Host'u tam içerik genişliğinde sabitle → taşınca yatay kaydırma.
         self._chips_host.setFixedWidth(max(1, total_width))
-        self._chips_host.setFixedHeight(26)
+        self._chips_host.setFixedHeight(30)
         if self._active_chip is not None:
             self._scroll.ensureWidgetVisible(self._active_chip, 40, 0)

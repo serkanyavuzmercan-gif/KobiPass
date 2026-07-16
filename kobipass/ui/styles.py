@@ -593,36 +593,38 @@ QWidget#vaultTabChipsHost {
 }
 
 QPushButton#vaultTabChip {
-    background-color: #0e131d;
-    color: #7a869e;
-    border: 1px solid #1f2a3d;
-    border-radius: 6px;
-    padding: 0px 11px;
-    font-size: 11px;
+    background-color: #131a29;
+    color: #8b98b4;
+    border: 1px solid #253248;
+    border-radius: 8px;
+    padding: 0px 14px;
+    font-size: 12px;
     font-weight: 600;
+    text-align: center;
 }
 
 QPushButton#vaultTabChip:hover {
-    background-color: #172033;
-    color: #cdd6e6;
+    background-color: #1b2740;
+    color: #d6deee;
+    border-color: #33456a;
 }
 
 QPushButton#vaultTabChip[active="true"] {
-    background-color: #21315a;
+    background-color: #2b3f6f;
     color: #ffffff;
-    border-color: #4b68f4;
+    border-color: #5877ff;
 }
 
 QPushButton#vaultTabChip[closable="true"] {
-    padding-right: 23px;
+    padding-right: 28px;
 }
 
 QToolButton#vaultTabCloseBtn {
     background: transparent;
-    color: #7f8aa0;
+    color: #8b98b4;
     border: none;
-    border-radius: 7px;
-    font-size: 14px;
+    border-radius: 8px;
+    font-size: 15px;
     font-weight: 600;
     padding: 0;
 }
@@ -2554,16 +2556,18 @@ QWidget#vaultTabChipsHost {
 QPushButton#vaultTabChip {
     background-color: #eef2f9;
     color: #5a6580;
-    border: 1px solid #dbe2ef;
-    border-radius: 6px;
-    padding: 0px 11px;
-    font-size: 11px;
+    border: 1px solid #d3dcec;
+    border-radius: 8px;
+    padding: 0px 14px;
+    font-size: 12px;
     font-weight: 600;
+    text-align: center;
 }
 
 QPushButton#vaultTabChip:hover {
     background-color: #e4eaf7;
     color: #1b2740;
+    border-color: #c2cee6;
 }
 
 QPushButton#vaultTabChip[active="true"] {
@@ -2573,15 +2577,15 @@ QPushButton#vaultTabChip[active="true"] {
 }
 
 QPushButton#vaultTabChip[closable="true"] {
-    padding-right: 23px;
+    padding-right: 28px;
 }
 
 QToolButton#vaultTabCloseBtn {
     background: transparent;
     color: #8794ad;
     border: none;
-    border-radius: 7px;
-    font-size: 14px;
+    border-radius: 8px;
+    font-size: 15px;
     font-weight: 600;
     padding: 0;
 }
