@@ -18,8 +18,8 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
 
-# Yeni logo (logo2.png) varsa onu kaynak al; yoksa eski logo_source.png'ye düş.
-_SOURCE_CANDIDATES = ("logo2.png", "logo_source.png")
+# Logo kaynağı: yüksek çözünürlüklü logo2.png.
+_SOURCE_CANDIDATES = ("logo2.png",)
 
 
 def _default_source() -> Path:

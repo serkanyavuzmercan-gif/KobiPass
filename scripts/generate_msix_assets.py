@@ -2,7 +2,7 @@
 """
 KobiPass MSIX / Microsoft Store görsellerini tek kaynaktan üretir.
 
-Kaynak öncelik sırası: assets/logo.png → assets/logo2.png → assets/logo_source.png
+Kaynak öncelik sırası: assets/logo.png → assets/logo2.png
 (veya --icon ile verilen dosya). Kare kutucuklar şeffaflığı korur; geniş kutucuk ve
 splash açık zemin (#F4F6FB) üzerine ortalanır.
 """
@@ -71,7 +71,7 @@ def save_asset(
 
 
 def _default_icon(assets: Path) -> Path:
-    for name in ("logo.png", "logo2.png", "logo_source.png"):
+    for name in ("logo.png", "logo2.png"):
         candidate = assets / name
         if candidate.is_file():
             return candidate

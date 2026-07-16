@@ -2,8 +2,7 @@
 
 Bu klasör, KobiPass'i Microsoft Store için MSIX olarak paketlemek üzere
 gereken manifest ve kimlik dosyalarını içerir. Görsel varlıklar (kutucuklar,
-StoreLogo, splash) **tek kaynaktan** — `assets/logo2.png` (yoksa
-`assets/logo_source.png`) — otomatik üretilir.
+StoreLogo, splash) **tek kaynaktan** — `assets/logo2.png` — otomatik üretilir.
 
 ## Dosyalar
 

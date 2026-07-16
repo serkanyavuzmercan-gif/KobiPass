@@ -31,7 +31,7 @@ Hidroteknik Yazılım ekibi tarafından geliştirilen, PyQt6 tabanlı parola yö
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
-python scripts\make_assets.py   # logo_source.png → logo.png + icon.ico
+python scripts\make_assets.py   # logo2.png → logo.png + icon.ico
 python main.py
 pytest
 ```
