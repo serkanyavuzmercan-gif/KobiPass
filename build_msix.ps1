@@ -69,9 +69,7 @@ if (Test-Path $PyDistDir) { Remove-Item $PyDistDir -Recurse -Force }
     --name kobiPass `
     --icon (Join-Path $Root "assets\icon.ico") `
     --version-file (Join-Path $Root "assets\version_info.txt") `
-    --add-data "assets\logo.png;assets" `
-    --add-data "assets\logo2.png;assets" `
-    --add-data "assets\icon.ico;assets" `
+    --add-data "assets;assets" `
     --distpath $DistDir `
     --workpath (Join-Path $Root "build\pyinstaller") `
     --clean `

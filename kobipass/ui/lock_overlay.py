@@ -32,7 +32,7 @@ from PyQt6.QtWidgets import (
 
 from kobipass.i18n import tr
 from kobipass.resources import asset_path
-from kobipass.ui.icons import icon_lock
+from kobipass.ui.icons import icon_eye, icon_eye_off, icon_lock
 
 # Aurora blob'ları: (renk, faz kayması, merkez X oranı, merkez Y oranı).
 _AURORA = (
@@ -104,6 +104,12 @@ class LockOverlay(QWidget):
         self._pwd.setPlaceholderText(tr("pwd_placeholder"))
         self._pwd.setMinimumHeight(38)
         self._pwd.returnPressed.connect(self._emit_unlock)
+        # Alan içi göz düğmesi: parola yazarken görünürlüğü aç/kapat.
+        self._pwd_reveal = self._pwd.addAction(
+            icon_eye_off(), QLineEdit.ActionPosition.TrailingPosition
+        )
+        self._pwd_reveal.setToolTip(tr("show"))
+        self._pwd_reveal.triggered.connect(self._toggle_pwd_echo)
         cl.addWidget(self._pwd)
 
         self._error = QLabel("")
@@ -214,6 +220,14 @@ class LockOverlay(QWidget):
         self._anim.stop()
 
     # ---- davranış -----------------------------------------------------
+    def _toggle_pwd_echo(self) -> None:
+        hidden = self._pwd.echoMode() == QLineEdit.EchoMode.Password
+        self._pwd.setEchoMode(
+            QLineEdit.EchoMode.Normal if hidden else QLineEdit.EchoMode.Password
+        )
+        self._pwd_reveal.setIcon(icon_eye() if hidden else icon_eye_off())
+        self._pwd_reveal.setToolTip(tr("hide") if hidden else tr("show"))
+
     def _emit_unlock(self) -> None:
         self.unlock_requested.emit(self._pwd.text())
 
@@ -227,6 +241,9 @@ class LockOverlay(QWidget):
     def prepare(self) -> None:
         """Katman gösterilmeden önce alanı temizler."""
         self._pwd.clear()
+        self._pwd.setEchoMode(QLineEdit.EchoMode.Password)
+        self._pwd_reveal.setIcon(icon_eye_off())
+        self._pwd_reveal.setToolTip(tr("show"))
         self._error.setVisible(False)
         self._error.setText("")
 

@@ -55,9 +55,7 @@ Start-Sleep -Seconds 1
     --name kobiPass `
     --icon $IconAscii `
     --version-file $VersionFile `
-    --add-data "assets\logo.png;assets" `
-    --add-data "assets\logo2.png;assets" `
-    --add-data "assets\icon.ico;assets" `
+    --add-data "assets;assets" `
     --clean `
     main.py
 
