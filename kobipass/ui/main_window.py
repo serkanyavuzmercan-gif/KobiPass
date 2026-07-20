@@ -1885,6 +1885,11 @@ class MainWindow(QMainWindow):
         if plan.field_labels and not self._vault.field_labels:
             self._vault.field_labels = dict(plan.field_labels)
         self._reload_active_tab(reset_dirty=False)
+        # Satır izinlerini oturuma göre yeniden uygula. Aksi halde yeni kurulan
+        # satırlar VARSAYILAN izinle (info='read') kalır ve yönetici bile alan
+        # ekleyemez ('yetki yok') — kasa açılışında _apply_session_ui bunu
+        # yaptığı için normal akışta görülmez.
+        self._apply_session_ui()
         self._mark_dirty()
         self._refresh_empty_state()
         show_info(
