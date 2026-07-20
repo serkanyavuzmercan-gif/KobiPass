@@ -23,6 +23,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QAbstractButton,
     QApplication,
+    QDialog,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -91,6 +92,7 @@ from kobipass.backup import (
 )
 from kobipass.ui.icons import (
     icon_chevron_left,
+    icon_folder_open,
     icon_history,
     icon_home,
     icon_info,
@@ -392,6 +394,13 @@ class MainWindow(QMainWindow):
         self._btn_audit.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_audit.clicked.connect(self._show_audit)
         toolbar.addWidget(self._btn_audit, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        # CSV içe aktar (yalnızca yönetici) — mevcut Excel parolalarını taşımak için.
+        self._btn_import = QPushButton()
+        self._btn_import.setIcon(icon_folder_open(_tb_icon, size=17))
+        self._btn_import.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_import.clicked.connect(self._on_import_csv)
+        toolbar.addWidget(self._btn_import, 0, Qt.AlignmentFlag.AlignVCenter)
 
 
         self._search_bar = QLineEdit()
@@ -1019,6 +1028,7 @@ class MainWindow(QMainWindow):
         for btn in (
             self._btn_users,
             self._btn_audit,
+            self._btn_import,
         ):
             btn.setVisible(True)
             btn.setProperty("restricted", is_sub_user)
@@ -1241,6 +1251,7 @@ class MainWindow(QMainWindow):
         self._btn_save.setText(tr("btn_save"))
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
+        self._btn_import.setText(tr("import_csv_btn"))
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self._refresh_tab_bar()
         self._records_panel_title.setText(tr("records_panel_title"))
@@ -1824,6 +1835,63 @@ class MainWindow(QMainWindow):
             return
         dlg = AuditLogDialog(self._vault, self)
         dlg.exec()
+
+    def _on_import_csv(self) -> None:
+        """CSV'den (Excel vb.) kayıtları aktif sekmeye içe aktarır (yönetici).
+
+        Yalnızca İÇERİ yön: 'export yok' güvenlik ilkesi korunur. Seçilen dosya
+        yalnızca yerelde okunur; parola değerleri değişiklik geçmişine yazılmaz.
+        """
+        if not self._require_admin():
+            return
+        if self._vault is None:
+            show_info(self, tr("info_title"), tr("admin_needed_new"))
+            return
+        path_str, _ = QFileDialog.getOpenFileName(
+            self, tr("import_csv_title"), "", tr("import_csv_file_filter")
+        )
+        if not path_str:
+            return
+        try:
+            data = Path(path_str).read_bytes()
+        except OSError as exc:
+            show_error(
+                self,
+                tr("import_csv_title"),
+                tr("import_csv_read_error", error=str(exc)),
+            )
+            return
+
+        from kobipass.csv_import import parse_csv
+        from kobipass.ui.import_dialog import ImportCsvDialog
+
+        dialog = ImportCsvDialog(parse_csv(data), Path(path_str).name, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        plan = dialog.plan()
+        if not plan.entries:
+            show_info(self, tr("import_csv_none_title"), tr("import_csv_none"))
+            return
+        self._apply_import(plan)
+
+    def _apply_import(self, plan) -> None:
+        if self._vault is None:
+            return
+        # Ekrandaki yarım kalan düzenlemeleri modele işle, sonra ekle.
+        self._merge_row_edits_into_vault()
+        self._vault.active_tab().entries.extend(plan.entries)
+        # Başlık etiketleri: kasada henüz özel etiket yoksa uygula
+        # (mevcut etiketleri EZME — etiketler kasa geneli/tüm sekmeler içindir).
+        if plan.field_labels and not self._vault.field_labels:
+            self._vault.field_labels = dict(plan.field_labels)
+        self._reload_active_tab(reset_dirty=False)
+        self._mark_dirty()
+        self._refresh_empty_state()
+        show_info(
+            self,
+            tr("import_csv_done_title"),
+            tr("import_csv_done", count=len(plan.entries)),
+        )
 
     def _confirm_discard(self) -> bool:
         box = QMessageBox(self)

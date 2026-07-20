@@ -544,6 +544,51 @@ def test_no_export_module() -> None:
     assert importlib.util.find_spec("kobipass.export") is None
 
 
+def test_csv_import_semicolon_and_header_labels() -> None:
+    from kobipass.csv_import import build_import, parse_csv
+
+    # Türkçe Excel: ';' ayracı, UTF-8 BOM'lu.
+    raw = "Site;Kullanıcı;Parola\r\nGmail;ali;s3cret\r\nBanka;veli;p4ss\r\n"
+    data = ("﻿" + raw).encode("utf-8")
+    doc = parse_csv(data)
+    assert doc.delimiter == ";"
+    plan = build_import(doc, has_header=True)
+    assert plan.field_labels == {"name": "Site", "info1": "Kullanıcı", "info2": "Parola"}
+    assert [e.name for e in plan.entries] == ["Gmail", "Banka"]
+    assert plan.entries[0].info1 == "ali"
+    assert plan.entries[0].more_infos == ["s3cret"]
+    # Parola yaşı bilinmiyor → boş bırakılır (sahte 'taze' göstermemek için).
+    assert plan.entries[0].pw_updated_at == ""
+
+
+def test_csv_import_comma_cp1254_no_header_and_ragged() -> None:
+    from kobipass.csv_import import build_import, parse_csv
+
+    # Virgül ayracı, Windows-1254 (Türkçe) kodlama, başlıksız, düzensiz kolonlar.
+    text = "Şirket, user,pw,not\nSadece İsim\nA,b\n"
+    doc = parse_csv(text.encode("cp1254"))
+    assert doc.delimiter == ","
+    assert doc.encoding in ("cp1254", "latin-1")
+    plan = build_import(doc, has_header=False)
+    assert plan.field_labels == {}
+    # Üç satır: 4 kolon, 1 kolon, 2 kolon.
+    assert [e.name for e in plan.entries] == ["Şirket", "Sadece İsim", "A"]
+    assert plan.entries[0].more_infos == ["pw", "not"]  # info2, info3
+    assert plan.entries[1].info1 == ""  # tek hücreli satır
+    assert plan.entries[2].more_infos == []
+
+
+def test_csv_import_quoted_fields_and_empty_rows() -> None:
+    from kobipass.csv_import import build_import, parse_csv
+
+    # Tırnaklı alan (içinde ayraç + yeni satır) ve arada boş satır.
+    raw = 'name,info\n"Ac, Corp","line1\nline2"\n\n , \nReal,x\n'
+    doc = parse_csv(raw.encode("utf-8"))
+    plan = build_import(doc, has_header=True)
+    assert [e.name for e in plan.entries] == ["Ac, Corp", "Real"]
+    assert plan.entries[0].info1 == "line1\nline2"
+
+
 def test_backup_create_rotate_restore(tmp_path: Path, monkeypatch) -> None:
     """Yedekleme: kopya oluşur, rotasyon çalışır, geri yükleme birebir aynıdır."""
     import os
