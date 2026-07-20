@@ -2,6 +2,10 @@
 
 Hidroteknik Yazılım ekibi tarafından geliştirilen, PyQt6 tabanlı parola yönetim uygulaması. **Yönetici + 3 kullanıcı** rol modeli, alan bazlı izinler ve değişiklik geçmişi sunar.
 
+> **Sistem gereksinimi:** Windows 10 (1809 / build 10.0.17763) veya üzeri, 64-bit.
+> Qt 6 ve Python 3.9+ Windows 7/8'i desteklemez (`api-ms-win-core-path-l1-1-0.dll`
+> eksik hatası bundandır). Windows 7 makineleri Windows 10/11'e yükseltilmelidir.
+
 ## Özellikler
 
 - Kayıt formatı: **İsim — 1. Bilgi — ek bilgi alanları (dinamik)**

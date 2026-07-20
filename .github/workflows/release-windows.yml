@@ -70,6 +70,9 @@ jobs:
           files: |
             dist/kobiPass.exe
             dist/KobiPass-*.msix
+          body: |
+            **Sistem gereksinimi:** Windows 10 (1809 / build 10.0.17763) veya üzeri, 64-bit.
+            Windows 7/8 desteklenmez (Qt 6 ve Python 3.9+ gereği; `api-ms-win-core-path-l1-1-0.dll` eksik hatası bundandır).
           generate_release_notes: true
           draft: false
           prerelease: false
