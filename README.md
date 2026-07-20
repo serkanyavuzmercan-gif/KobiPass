@@ -8,6 +8,7 @@ Hidroteknik Yazılım ekibi tarafından geliştirilen, PyQt6 tabanlı parola yö
 - Her `.enc` dosyasında **1 yönetici** + **3 kullanıcı** parolası (boş slot destekli)
 - Yönetici: sınırsız yetki, kullanıcı/izin yönetimi, alan etiketleri, değişiklik geçmişi
 - Güvenlik gereği **dışa aktarma yoktur** — veriler yalnızca şifreli `.enc` dosyasında yaşar
+- **CSV içe aktarma** (tek yön): Excel/CSV parolalarını aktif sekmeye taşır; `;`/`,` ayracı ve `utf-8`/`cp1254` otomatik saptanır, önizleme + onay
 - Kullanıcılar: ortak izin şablonu; yalnızca izinli alanları görür
 - Arama, sonsuz kaydırma, sürükle-bırak sıralama
 - Koyu / aydınlık tema, TR/EN dil desteği, karşılama ekranı ve son dosyalar
