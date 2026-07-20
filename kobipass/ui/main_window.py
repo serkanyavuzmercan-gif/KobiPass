@@ -582,6 +582,8 @@ class MainWindow(QMainWindow):
         self._show_landing_page()
         # Açılışta silinmiş kasa tespiti — pencere göründükten sonra sor.
         QTimer.singleShot(0, self._check_missing_vaults)
+        # İlk açılışta bir kez: masaüstü kısayolu teklifi (yalnızca Windows).
+        QTimer.singleShot(600, self._maybe_prompt_desktop_shortcut)
 
     def _setup_shortcuts(self) -> None:
         """Klavye kısayolları: kaydet, ara, kayıt ekle, kilitle."""
@@ -1922,6 +1924,35 @@ class MainWindow(QMainWindow):
         """Başarılı kayıt sonrası: şifreli yedek al + salt-okunur kilidi bas."""
         create_backup(path)
         set_read_only(path)
+
+    def _maybe_prompt_desktop_shortcut(self) -> None:
+        """İlk açılışta bir kez masaüstü kısayolu teklif eder (yalnızca Windows,
+        paketlenmiş/kurulu sürümde). Yanıt ne olursa olsun bir daha sorulmaz."""
+        import sys
+
+        if sys.platform != "win32" or not getattr(sys, "frozen", False):
+            return
+        from kobipass.settings import mark_shortcut_prompted, was_shortcut_prompted
+
+        if was_shortcut_prompted():
+            return
+        mark_shortcut_prompted()
+
+        from kobipass.ui.dialogs import ask_yes_no
+
+        if not ask_yes_no(
+            self,
+            tr("shortcut_ask_title"),
+            tr("shortcut_ask_text"),
+            default_yes=True,
+        ):
+            return
+        from kobipass.desktop_shortcut import create_desktop_shortcut
+
+        if create_desktop_shortcut():
+            show_info(self, tr("shortcut_done_title"), tr("shortcut_done_text"))
+        else:
+            show_error(self, tr("shortcut_fail_title"), tr("shortcut_fail_text"))
 
     def _check_missing_vaults(self) -> None:
         """Son kullanılan kasa silinmişse ve yedeği varsa geri yüklemeyi öner."""

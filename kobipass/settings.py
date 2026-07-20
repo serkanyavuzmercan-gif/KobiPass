@@ -64,3 +64,12 @@ def get_idle_lock_ms() -> int:
         return max(60_000, int(value))
     except (TypeError, ValueError):
         return DEFAULT_IDLE_LOCK_MS
+
+
+def was_shortcut_prompted() -> bool:
+    """Masaüstü kısayolu teklifi daha önce yapıldı mı (bir kez sorulur)."""
+    return bool(_settings().value("desktop_shortcut_prompted", False, type=bool))
+
+
+def mark_shortcut_prompted() -> None:
+    _settings().setValue("desktop_shortcut_prompted", True)

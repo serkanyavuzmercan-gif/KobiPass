@@ -537,6 +537,16 @@ def test_entry_uid_roundtrip_and_migration() -> None:
     assert VaultEntry(name="A", uid="x") == VaultEntry(name="A", uid="y")
 
 
+def test_desktop_shortcut_noop_off_windows() -> None:
+    import sys
+
+    from kobipass.desktop_shortcut import create_desktop_shortcut, current_aumid
+
+    if sys.platform != "win32":
+        assert current_aumid() is None
+        assert create_desktop_shortcut() is False
+
+
 def test_no_export_module() -> None:
     """Güvenlik: dışa aktarma özelliği kaldırıldı — geri gelmediğini doğrula."""
     import importlib.util
