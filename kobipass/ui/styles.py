@@ -399,6 +399,20 @@ QWidget#entryRow[hovered="true"] {
     border: 1px solid #45619f;
 }
 
+/* Satır logosu düğmesi: logo varken sade; boşken soluk kesikli 'ekle' kutusu. */
+QToolButton#entryIconBtn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+}
+QToolButton#entryIconBtn[hasIcon="false"] {
+    background-color: #1a2130;
+    border: 1px dashed #39435c;
+}
+QToolButton#entryIconBtn:hover {
+    border: 1px solid #4b68f4;
+}
+
 QLabel#rowDragHandle {
     color: #66738c;
     font-size: 15px;
@@ -2461,6 +2475,20 @@ QWidget#entryRow {
 QWidget#entryRow[hovered="true"] {
     background-color: #eef3ff;
     border: 1px solid #c3d2f2;
+}
+
+/* Satır logosu düğmesi: logo varken sade; boşken soluk kesikli 'ekle' kutusu. */
+QToolButton#entryIconBtn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+}
+QToolButton#entryIconBtn[hasIcon="false"] {
+    background-color: #eef1f8;
+    border: 1px dashed #c4cde2;
+}
+QToolButton#entryIconBtn:hover {
+    border: 1px solid #3b5bfd;
 }
 
 QLabel#rowDragHandle {

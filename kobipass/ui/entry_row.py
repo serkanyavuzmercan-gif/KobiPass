@@ -9,6 +9,7 @@ from PyQt6.QtCore import QEvent, QMimeData, QPoint, QTimer, QSize, Qt, pyqtSigna
 from PyQt6.QtGui import (
     QCursor,
     QDrag,
+    QIcon,
     QKeySequence,
     QMouseEvent,
     QPainter,
@@ -18,6 +19,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -759,6 +761,20 @@ class EntryRowWidget(QWidget):
         self._drag_handle.setVisible(False)
         row.addWidget(self._drag_handle, 0, Qt.AlignmentFlag.AlignVCenter)
 
+        # İsim solunda küçük kare logo (opsiyonel özel görsel). Tıklayınca
+        # ekle/değiştir/kaldır menüsü (yalnızca düzenleme yetkisi olanda).
+        self._icon_b64 = ""
+        self._icon_editable = True
+        self._icon_btn = QToolButton()
+        self._icon_btn.setObjectName("entryIconBtn")
+        self._icon_btn.setFixedSize(28, 28)
+        self._icon_btn.setIconSize(QSize(22, 22))
+        self._icon_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._icon_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._icon_btn.setAutoRaise(True)
+        self._icon_btn.clicked.connect(self._on_icon_clicked)
+        row.addWidget(self._icon_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
         self._name = CompactField(
             field_key="field_name",
             fixed_width=NAME_FIELD_WIDTH,
@@ -854,6 +870,7 @@ class EntryRowWidget(QWidget):
         self._update_field_step_buttons()
         self._update_info_remove_actions()
         self._schedule_info_field_layout()
+        self._refresh_icon_btn()
         self._install_hover_tracking()
 
     # ---- fare-üzeri vurgusu -------------------------------------------
@@ -1088,6 +1105,12 @@ class EntryRowWidget(QWidget):
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_permission(perms.level_for_info_index(index))
         self.setVisible(perms.name != "none" or perms.info != "none")
+        # Logo düzenleme: kaydı değiştirebilen (isim veya bilgi yazabilen)
+        # kullanıcıda açık; salt-görüntüleyen yalnızca var olan logoyu görür.
+        self._icon_editable = not view_only and (
+            perms.name == "write" or perms.info == "write"
+        )
+        self._refresh_icon_btn()
         self._field_step_column.setVisible(
             not view_only and perms.info != "none"
         )
@@ -1185,12 +1208,74 @@ class EntryRowWidget(QWidget):
     def _emit_changed(self) -> None:
         self.changed.emit()
 
+    # ---- satır logosu -------------------------------------------------
+    def _refresh_icon_btn(self) -> None:
+        from kobipass.ui.entry_icon import pixmap_from_icon
+
+        if self._icon_b64:
+            pixmap = pixmap_from_icon(self._icon_b64, 22)
+            self._icon_btn.setIcon(QIcon(pixmap))
+            self._icon_btn.setProperty("hasIcon", True)
+            self._icon_btn.setToolTip(
+                tr("row_icon_change") if self._icon_editable else ""
+            )
+        else:
+            self._icon_btn.setIcon(QIcon())
+            self._icon_btn.setProperty("hasIcon", False)
+            self._icon_btn.setToolTip(
+                tr("row_icon_add") if self._icon_editable else ""
+            )
+        # Boş+düzenlenemez satırda düğme görünmez olsun (gereksiz kutu olmasın);
+        # logo varsa her zaman görünür (görüntüleme), düzenlenebilirse her zaman.
+        self._icon_btn.setVisible(bool(self._icon_b64) or self._icon_editable)
+        self._icon_btn.style().unpolish(self._icon_btn)
+        self._icon_btn.style().polish(self._icon_btn)
+
+    def _on_icon_clicked(self) -> None:
+        if not self._icon_editable:
+            return
+        menu = QMenu(self._icon_btn)
+        act_set = menu.addAction(
+            tr("row_icon_change") if self._icon_b64 else tr("row_icon_add")
+        )
+        act_remove = menu.addAction(tr("row_icon_remove")) if self._icon_b64 else None
+        chosen = menu.exec(
+            self._icon_btn.mapToGlobal(self._icon_btn.rect().bottomLeft())
+        )
+        if chosen is None:
+            return
+        if chosen == act_set:
+            self._pick_icon()
+        elif act_remove is not None and chosen == act_remove:
+            self._icon_b64 = ""
+            self._refresh_icon_btn()
+            self._emit_changed()
+
+    def _pick_icon(self) -> None:
+        from kobipass.ui.entry_icon import encode_icon_file
+
+        path, _ = QFileDialog.getOpenFileName(
+            self, tr("row_icon_add"), "", tr("row_icon_filter")
+        )
+        if not path:
+            return
+        encoded = encode_icon_file(path)
+        if not encoded:
+            QMessageBox.information(
+                self, tr("row_icon_add"), tr("row_icon_invalid")
+            )
+            return
+        self._icon_b64 = encoded
+        self._refresh_icon_btn()
+        self._emit_changed()
+
     def to_entry(self) -> VaultEntry:
         return VaultEntry(
             name=self._name.text().strip(),
             info1=self._info1.text(),
             more_infos=[field.text() for field in self._extra_fields],
             pw_updated_at=self._pw_updated_at,
+            icon=self._icon_b64,
             uid=self._uid,
         )
 
@@ -1199,6 +1284,8 @@ class EntryRowWidget(QWidget):
         self._info1.setText(entry.info1)
         self._pw_updated_at = entry.pw_updated_at
         self._uid = entry.uid or new_entry_uid()
+        self._icon_b64 = entry.icon
+        self._refresh_icon_btn()
         self._clear_extra_fields()
         for value in entry.more_infos:
             self._add_extra_field(initial_text=value, block_signals=True)

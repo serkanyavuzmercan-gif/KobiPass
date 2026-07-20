@@ -537,6 +537,17 @@ def test_entry_uid_roundtrip_and_migration() -> None:
     assert VaultEntry(name="A", uid="x") == VaultEntry(name="A", uid="y")
 
 
+def test_entry_icon_serialization_roundtrip() -> None:
+    e = VaultEntry(name="A", info1="x", icon="Zm9vYmFy")
+    d = e.to_dict()
+    assert d["icon"] == "Zm9vYmFy"
+    assert VaultEntry.from_dict(d).icon == "Zm9vYmFy"
+    # Boş ikon dict'e yazılmaz (dosya şişmesin).
+    assert "icon" not in VaultEntry(name="B").to_dict()
+    # İçerik eşitliği: ikon farkı kaydı farklı yapar (compare=True).
+    assert VaultEntry(name="A", icon="x") != VaultEntry(name="A", icon="y")
+
+
 def test_desktop_shortcut_noop_off_windows() -> None:
     import sys
 

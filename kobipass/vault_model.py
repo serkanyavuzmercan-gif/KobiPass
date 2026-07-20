@@ -59,6 +59,9 @@ class VaultEntry:
     more_infos: list[str] = field(default_factory=list)
     # info1 (parola) en son ne zaman değişti — ISO 8601 UTC; boş = bilinmiyor.
     pw_updated_at: str = ""
+    # Opsiyonel küçük kare logo — base64 PNG. Kayda gömülüdür (dolayısıyla gizli
+    # sekmedeki logo da gizli blokta kalır). Eklerken agresif küçültülür; boş=yok.
+    icon: str = ""
     # Kararlı kimlik: audit farkının sıradan bağımsız olması için. İçerik
     # eşitliğini etkilemesin diye compare=False (iki kayıt aynı içerikteyse
     # farklı uid'e rağmen eşit sayılır — mevcut test/karşılaştırma semantiği
@@ -83,6 +86,8 @@ class VaultEntry:
             data[f"info{index}"] = value
         if self.pw_updated_at:
             data["pw_updated_at"] = self.pw_updated_at
+        if self.icon:
+            data["icon"] = self.icon
         data["uid"] = self.uid
         return data
 
@@ -100,6 +105,7 @@ class VaultEntry:
             info1=str(data.get("info1", "")),
             more_infos=more,
             pw_updated_at=str(data.get("pw_updated_at", "")),
+            icon=str(data.get("icon", "")),
             uid=uid,
         )
 
