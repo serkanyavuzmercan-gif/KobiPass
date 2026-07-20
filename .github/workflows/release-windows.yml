@@ -47,12 +47,29 @@ jobs:
           if ($sizeMb -lt 10) { throw "Exe too small ($sizeMb MB)" }
           Write-Host "Built kobiPass.exe ($sizeMb MB)"
 
+      - name: Build MSIX (Store package, unsigned)
+        shell: pwsh
+        run: |
+          # Etiket 'v1.2.1' -> MSIX surumu '1.2.1.0' (Store 4. haneyi/revision 0 ister).
+          $num = "${{ inputs.version }}".TrimStart('v')
+          $parts = @($num.Split('.'))
+          while ($parts.Count -lt 4) { $parts += '0' }
+          $msixVer = ($parts[0..3] -join '.')
+          Write-Host "MSIX surumu: $msixVer"
+          # Store yuklemede imza Partner Center tarafindan atilir -> -SkipSign.
+          .\build_msix.ps1 -Version $msixVer -SkipSign
+          $msix = Get-ChildItem "dist\KobiPass-*.msix" | Select-Object -First 1
+          if (-not $msix) { throw "MSIX uretilemedi" }
+          Write-Host "Built $($msix.Name) ($([math]::Round($msix.Length / 1MB, 2)) MB)"
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.version }}
           name: KobiPass ${{ inputs.version }}
-          files: dist/kobiPass.exe
+          files: |
+            dist/kobiPass.exe
+            dist/KobiPass-*.msix
           generate_release_notes: true
           draft: false
           prerelease: false
