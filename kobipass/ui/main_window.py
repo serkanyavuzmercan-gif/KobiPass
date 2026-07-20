@@ -1168,6 +1168,22 @@ class MainWindow(QMainWindow):
             if vault_index is not None and 0 <= vault_index < len(self._vault.entries):
                 self._vault.entries[vault_index] = entry
 
+    def _resync_rows_after_save(self) -> None:
+        """Kayıttan sonra satır↔model tutarlılığını sağlar.
+
+        MÜKERRER KAYIT ÖNLEMİ: Yeni eklenen bir satır ``vault_index=None``
+        taşır; kaydedilince içeriği modele girer ama satır hâlâ None kaldığı
+        için bir sonraki ``_collect_entries`` çağrısı onu ikinci kez ekliyordu
+        (her yeni kayıt her kaydetmede çoğalıyordu). Yeni satır varsa aktif
+        sekmeyi yeniden yükleyip indeksleri tazeleyerek bunu kökten önleriz.
+        Yeni satır yoksa (yalnızca düzenleme) hiçbir şey yapmayız — kaydırma/
+        arama durumu korunur.
+        """
+        if self._vault is None:
+            return
+        if any(row.vault_index is None for row in self._row_widgets):
+            self._reload_active_tab(reset_dirty=True)
+
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
         if event.mimeData().hasFormat(ROW_MIME):
             event.acceptProposedAction()
@@ -2043,6 +2059,7 @@ class MainWindow(QMainWindow):
             self._snapshot_entries = copy.deepcopy(new_entries)
             self._last_saved_at = datetime.now()
             self._clear_dirty()
+            self._resync_rows_after_save()
             show_info(
                 self,
                 tr("saved_title"),
@@ -2166,6 +2183,7 @@ class MainWindow(QMainWindow):
         self._snapshot_entries = copy.deepcopy(entries)
         self._last_saved_at = datetime.now()
         self._clear_dirty()
+        self._resync_rows_after_save()
         show_info(self, tr("saved_title"), tr("saved_text", path=str(path)))
 
     def _open_vault(self) -> None:
@@ -2235,16 +2253,6 @@ class MainWindow(QMainWindow):
         self._load_vault_data(unlock.vault)
         self._show_vault_view()
         self._landing_page.refresh_recent()
-        # 'Açıldı' diyaloğunu bir olay-döngüsü tık'ı geciktir: modal, çalışma
-        # alanı yerleşmeden açılırsa arkada yarı-yerleşmiş garip bir görüntü
-        # kalıyordu. Önce layout otursun, sonra bilgi çıksın.
-        count = len(unlock.vault.entries)
-        QTimer.singleShot(
-            0,
-            lambda: show_info(
-                self, tr("opened_title"), tr("opened_text", count=count)
-            ),
-        )
 
     def closeEvent(self, event) -> None:  # noqa: N802
         # GÜVENLİK: Kilitliyken kaydedilmemiş değişiklik varken kapatmayı
