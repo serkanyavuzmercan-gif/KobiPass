@@ -412,6 +412,11 @@ QToolButton#entryIconBtn[hasIcon="false"] {
 QToolButton#entryIconBtn:hover {
     border: 1px solid #4b68f4;
 }
+QLabel#searchNoResults {
+    color: #8a94a8;
+    font-size: 15px;
+    padding: 40px 16px;
+}
 
 QLabel#rowDragHandle {
     color: #66738c;
@@ -2489,6 +2494,11 @@ QToolButton#entryIconBtn[hasIcon="false"] {
 }
 QToolButton#entryIconBtn:hover {
     border: 1px solid #3b5bfd;
+}
+QLabel#searchNoResults {
+    color: #6b7690;
+    font-size: 15px;
+    padding: 40px 16px;
 }
 
 QLabel#rowDragHandle {

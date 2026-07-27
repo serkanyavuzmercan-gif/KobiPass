@@ -468,6 +468,15 @@ class MainWindow(QMainWindow):
         self._empty_state.add_requested.connect(self._on_empty_state_add)
         self._entries_layout.addWidget(self._empty_state, stretch=1)
 
+        # Arama sonuç vermediğinde gösterilen 'bulunamadı' mesajı (boş kayıt
+        # satırı yerine). Aramayla ilgisiz normal boş kasada gizli kalır.
+        self._no_results = QLabel()
+        self._no_results.setObjectName("searchNoResults")
+        self._no_results.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._no_results.setWordWrap(True)
+        self._no_results.setVisible(False)
+        self._entries_layout.addWidget(self._no_results, stretch=1)
+
         self._scroll.setWidget(self._entries_host)
         self._scroll.verticalScrollBar().valueChanged.connect(self._check_scroll_position)
 
@@ -630,6 +639,21 @@ class MainWindow(QMainWindow):
     def _refresh_empty_state(self) -> None:
         perms = self._row_permissions()
         add_allowed = self._can_add_record(perms)
+        # ARAMA AKTİF + hiç eşleşme yoksa: boş 'onboarding' satırı ekleme;
+        # bunun yerine 'bulunamadı' mesajı göster. (Eskiden arama sonuçsuz
+        # kalınca boş bir kayıt satırı çıkıyor ve arama başarısız gibi
+        # görünüyordu.)
+        searching = bool(self._search_bar.text().strip())
+        if searching and len(self._row_widgets) == 0 and not self._kilitli_mi:
+            self._no_results.setText(
+                tr("search_no_results", term=self._search_bar.text().strip())
+            )
+            self._no_results.setVisible(True)
+            self._empty_state.setVisible(False)
+            self._add_bar.setVisible(False)
+            self._entries_layout.setStretchFactor(self._no_results, 1)
+            return
+        self._no_results.setVisible(False)
         if (
             should_show_empty_state(len(self._row_widgets))
             and not self._kilitli_mi
@@ -1087,6 +1111,9 @@ class MainWindow(QMainWindow):
     def _run_filter(self) -> None:
         if not self._vault:
             return
+        # Ekrandaki (kaydedilmemiş) düzenlemeler de aranabilsin diye önce modele
+        # işle. Arama İSİM + tüm bilgi/parola hücrelerinde yapılır.
+        self._merge_row_edits_into_vault()
         self._filter_request_id += 1
         request_id = self._filter_request_id
         self._worker = WorkerThread(
