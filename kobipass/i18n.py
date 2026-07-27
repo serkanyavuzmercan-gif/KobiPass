@@ -463,6 +463,13 @@ _STRINGS: dict[str, dict[str, str]] = {
         "lock_go_home": "Ana ekrana dön",
         "lock_wrong": "Parola hatalı.",
         "lock_unlock_first": "Kaydedilmemiş değişiklikler var — önce kilidi açın.",
+        "lock_discard_exit": "Kaydetmeden çık",
+        "lock_discard_confirm_title": "Kaydedilmemiş değişiklikler silinecek",
+        "lock_discard_confirm_text": (
+            "Kaydedilmemiş tüm değişiklikler iptal edilerek uygulamadan "
+            "çıkılacak. Bu işlem geri alınamaz. Çıkmak istediğinize emin "
+            "misiniz?"
+        ),
         "status_locked": "Kilitli — parola gerekli",
         "status_clipboard_clear": "Pano {seconds} sn sonra temizlenecek",
         "audit_filter_placeholder": "Geçmişte ara (kullanıcı, kayıt, alan...)",
@@ -960,6 +967,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "lock_go_home": "Return to home screen",
         "lock_wrong": "Incorrect password.",
         "lock_unlock_first": "Unsaved changes — unlock first.",
+        "lock_discard_exit": "Discard & exit",
+        "lock_discard_confirm_title": "Unsaved changes will be lost",
+        "lock_discard_confirm_text": (
+            "All unsaved changes will be discarded and the app will close. "
+            "This cannot be undone. Are you sure you want to exit?"
+        ),
         "status_locked": "Locked — password required",
         "status_clipboard_clear": "Clipboard will clear in {seconds}s",
         "audit_filter_placeholder": "Filter history (user, record, field...)",

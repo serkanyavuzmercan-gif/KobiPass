@@ -47,6 +47,7 @@ class LockOverlay(QWidget):
 
     unlock_requested = pyqtSignal(str)
     home_requested = pyqtSignal()
+    discard_exit_requested = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -132,6 +133,17 @@ class LockOverlay(QWidget):
         self._home_btn.setFlat(True)
         self._home_btn.clicked.connect(self.home_requested.emit)
         cl.addWidget(self._home_btn, 0, Qt.AlignmentFlag.AlignCenter)
+
+        # Bilinçli kaçış: yalnızca kaydedilmemiş değişiklik varken görünür.
+        # Tıklanınca ana pencere bir onay sorar; onaylanırsa değişiklikler
+        # atılıp çıkılır. (Kilit açıp kaydetmek yine önerilen yoldur.)
+        self._discard_btn = QPushButton(tr("lock_discard_exit"))
+        self._discard_btn.setObjectName("lockDiscardBtn")
+        self._discard_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._discard_btn.setFlat(True)
+        self._discard_btn.setVisible(False)
+        self._discard_btn.clicked.connect(self.discard_exit_requested.emit)
+        cl.addWidget(self._discard_btn, 0, Qt.AlignmentFlag.AlignCenter)
 
         # Kartın çevresinde nefes alan renkli parıltı — kilidin "canlı" olduğunu
         # ve odağın burada olduğunu hissettirir.
@@ -237,6 +249,7 @@ class LockOverlay(QWidget):
         self._pwd.setPlaceholderText(tr("pwd_placeholder"))
         self._unlock_btn.setText(tr("lock_unlock"))
         self._home_btn.setText(tr("lock_go_home"))
+        self._discard_btn.setText(tr("lock_discard_exit"))
 
     def prepare(self) -> None:
         """Katman gösterilmeden önce alanı temizler."""
@@ -246,6 +259,10 @@ class LockOverlay(QWidget):
         self._pwd_reveal.setToolTip(tr("show"))
         self._error.setVisible(False)
         self._error.setText("")
+
+    def set_has_unsaved(self, flag: bool) -> None:
+        """Kaydedilmemiş değişiklik varken 'Kaydetmeden çık' seçeneğini göster."""
+        self._discard_btn.setVisible(bool(flag))
 
     def focus_password(self) -> None:
         self._pwd.setFocus()

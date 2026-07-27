@@ -832,6 +832,17 @@ QPushButton#lockHomeBtn:hover {
     text-decoration: underline;
 }
 
+QPushButton#lockDiscardBtn {
+    background: transparent;
+    border: none;
+    color: #7c8296;
+    font-size: 11px;
+}
+QPushButton#lockDiscardBtn:hover {
+    color: #ff7a85;
+    text-decoration: underline;
+}
+
 QScrollArea#vaultTabScroll QScrollBar:horizontal {
     height: 5px;
     background: transparent;
@@ -2908,6 +2919,17 @@ QPushButton#lockHomeBtn {
 }
 QPushButton#lockHomeBtn:hover {
     color: #cdd6e6;
+    text-decoration: underline;
+}
+
+QPushButton#lockDiscardBtn {
+    background: transparent;
+    border: none;
+    color: #8b93a6;
+    font-size: 11px;
+}
+QPushButton#lockDiscardBtn:hover {
+    color: #d64550;
     text-decoration: underline;
 }
 

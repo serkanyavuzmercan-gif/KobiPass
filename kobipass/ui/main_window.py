@@ -342,6 +342,9 @@ class MainWindow(QMainWindow):
         self._lock_overlay = LockOverlay(central)
         self._lock_overlay.unlock_requested.connect(self._on_lock_unlock)
         self._lock_overlay.home_requested.connect(self._on_lock_home)
+        self._lock_overlay.discard_exit_requested.connect(
+            self._on_lock_discard_exit
+        )
         self._lock_overlay.hide()
 
         self._landing_page = LandingPage()
@@ -937,6 +940,9 @@ class MainWindow(QMainWindow):
             self._clear_lock_state()
             return
         self._lock_overlay.prepare()
+        # 'Kaydetmeden çık' seçeneği yalnızca kaydedilmemiş değişiklik varken
+        # görünür (aksi halde çıkışın zaten bir riski yoktur).
+        self._lock_overlay.set_has_unsaved(self._dirty)
         self._position_lock_overlay()
         self._lock_overlay.show()
         self._lock_overlay.raise_()
@@ -1003,6 +1009,37 @@ class MainWindow(QMainWindow):
         self._pending_admin_password = None
         self._clear_dirty()
         self._show_landing_page()
+
+    def _on_lock_discard_exit(self) -> None:
+        """Kilitliyken 'Kaydetmeden çık': açık onay sonrası uygulamayı kapatır.
+
+        Kilitli+kaydedilmemiş durumda closeEvent normalde kapatmayı engeller
+        (kimliği doğrulanmamış birinin sahibin çalışmasını silmesini önlemek
+        için). Ancak kullanıcı bilinçli olarak 'her şeyi at ve çık' derse bu
+        yola izin veriyoruz: önce açık bir onay alırız, sonra 'dirty' bayrağını
+        temizleyip pencereyi kapatırız (böylece closeEvent engeli tetiklenmez).
+        Hiçbir şey KAYDEDİLMEZ — yarım yazılmış parolalar diske yazılmaz.
+        """
+        box = QMessageBox(self)
+        box.setWindowIcon(app_icon())
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(tr("lock_discard_confirm_title"))
+        box.setText(tr("lock_discard_confirm_text"))
+        yes_btn = box.addButton(
+            tr("lock_discard_exit"), QMessageBox.ButtonRole.DestructiveRole
+        )
+        cancel_btn = box.addButton(
+            tr("exit_cancel"), QMessageBox.ButtonRole.RejectRole
+        )
+        box.setDefaultButton(cancel_btn)
+        box.exec()
+        if box.clickedButton() is not yes_btn:
+            self._lock_overlay.focus_password()
+            return
+        # Onaylandı: hiçbir şeyi kaydetmeden çık. dirty temizlenince closeEvent
+        # kilitli-engelini geçer ve pencere kapanır.
+        self._clear_dirty()
+        self.close()
 
     def _role_label(self) -> str:
         if isinstance(self._session, UserSession):
