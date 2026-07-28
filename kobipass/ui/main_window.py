@@ -980,17 +980,16 @@ class MainWindow(QMainWindow):
     def _on_lock_home(self) -> None:
         """Kilitliyken 'Ana ekrana dön': oturumu bırakıp karşılamaya döner.
 
-        GÜVENLİK: Normal kilitte (anahtar var) kaydedilmemiş değişiklikler
-        ATILAMAZ — önce kilit açılmalı. Böylece kasa kilitliyken masaya gelen
-        biri bu düğmeyle sahibinin çalışmasını silemez. Anahtarın olmadığı
-        dejenere durumda kilit zaten açılamayacağı için kullanıcıyı
-        hapsetmemek adına eski onaylı-atma akışına düşülür."""
+        GÜVENLİK: Kilitliyken 'Kaydet' seçeneği sunulmaz — kimliği
+        doğrulanmamış biri değişiklikleri diske yazamaz. Değişiklikleri atıp
+        dönmek ise açık onayla mümkündür; aksi halde kullanıcı, kilidi
+        açamadığında hiçbir çıkışı olmayan bir ekranda kilitli kalıyordu."""
         keys = getattr(self._session, "keys", None)
         if self._kilitli_mi and self._dirty and keys is not None:
-            self._lock_overlay.show_error(tr("lock_unlock_first"))
-            self._lock_overlay.focus_password()
-            return
-        if self._dirty and not self._confirm_discard():
+            if not self._confirm_locked_discard("lock_home_text", "lock_home_confirm"):
+                self._lock_overlay.focus_password()
+                return
+        elif self._dirty and not self._confirm_discard():
             return
         self._kilitli_mi = False
         self._lock_overlay.hide()
@@ -1963,6 +1962,32 @@ class MainWindow(QMainWindow):
             return True
         return False
 
+    def _confirm_locked_discard(self, text_key: str, confirm_key: str) -> bool:
+        """Kilitliyken kaydedilmemiş değişiklikleri atma onayı.
+
+        'Kaydet' seçeneği BİLEREK sunulmaz: kilitli kasada kimliği doğrulanmamış
+        biri değişiklikleri diske yazamamalı. Ancak çıkışı tümden engellemek
+        veriyi korumaz — kaydedilmemiş değişiklikler yalnızca bellektedir ve
+        süreç görev yöneticisinden öldürülünce de aynı şekilde kaybolur. Bu
+        yüzden çıkışa izin verilir, sadece açık bir onay istenir.
+        """
+        box = QMessageBox(self)
+        box.setWindowIcon(app_icon())
+        box.setWindowTitle(tr("lock_exit_title"))
+        box.setText(tr(text_key))
+        discard_btn = box.addButton(
+            tr(confirm_key), QMessageBox.ButtonRole.DestructiveRole
+        )
+        cancel_btn = box.addButton(
+            tr("exit_cancel"), QMessageBox.ButtonRole.RejectRole
+        )
+        box.setDefaultButton(cancel_btn)
+        box.exec()
+        if box.clickedButton() is discard_btn:
+            self._clear_dirty()
+            return True
+        return False
+
     def _protect_vault_file(self, path: Path) -> None:
         """Başarılı kayıt sonrası: şifreli yedek al + salt-okunur kilidi bas."""
         create_backup(path)
@@ -2282,21 +2307,22 @@ class MainWindow(QMainWindow):
         self._landing_page.refresh_recent()
 
     def closeEvent(self, event) -> None:  # noqa: N802
-        # GÜVENLİK: Kilitliyken kaydedilmemiş değişiklik varken kapatmayı
-        # ENGELLE. Aksi halde kasa kilitliyken masaya gelen, kimliği
-        # doğrulanmamış biri 'Kaydetmeden çık' ile sahibinin çalışmasını
-        # silebilir (ya da rızası olmadan kaydedebilir). Kaydet/çık kararı
-        # yalnızca kilidi açan sahibe aittir. (Anahtar yoksa kilit açılamaz;
-        # o dejenere durumda kullanıcıyı hapsetmemek için normal akışa düşülür.)
+        # GÜVENLİK: Kilitliyken kimliği doğrulanmamış biri değişiklikleri
+        # KAYDEDEMEZ — aşağıdaki onayda 'Kaydet' seçeneği hiç sunulmaz.
+        # Ancak kapanmayı tümden engellemiyoruz: kaydedilmemiş değişiklikler
+        # yalnızca bellekte durur, süreç görev yöneticisinden öldürüldüğünde de
+        # aynı şekilde kaybolur. Yani çıkışı bloklamak veriyi korumuyor, sadece
+        # meşru kullanıcıyı (ör. bilgisayarını kapatmak isteyen sahibi)
+        # uygulama kapanmıyor sanacak şekilde hapsediyordu.
         if (
             self._kilitli_mi
             and self._dirty
             and getattr(self._session, "keys", None) is not None
         ):
-            event.ignore()
-            self._lock_overlay.show_error(tr("lock_unlock_first"))
-            self._lock_overlay.raise_()
-            self._lock_overlay.focus_password()
+            if not self._confirm_locked_discard("lock_exit_text", "exit_discard"):
+                event.ignore()
+                return
+            event.accept()
             return
         if self._dirty:
             box = QMessageBox(self)

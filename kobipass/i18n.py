@@ -133,6 +133,18 @@ _STRINGS: dict[str, dict[str, str]] = {
         "exit_save": "Kaydet",
         "exit_discard": "Kaydetmeden çık",
         "exit_cancel": "İptal",
+        "lock_exit_title": "Kasa kilitliyken çıkış",
+        "lock_exit_text": (
+            "Kasa kilitli olduğu için kaydedilmemiş değişiklikler kaydedilemez "
+            "ve kapatınca kaybolacak. Kaydetmek için önce kilidi açın.\n\n"
+            "Yine de çıkmak istiyor musunuz?"
+        ),
+        "lock_home_text": (
+            "Kasa kilitli olduğu için kaydedilmemiş değişiklikler kaydedilemez "
+            "ve ana ekrana dönünce kaybolacak. Kaydetmek için önce kilidi açın.\n\n"
+            "Yine de ana ekrana dönülsün mü?"
+        ),
+        "lock_home_confirm": "Kaydetmeden dön",
         "err_no_records_title": "Kayıt yok",
         "err_no_records_save": "Kaydetmek için en az bir dolu kayıt girin.",
         "dlg_save_vault": "Kasa Dosyasını Kaydet",
@@ -630,6 +642,18 @@ _STRINGS: dict[str, dict[str, str]] = {
         "exit_save": "Save",
         "exit_discard": "Exit without saving",
         "exit_cancel": "Cancel",
+        "lock_exit_title": "Exit while locked",
+        "lock_exit_text": (
+            "The vault is locked, so unsaved changes cannot be saved and will "
+            "be lost on exit. Unlock first if you want to save them.\n\n"
+            "Exit anyway?"
+        ),
+        "lock_home_text": (
+            "The vault is locked, so unsaved changes cannot be saved and will "
+            "be lost. Unlock first if you want to save them.\n\n"
+            "Return to the home screen anyway?"
+        ),
+        "lock_home_confirm": "Return without saving",
         "err_no_records_title": "No records",
         "err_no_records_save": "Enter at least one filled record to save.",
         "dlg_save_vault": "Save Vault File",
