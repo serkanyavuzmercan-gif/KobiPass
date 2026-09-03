@@ -45,6 +45,9 @@ from kobipass.vault_model import (
 )
 
 ROW_MIME = "application/x-kobipass-row-index"
+# Fare-üzeri olay filtresinin kurulduğunu bileşen üzerinde işaretler
+# (aynı çocuğa tekrar tekrar filtre kurmayı önler).
+_HOVER_TRACKED_PROP = "kpHoverTracked"
 
 ROW_CONTROL_HEIGHT = 38
 COPY_BTN_SIZE = QSize(32, 32)
@@ -232,6 +235,8 @@ class CompactField(QWidget):
         self._info_index = info_index
         self._field_key = field_key
         self._permission: FieldLevel = "write"
+        # En son UYGULANAN izin; aynısı tekrar gelirse iş yapılmaz.
+        self._applied_permission: FieldLevel | None = None
         self._sensitive = sensitive
         self._hidden = sensitive
         self._always_show = False
@@ -388,7 +393,10 @@ class CompactField(QWidget):
         return ""
 
     def set_custom_label(self, label: str) -> None:
-        self._custom_label = label.strip()
+        stripped = label.strip()
+        if stripped == self._custom_label:
+            return
+        self._custom_label = stripped
         self.retranslate()
 
     def _update_responsive_width(self, text: str = "") -> None:
@@ -545,9 +553,18 @@ class CompactField(QWidget):
         self._menu_btn.setVisible(show)
 
     def set_view_only(self, view_only: bool) -> None:
+        if view_only != self._view_only:
+            # Görünüm modu değişti → izin durumu yeniden uygulanmalı.
+            self._applied_permission = None
         self._view_only = view_only
 
     def set_permission(self, level: FieldLevel) -> None:
+        # Aynı izin tekrar uygulanıyorsa çıkış: bu fonksiyonun sonundaki
+        # stil yeniden hesabı (40 KB'lık QSS ile) alan başına ~0,5 ms sürüyor
+        # ve yüzlerce satırda tek başına saniyeler ediyordu.
+        if self._applied_permission == level:
+            return
+        self._applied_permission = level
         self._permission = level
         effective = level
         visible = can_view(effective)
@@ -749,6 +766,15 @@ class EntryRowWidget(QWidget):
         self._field_labels: dict[str, str] = {}
         self._drag_start: QPoint | None = None
         self.vault_index: int | None = None
+        # Toplu yükleme bayrağı: True iken alan ekleme pahalı kuyruk işlerini
+        # atlar (bkz. load_entry).
+        self._bulk_loading = False
+        # En son uygulanan izin imzası — aynısı tekrar gelirse iş yapılmaz.
+        self._applied_perm_signature: tuple | None = None
+        self._can_reorder_applied: bool | None = None
+        # Bekleyen yerleşim hesabı var mı — aynı olay turunda onlarca kez
+        # zamanlanmasını engeller.
+        self._layout_pending = False
         self.setToolTip(tr("drag_row_tip"))
 
         row = QHBoxLayout(self)
@@ -880,8 +906,12 @@ class EntryRowWidget(QWidget):
         Salt QSS ':hover' bir çocuk üstündeyken üst bileşende güvenilmezdir;
         bu yüzden 'hovered' durumunu imlecin satır dikdörtgeninde olup
         olmadığına göre elle güncelliyoruz."""
+        # İşaret bileşenin KENDİSİNDE tutulur (id() adres tekrar kullanılabildiği
+        # için güvenilmez). Böylece filtre her çocuğa tam bir kez kurulur.
         for child in self.findChildren(QWidget):
-            child.removeEventFilter(self)
+            if child.property(_HOVER_TRACKED_PROP):
+                continue
+            child.setProperty(_HOVER_TRACKED_PROP, True)
             child.installEventFilter(self)
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
@@ -955,9 +985,14 @@ class EntryRowWidget(QWidget):
             QWidget.setTabOrder(prev, nxt)
 
     def _schedule_info_field_layout(self) -> None:
+        # Aynı olay turunda birden çok istek gelirse tek bir hesap yeter.
+        if self._layout_pending:
+            return
+        self._layout_pending = True
         QTimer.singleShot(0, self._layout_info_fields)
 
     def _layout_info_fields(self) -> None:
+        self._layout_pending = False
         row_content_width = (
             self.width() - ROW_MARGINS[0] - ROW_MARGINS[2]
         )
@@ -1037,6 +1072,14 @@ class EntryRowWidget(QWidget):
         )
         self._extra_fields.append(field)
         field.show()
+        if self._bulk_loading:
+            # TOPLU YÜKLEME: pahalı kuyruk işleri (yerleşim, sekme sırası,
+            # fare-üzeri filtreleri) burada atlanır; ``load_entry`` hepsini
+            # alanlar eklendikten SONRA bir kez yapar. Ayrıca 'changed'
+            # sinyali de yayılmaz — yükleme bir kullanıcı düzenlemesi
+            # değildir ve ana pencerede tüm satırları tarayan bir durum
+            # güncellemesi tetiklemesi (O(satır²)) gerekmez.
+            return
         self._sync_scroll_width(scroll_to_end=not block_signals)
         self._wire_tab_order()
         self._update_field_step_buttons()
@@ -1096,6 +1139,25 @@ class EntryRowWidget(QWidget):
     def apply_permissions(
         self, perms: UserPermissions, *, view_only: bool = False
     ) -> None:
+        # Aynı izinler yeniden uygulanıyorsa çık: bu fonksiyon her satırda
+        # ikon/menü/stil yenilemesi yapıyor ve yüzlerce satırda tekrar tekrar
+        # çağrılıyordu. (Alan sayısı da imzaya dahil — yeni hücre eklenince
+        # izinler tazelenmeli.)
+        # İmzada izin NESNESİ değil DEĞERLERİ tutulur: aynı nesne sonradan
+        # yerinde değiştirilirse eski imza da onunla birlikte değişir ve
+        # yenileme yanlışlıkla atlanırdı.
+        signature = (
+            perms.name,
+            perms.info,
+            perms.can_add_entry,
+            perms.can_delete_entry,
+            perms.can_save,
+            view_only,
+            len(self._extra_fields),
+        )
+        if self._applied_perm_signature == signature:
+            return
+        self._applied_perm_signature = signature
         self._view_only = view_only
         self._permissions = perms
         for field in (self._name, self._info1, *self._extra_fields):
@@ -1134,6 +1196,8 @@ class EntryRowWidget(QWidget):
         self._wire_tab_order()
 
     def apply_field_labels(self, labels: dict[str, str]) -> None:
+        if self._field_labels == labels:
+            return
         self._field_labels = dict(labels)
         self._name.set_custom_label(labels.get("name", ""))
         self._info1.set_custom_label(labels.get("info1", ""))
@@ -1192,6 +1256,9 @@ class EntryRowWidget(QWidget):
         self._name.set_can_delete(not self._view_only)
 
     def set_can_reorder(self, allowed: bool) -> None:
+        if allowed == self._can_reorder_applied:
+            return
+        self._can_reorder_applied = allowed
         self._can_reorder = allowed
         self._drag_handle.setVisible(allowed)
         self.setToolTip(
@@ -1269,6 +1336,20 @@ class EntryRowWidget(QWidget):
         self._refresh_icon_btn()
         self._emit_changed()
 
+    def has_content(self) -> bool:
+        """Satırda dolu bir alan var mı — VaultEntry üretmeden bakar.
+
+        Durum çubuğu bunu her güncellemede tüm satırlar için sorguladığı
+        için nesne üretmeyen ucuz bir sürüm gerekiyor.
+        """
+        if self._name.text().strip() or self._info1.text().strip():
+            return True
+        return any(field.text().strip() for field in self._extra_fields)
+
+    def info_cell_count(self) -> int:
+        """Satırdaki bilgi hücresi sayısı (VaultEntry.max_info_index karşılığı)."""
+        return max(1, 1 + len(self._extra_fields))
+
     def to_entry(self) -> VaultEntry:
         return VaultEntry(
             name=self._name.text().strip(),
@@ -1287,8 +1368,19 @@ class EntryRowWidget(QWidget):
         self._icon_b64 = entry.icon
         self._refresh_icon_btn()
         self._clear_extra_fields()
-        for value in entry.more_infos:
-            self._add_extra_field(initial_text=value, block_signals=True)
+        # Alanlar tek tek eklenirken her biri yerleşim/sekme sırası/olay
+        # filtresi kurulumunu tekrarlıyordu; bayrak bunları erteler ve
+        # aşağıda TEK sefer yapılır (yüzlerce kayıtta belirgin fark eder).
+        self._bulk_loading = True
+        try:
+            for value in entry.more_infos:
+                self._add_extra_field(initial_text=value, block_signals=True)
+        finally:
+            self._bulk_loading = False
+        self._wire_tab_order()
+        self._update_field_step_buttons()
+        self._update_info_remove_actions()
+        self._install_hover_tracking()
         self._sync_scroll_width()
         self.set_sensitive_shown(False)
         self._apply_pw_age_tooltip()

@@ -5,6 +5,7 @@ kobiPass ana pencere: rol tabanlı kasa yönetimi.
 from __future__ import annotations
 
 import copy
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -122,8 +123,20 @@ from kobipass.vault_model import (
     utc_now_iso,
 )
 
-_FILTER_PAGE_SIZE = 100
+# Bir seferde ekrana alınan kayıt sayısı. Bir satır ~40 alt bileşenden oluşur
+# ve kurulumu pahalıdır; ekranda aynı anda 10-15 satır göründüğü için 100 satır
+# hazırlamak boşa işti. Gerisi kaydırdıkça yüklenir.
+_FILTER_PAGE_SIZE = 40
 _FILTER_DEBOUNCE_MS = 300
+# Durum çubuğu güncellemesi bu kadar ms sonra, tek seferde yapılır. Yazarken
+# her tuşta tüm satırları taramamak için (kullanıcı farkı hissetmez).
+_STATUS_REFRESH_MS = 120
+# Satırlar tek hamlede değil, küçük gruplar hâlinde eklenir. Bir kayıt satırı
+# ~30 alt bileşenden oluşuyor ve uygulama genelindeki 41 KB'lık QSS her birine
+# uygulanıyor; 100 satırı tek seferde kurmak arayüzü ~1 sn donduruyordu.
+# Gruplar arasında olay döngüsüne dönülünce program yazmaya/kaydırmaya
+# ANINDA cevap verir — toplam iş aynı kalsa da donma ortadan kalkar.
+_ROW_CHUNK_SIZE = 5
 
 
 class ClickableLabel(QLabel):
@@ -259,8 +272,31 @@ class MainWindow(QMainWindow):
         self._filter_request_id = 0
         self._display_entries: list[VaultEntry] | None = None
         self._loading_batch = False
+        # ── Performans yardımcıları ─────────────────────────────────────
+        # Toplu işlem derinliği: >0 iken durum çubuğu / boş-durum / sekme
+        # sırası gibi TÜM SATIRLARI gezen yenilemeler ertelenir ve işlem
+        # bitince bir kez çalışır. Yüzlerce kayıtta bu yenilemelerin satır
+        # başına tekrarlanması kare-artan (O(n²)) maliyet üretiyordu.
+        self._bulk_depth = 0
+        self._pending_status_refresh = False
+        self._pending_empty_refresh = False
+        self._pending_taborder_refresh = False
+        # entry nesnesi → kasa indeksi haritası (kimliğe göre). Eskiden her
+        # satır için list.index() taranıyordu: hem O(n²) hem de aynı içerikli
+        # iki kayıtta YANLIŞ indeks veriyordu.
+        self._entry_index_map: dict[int, int] | None = None
+        # Kademeli satır yüklemesi: (kayıt, kasa indeksi) kuyruğu.
+        self._pending_rows: list[tuple[VaultEntry, int | None]] = []
 
         self._build_ui()
+        self._row_fill_timer = QTimer(self)
+        self._row_fill_timer.setSingleShot(True)
+        self._row_fill_timer.timeout.connect(self._fill_next_row_chunk)
+        # Durum çubuğu güncellemesi birleştirilir: art arda gelen onlarca
+        # istek (her tuş vuruşu, her satır) tek bir güncellemeye iner.
+        self._status_timer = QTimer(self)
+        self._status_timer.setSingleShot(True)
+        self._status_timer.timeout.connect(self._update_status)
         self._copy_notice_timer = QTimer(self)
         self._copy_notice_timer.setSingleShot(True)
         self._copy_notice_timer.timeout.connect(self._end_copy_notice)
@@ -637,6 +673,15 @@ class MainWindow(QMainWindow):
                 edits[0].setFocus()
 
     def _refresh_empty_state(self) -> None:
+        if self._bulk_depth > 0:
+            self._pending_empty_refresh = True
+            return
+        if self._pending_rows:
+            # Kademeli yükleme sürüyor: liste "şu an" boş görünse bile boş
+            # değil. Aksi hâlde yüklemenin ortasında boş bir kayıt satırı
+            # eklenir ve kasaya hayalet kayıt olarak sızardı.
+            self._pending_empty_refresh = True
+            return
         perms = self._row_permissions()
         add_allowed = self._can_add_record(perms)
         # ARAMA AKTİF + hiç eşleşme yoksa: boş 'onboarding' satırı ekleme;
@@ -1031,20 +1076,42 @@ class MainWindow(QMainWindow):
             return admin_permissions()
         return effective_permissions(self._session, self._vault)
 
-    def _apply_row_permissions(self) -> None:
+    def _apply_row_permissions(
+        self, rows: list[EntryRowWidget] | None = None
+    ) -> None:
+        """İzin/etiketleri satırlara uygular.
+
+        ``rows`` verilirse yalnızca o satırlar işlenir: kademeli yüklemede her
+        grup için TÜM satırları yeniden gezmek gereksizdi.
+        """
+        targets = self._row_widgets if rows is None else rows
         perms = self._row_permissions()
         labels = self._vault.resolved_field_labels() if self._vault else {}
         if not perms:
-            for row in self._row_widgets:
+            for row in targets:
                 row.apply_field_labels(labels)
             return
-        for row in self._row_widgets:
+        for row in targets:
             row.apply_permissions(perms, view_only=False)
             row.apply_field_labels(labels)
 
+    def _apply_row_session_flags(
+        self, rows: list[EntryRowWidget] | None = None
+    ) -> None:
+        """Satır başına silme/sıralama bayrakları (oturum + kilit durumuna göre)."""
+        targets = self._row_widgets if rows is None else rows
+        perms = self._row_permissions()
+        can_delete = (perms.can_delete_entry if perms else True) and not self._kilitli_mi
+        can_reorder = (
+            isinstance(self._session, AdminSession)
+            or bool(perms and perms.can_mutate())
+        ) and not self._kilitli_mi
+        for row in targets:
+            row.set_can_delete(can_delete)
+            row.set_can_reorder(can_reorder)
+
     def _apply_session_ui(self) -> None:
         is_unlocked = self._session is not None
-        is_admin = isinstance(self._session, AdminSession)
 
         # Yönetici düğmeleri her zaman görünür. Yalnızca alt kullanıcı
         # oturumunda sönük (kısıtlı) görünür; yeni/kaydedilmemiş kasada aktif
@@ -1068,7 +1135,6 @@ class MainWindow(QMainWindow):
 
         perms = self._row_permissions()
 
-        can_delete = perms.can_delete_entry if perms else True
         can_save = perms.can_save if perms else True
 
         save_restricted = isinstance(self._session, UserSession) and not can_save
@@ -1080,16 +1146,11 @@ class MainWindow(QMainWindow):
         self._btn_save.style().unpolish(self._btn_save)
         self._btn_save.style().polish(self._btn_save)
 
-        # Satır sıralama: yönetici + kaydı değiştirme yetkisi olan (düzenleme /
-        # ekleme / silme) alt kullanıcılar sürükleyerek sıralayabilir; yalnızca
-        # görüntüleyen kullanıcı sıralayamaz.
-        can_reorder = (
-            is_admin or bool(perms and perms.can_mutate())
-        ) and not self._kilitli_mi
+        # Satır silme/sıralama bayrakları: bkz. _apply_row_session_flags
+        # (yönetici + kaydı değiştirme yetkisi olan alt kullanıcı sıralayabilir;
+        # yalnızca görüntüleyen kullanıcı sıralayamaz).
         self._apply_row_permissions()
-        for row in self._row_widgets:
-            row.set_can_delete(can_delete and not self._kilitli_mi)
-            row.set_can_reorder(can_reorder)
+        self._apply_row_session_flags()
 
         self._update_tab_order()
 
@@ -1100,6 +1161,118 @@ class MainWindow(QMainWindow):
         self._refresh_tab_bar()
         self._update_status()
         self._refresh_empty_state()
+
+    # ── Toplu güncelleme (performans) ────────────────────────────────────
+    @contextmanager
+    def _bulk_update(self):
+        """Blok boyunca 'tüm satırları gezen' yenilemeleri erteler.
+
+        İçeride kaç kez istenirse istensin, blok bitince her yenileme EN FAZLA
+        bir kez çalışır. 100 satır yüklerken durum çubuğu 200 kez yeniden
+        hesaplanıyordu; artık bir kez.
+        """
+        first = self._bulk_depth == 0
+        self._bulk_depth += 1
+        if first:
+            self._suspend_bulk_overhead()
+        try:
+            yield
+        finally:
+            self._bulk_depth -= 1
+            if self._bulk_depth == 0:
+                self._resume_bulk_overhead()
+                self._flush_pending_refreshes()
+
+    def _suspend_bulk_overhead(self) -> None:
+        """Toplu ekleme sırasında iki büyük gizli maliyeti kapatır.
+
+        1) Uygulama geneli olay filtresi: boşta-kilit ve kenardan boyutlandırma
+           için her olayı dinler. Satır oluştururken Qt on binlerce iç olay
+           üretir ve her biri Python'a uğrar (100 satırda ~100.000 çağrı).
+           Döngü boyunca kullanıcı girdisi işlenmediği için filtre gereksizdir;
+           bekleyen olaylar filtre geri takıldıktan sonra normal işlenir.
+        2) Çizim ve yerleşim: her satır eklenişinde tüm liste yeniden
+           yerleştiriliyordu (satır sayısıyla kare-artan maliyet).
+        """
+        app = QApplication.instance()
+        if app is not None:
+            app.removeEventFilter(self)
+        host = getattr(self, "_entries_host", None)
+        if host is not None:
+            host.setUpdatesEnabled(False)
+            layout = host.layout()
+            if layout is not None:
+                layout.setEnabled(False)
+
+    def _resume_bulk_overhead(self) -> None:
+        host = getattr(self, "_entries_host", None)
+        if host is not None:
+            layout = host.layout()
+            if layout is not None:
+                # Yeniden etkinleştirmek yeter; activate() burada TÜM satırları
+                # yeniden yerleştirdiği için her grupta kayıt sayısıyla artan
+                # bir maliyet doğuruyordu. Qt gerektiğinde kendisi yerleştirir.
+                layout.setEnabled(True)
+            host.setUpdatesEnabled(True)
+        app = QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
+
+    def _flush_pending_refreshes(self) -> None:
+        if self._pending_taborder_refresh:
+            self._pending_taborder_refresh = False
+            self._update_tab_order()
+        if self._pending_empty_refresh:
+            self._pending_empty_refresh = False
+            self._refresh_empty_state()
+        if self._pending_status_refresh:
+            self._pending_status_refresh = False
+            self._update_status()
+
+    # ── Kademeli satır yükleme ───────────────────────────────────────────
+    def _queue_rows(self, pairs: list[tuple[VaultEntry, int | None]]) -> None:
+        """Satırları kuyruğa alır; ilk grubu hemen, kalanını olay döngüsünde ekler.
+
+        İlk grup senkron eklenir ki kasa açılır açılmaz ekranda kayıt görünsün;
+        gerisi arayüz cevap verirken arka planda dolar.
+        """
+        if not pairs:
+            return
+        self._pending_rows.extend(pairs)
+        self._fill_next_row_chunk()
+
+    def _fill_next_row_chunk(self) -> None:
+        if not self._pending_rows:
+            return
+        chunk = self._pending_rows[:_ROW_CHUNK_SIZE]
+        del self._pending_rows[:_ROW_CHUNK_SIZE]
+        first_new = len(self._row_widgets)
+        with self._bulk_update():
+            for entry, vault_index in chunk:
+                self._add_row(entry, vault_index=vault_index, refresh_session=False)
+        # Yalnızca YENİ satırlar yetkilendirilir; her grupta tüm listeyi gezmek
+        # kayıt sayısıyla kare-artan bir maliyetti.
+        new_rows = self._row_widgets[first_new:]
+        self._apply_row_permissions(new_rows)
+        self._apply_row_session_flags(new_rows)
+        if self._pending_rows:
+            self._row_fill_timer.start(0)
+            return
+        # Kuyruk bitti: sıralama/durum bilgisi bir kez tazelenir.
+        self._update_tab_order()
+        self._refresh_empty_state()
+        self._update_status()
+
+    def _cancel_pending_rows(self) -> None:
+        self._pending_rows.clear()
+        self._row_fill_timer.stop()
+
+    def _schedule_status_update(self) -> None:
+        """Durum çubuğunu 'birazdan' güncelle (art arda gelenleri birleştirir)."""
+        if self._bulk_depth > 0:
+            self._pending_status_refresh = True
+            return
+        self._status_timer.start(_STATUS_REFRESH_MS)
 
     def _filter_rows(self, text: str) -> None:
         if not self._vault:
@@ -1134,14 +1307,15 @@ class MainWindow(QMainWindow):
         self._merge_row_edits_into_vault()
         self._display_entries = filtered_entries
         self._clear_all_rows()
-        for entry in filtered_entries[:_FILTER_PAGE_SIZE]:
-            self._add_row(
-                entry,
-                vault_index=self._vault_entry_index(entry, 0),
-                refresh_session=False,
-            )
+        with self._entry_index_lookup():
+            pairs = [
+                (entry, self._vault_entry_index(entry, 0))
+                for entry in filtered_entries[:_FILTER_PAGE_SIZE]
+            ]
+        # Önce satırlar kuyruğa alınır: liste boşken _apply_session_ui
+        # çağrılırsa boş-durum mantığı araya sahte bir kayıt satırı ekliyordu.
+        self._queue_rows(pairs)
         self._apply_session_ui()
-        self._update_tab_order()
         self._refresh_empty_state()
 
     def _check_scroll_position(self, value: int) -> None:
@@ -1154,6 +1328,10 @@ class MainWindow(QMainWindow):
     def _load_next_batch(self) -> None:
         if not self._vault or self._loading_batch:
             return
+        if self._pending_rows:
+            # Önceki grup hâlâ kademeli olarak yerleşiyor; bitmeden yenisini
+            # kuyruğa almak aynı kayıtları iki kez eklerdi.
+            return
         source = (
             self._display_entries
             if self._display_entries is not None
@@ -1165,34 +1343,81 @@ class MainWindow(QMainWindow):
             return
         self._loading_batch = True
         try:
-            for entry in next_batch:
-                self._add_row(
-                    entry,
-                    vault_index=self._vault_entry_index(entry, current_count),
-                    refresh_session=False,
-                )
-                current_count += 1
-            self._apply_session_ui()
-            self._update_tab_order()
+            with self._entry_index_lookup():
+                pairs = []
+                for entry in next_batch:
+                    pairs.append(
+                        (entry, self._vault_entry_index(entry, current_count))
+                    )
+                    current_count += 1
+            self._queue_rows(pairs)
         finally:
             self._loading_batch = False
 
     def _vault_entry_index(self, entry: VaultEntry, fallback: int) -> int:
+        """Kaydın kasadaki indeksi — NESNE KİMLİĞİNE göre, tek seferlik harita ile.
+
+        Eskiden ``entries.index(entry)`` kullanılıyordu. İki sorunu vardı:
+        her satır için listeyi baştan tarıyordu (yüz satırda O(n²)) ve
+        VaultEntry eşitliği içeriğe baktığı için AYNI İÇERİKLİ iki kayıtta
+        ikincisi birincinin indeksini alıyordu (yanlış satır güncellenir).
+        """
         if self._vault is None:
             return fallback
+        index_map = self._entry_index_map
+        if index_map is None:
+            # Harita hazır değil (tekil çağrı): yerinde kur, saklamadan kullan.
+            index_map = self._build_entry_index_map()
+        found = index_map.get(id(entry))
+        if found is None:
+            found = index_map.get(entry.uid)
+        return fallback if found is None else found
+
+    def _build_entry_index_map(self) -> dict:
+        """Kayıt→indeks haritası: önce nesne kimliği, sonra kalıcı ``uid``.
+
+        Neden iki anahtar? ``_merge_row_edits_into_vault`` satır düzenlemelerini
+        modele yazarken YENİ VaultEntry nesneleri üretir; elimizdeki kayıt (ör.
+        arama sonucu) o anda artık listedeki nesne değildir. ``uid`` satırla
+        birlikte taşındığı için bu durumda da doğru satırı bulur.
+
+        Eskiden ``entries.index(entry)`` kullanılıyordu: hem her satır için
+        listeyi baştan tarıyordu (yüz satırda O(n²)) hem de VaultEntry eşitliği
+        İÇERİĞE baktığı için aynı içerikli iki kayıtta ikincisi birincinin
+        indeksini alıyor, düzenleme yanlış kayda yazılıyordu.
+        """
+        index_map: dict = {}
+        if self._vault is None:
+            return index_map
+        for index, item in enumerate(self._vault.entries):
+            index_map[id(item)] = index
+            if item.uid:
+                index_map[item.uid] = index
+        return index_map
+
+    @contextmanager
+    def _entry_index_lookup(self):
+        """Döngü boyunca kayıt→indeks haritasını bir kez kurup hazır tutar."""
+        self._entry_index_map = self._build_entry_index_map()
         try:
-            return self._vault.entries.index(entry)
-        except ValueError:
-            return fallback
+            yield
+        finally:
+            self._entry_index_map = None
 
     def _merge_row_edits_into_vault(self) -> None:
         if self._vault is None:
             return
+        entries = self._vault.entries
+        entry_count = len(entries)
+        changed = False
         for row in self._row_widgets:
-            entry = row.to_entry()
             vault_index = row.vault_index
-            if vault_index is not None and 0 <= vault_index < len(self._vault.entries):
-                self._vault.entries[vault_index] = entry
+            if vault_index is not None and 0 <= vault_index < entry_count:
+                entries[vault_index] = row.to_entry()
+                changed = True
+        if changed and self._entry_index_map is not None:
+            # Listedeki nesneler değişti → hazır harita geçersiz.
+            self._entry_index_map = None
 
     def _resync_rows_after_save(self) -> None:
         """Kayıttan sonra satır↔model tutarlılığını sağlar.
@@ -1281,12 +1506,13 @@ class MainWindow(QMainWindow):
         )
         keep = max(len(self._row_widgets), _FILTER_PAGE_SIZE)
         self._clear_all_rows()
-        for entry in source[:keep]:
-            self._add_row(
-                entry,
-                vault_index=self._vault_entry_index(entry, 0),
-                refresh_session=False,
-            )
+        with self._entry_index_lookup():
+            pairs = [
+                (entry, self._vault_entry_index(entry, 0))
+                for entry in source[:keep]
+            ]
+        # Önce satırlar kuyruğa alınır (bkz. _apply_filter_results).
+        self._queue_rows(pairs)
         self._apply_session_ui()
         self._refresh_empty_state()
 
@@ -1345,12 +1571,17 @@ class MainWindow(QMainWindow):
         self._update_status()
 
     def _update_status(self) -> None:
+        if self._bulk_depth > 0:
+            self._pending_status_refresh = True
+            return
+        self._status_timer.stop()
+        self._pending_status_refresh = False
         if self._showing_copy_notice:
             return
         if self._kilitli_mi:
             self._status_left.setText(tr("status_locked"))
         else:
-            filled_count = len(self._collect_entries())
+            filled_count = self._filled_entry_count()
             if filled_count == 0:
                 self._status_left.setText(tr("status_no_records"))
             else:
@@ -1412,9 +1643,9 @@ class MainWindow(QMainWindow):
 
     def _update_summary_panel(self) -> None:
         total_rows = len(self._row_widgets)
-        total_cells = 0
-        for row in self._row_widgets:
-            total_cells += row.to_entry().max_info_index()
+        # Eskiden her satır için bir VaultEntry nesnesi üretiliyordu; sayı
+        # doğrudan hücre adedinden okunuyor artık.
+        total_cells = sum(row.info_cell_count() for row in self._row_widgets)
         if self._dirty or self._last_saved_at is None:
             last_saved_text = tr("summary_not_saved")
         else:
@@ -1427,19 +1658,50 @@ class MainWindow(QMainWindow):
         )
 
     def _mark_dirty(self) -> None:
+        # Her tuş vuruşunda çağrılır: burada AĞIR iş yapılmaz, güncelleme
+        # birleştirilerek ertelenir.
         self._dirty = True
-        self._update_status()
+        self._schedule_status_update()
 
     def _clear_dirty(self) -> None:
         self._dirty = False
         self._update_status()
 
     def _update_tab_order(self) -> None:
+        if self._bulk_depth > 0:
+            self._pending_taborder_refresh = True
+            return
         edits: list = []
         for row in self._row_widgets:
             edits.extend(row.focus_edits())
         for prev, nxt in zip(edits, edits[1:]):
             QWidget.setTabOrder(prev, nxt)
+
+    def _filled_entry_count(self) -> int:
+        """Dolu kayıt sayısı — nesne üretmeden.
+
+        Durum çubuğu eskiden bu sayı için ``_collect_entries()`` çağırıyordu:
+        o da tüm satırlar için VaultEntry üretip modele yazıyordu. Sayının
+        kendisi bu kadar işe değmez; burada ekrandaki canlı satırlar satırdan,
+        ekranda olmayan kayıtlar modelden sayılır.
+        """
+        if self._vault is None:
+            return sum(1 for row in self._row_widgets if row.has_content())
+        loaded_indexes: set[int] = set()
+        count = 0
+        entry_count = len(self._vault.entries)
+        for row in self._row_widgets:
+            index = row.vault_index
+            if index is not None and 0 <= index < entry_count:
+                loaded_indexes.add(index)
+            if row.has_content():
+                count += 1
+        for index, entry in enumerate(self._vault.entries):
+            if index in loaded_indexes:
+                continue
+            if entry.has_content():
+                count += 1
+        return count
 
     def _collect_entries(self) -> list[VaultEntry]:
         self._merge_row_edits_into_vault()
@@ -1536,6 +1798,9 @@ class MainWindow(QMainWindow):
         self._refresh_empty_state()
 
     def _clear_all_rows(self) -> None:
+        # Bekleyen kademeli yükleme varsa iptal: aksi hâlde temizlenen listeye
+        # eski sekmenin/aramanın satırları eklenmeye devam ederdi.
+        self._cancel_pending_rows()
         for row in list(self._row_widgets):
             self._entries_layout.removeWidget(row)
             row.deleteLater()
@@ -1559,8 +1824,12 @@ class MainWindow(QMainWindow):
         self._search_bar.clear()
         self._search_bar.blockSignals(False)
         self._clear_all_rows()
-        for index, entry in enumerate(vault.entries[:_FILTER_PAGE_SIZE]):
-            self._add_row(entry, vault_index=index, refresh_session=False)
+        self._queue_rows(
+            [
+                (entry, index)
+                for index, entry in enumerate(vault.entries[:_FILTER_PAGE_SIZE])
+            ]
+        )
         self._snapshot_entries = copy.deepcopy(vault.entries)
         if reset_dirty:
             self._clear_dirty()
