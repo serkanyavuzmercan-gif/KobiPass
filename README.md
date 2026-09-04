@@ -90,6 +90,10 @@ cd C:\path\to\KobiPass   # repo kökü
 
 Detaylar: [`msix/README.md`](msix/README.md)
 
+## Yayın / Store
+
+Microsoft Store'a yüklenecek güncel sürüm ve gerekçesi: [`YAYIN-NOTU.md`](YAYIN-NOTU.md)
+
 ## Lisans
 
 Hidroteknik Yazılım — dahili kullanım.
