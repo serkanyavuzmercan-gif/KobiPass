@@ -40,6 +40,26 @@ def _backup_stem(vault_path: Path) -> str:
     return vault_path.stem
 
 
+# Yedek adı: "<kasa adı>-<tarih>-<saat>[-<mikrosaniye>][-<sayaç>].enc"
+# Kasa adından SONRA mutlaka zaman damgası gelmeli. Düz önek ("kasa-" ile
+# başlıyor mu) kontrolü yetmez: o zaman "kasa.enc", "kasa-yedek.enc" kasasının
+# yedeklerini de kendi yedeği sanar; budama sırasında BAŞKA KASANIN YEDEKLERİNİ
+# SİLER ve geri yükleme listesinde yanlış kasayı gösterir.
+_STAMP_SUFFIX = re.compile(r"^-\d{8}-\d{6}(?:-\d{6})?(?:-\d+)?$")
+
+
+def _is_backup_of(path: Path, stem: str) -> bool:
+    """``path`` adlı dosya, ``stem`` kasasının yedeği mi?"""
+    name = path.stem
+    if not name.startswith(stem):
+        return False
+    return bool(_STAMP_SUFFIX.match(name[len(stem) :]))
+
+
+def _backups_for(directory: Path, stem: str) -> list[Path]:
+    return [p for p in directory.glob("*.enc") if _is_backup_of(p, stem)]
+
+
 def _backup_sort_key(path: Path) -> tuple[str, str, int, int]:
     """Yeni/legacy yedek adlarını kronolojik ve sayaç bazlı güvenilir sıralar."""
     stem = path.stem
@@ -84,8 +104,7 @@ def find_backups(vault_path: Path | str | None = None) -> list[Path]:
     if not directory.is_dir():
         return []
     if vault_path is not None:
-        prefix = f"{_backup_stem(Path(vault_path))}-"
-        candidates = [p for p in directory.glob("*.enc") if p.name.startswith(prefix)]
+        candidates = _backups_for(directory, _backup_stem(Path(vault_path)))
     else:
         candidates = list(directory.glob("*.enc"))
     return sorted(candidates, key=_backup_sort_key, reverse=True)
@@ -118,9 +137,8 @@ def clear_read_only(path: Path) -> None:
 
 
 def _prune(directory: Path, stem: str) -> None:
-    prefix = f"{stem}-"
     entries = sorted(
-        (p for p in directory.glob("*.enc") if p.name.startswith(prefix)),
+        _backups_for(directory, stem),
         key=_backup_sort_key,
         reverse=True,
     )

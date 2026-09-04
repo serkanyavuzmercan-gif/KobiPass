@@ -737,3 +737,53 @@ def test_permission_info_rest_backcompat() -> None:
         {"name": "read", "info1": "write", "info_rest": "none"}
     )
     assert legacy.info == "write"
+
+
+def test_backup_does_not_claim_other_vault_backups(tmp_path, monkeypatch) -> None:
+    """Adı önek olan iki kasa birbirinin yedeklerini sahiplenmemeli.
+
+    Regresyon: "kasa.enc" düz önek eşleşmesi yüzünden "kasa-yedek.enc"
+    kasasının yedeklerini kendi yedeği sayıyor, budama sırasında onları
+    SİLİYORDU (sessiz veri kaybı) ve geri yükleme listesinde gösteriyordu.
+    """
+    from kobipass import backup as B
+
+    store = tmp_path / "backups"
+    monkeypatch.setenv("KOBIPASS_BACKUP_DIR", str(store))
+
+    vaults = tmp_path / "vaults"
+    vaults.mkdir()
+    main = vaults / "kasa.enc"
+    other = vaults / "kasa-yedek.enc"
+    write_vault_file(main, KobiVault(), "pw-main", [])
+    write_vault_file(other, KobiVault(), "pw-other", [])
+
+    B.create_backup(other)
+    other_backups = B.find_backups(other)
+    assert len(other_backups) == 1
+
+    # Diğer kasayı budama sınırının üstünde defalarca yedekle.
+    for _ in range(B.BACKUP_KEEP + 3):
+        B.create_backup(main)
+
+    # 1) Listeleme karışmamalı.
+    main_names = [p.name for p in B.find_backups(main)]
+    assert all(not n.startswith("kasa-yedek-") for n in main_names)
+    assert len(main_names) == B.BACKUP_KEEP
+
+    # 2) Diğer kasanın yedeği silinmemeli.
+    assert B.find_backups(other) == other_backups
+    assert other_backups[0].exists()
+
+
+def test_backup_matcher_accepts_own_stamped_names(tmp_path) -> None:
+    """Kendi yedekleri (mikrosaniyeli, legacy ve sayaçlı) eşleşmeye devam etmeli."""
+    from kobipass.backup import _is_backup_of
+
+    assert _is_backup_of(tmp_path / "kasa-20260904-064248-166769.enc", "kasa")
+    assert _is_backup_of(tmp_path / "kasa-20260904-064248.enc", "kasa")  # legacy
+    assert _is_backup_of(tmp_path / "kasa-20260904-064248-166769-1.enc", "kasa")
+    # Başka kasa
+    assert not _is_backup_of(tmp_path / "kasa-yedek-20260904-064248.enc", "kasa")
+    assert not _is_backup_of(tmp_path / "kasa-2026-20260904-064248.enc", "kasa")
+    assert _is_backup_of(tmp_path / "kasa-yedek-20260904-064248.enc", "kasa-yedek")
