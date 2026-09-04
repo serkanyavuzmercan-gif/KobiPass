@@ -3,6 +3,21 @@
 > **Bu dosya devir notudur.** Store / Partner Center yönetimi geliştirmeyi yapan
 > kişide değildir. Aşağıdaki adım, yayını yöneten kişi tarafından yapılmalıdır.
 
+## ✅ Durum: 1.2.9 Store'a gönderildi (04.09.2026)
+
+`KobiPass-1.2.9.0.msix` Partner Center'a **Submission 7** ile yüklendi ve
+sertifikasyona gönderildi. Eski `1.2.7.0` paketi gönderimden kaldırıldı.
+
+Sertifikasyon genelde birkaç saat, en fazla 3 iş günü sürer; durum
+**Application overview** sayfasından izlenir (Pre-processing → Certification →
+Publishing → In the Store). Ek işlem gerekmez.
+
+> **Önemli:** Store'da bu gönderimden önce **1.2.7** yayındaydı — yani 1.2.8 hiç
+> yüklenmemişti. 1.2.9, 1.2.8'in düzeltmelerini de kapsadığı için aradaki sürümü
+> ayrıca yüklemeye gerek yoktur.
+
+Aşağıdaki bölümler, sonraki sürümlerde aynı işlemi yapacak kişi içindir.
+
 ## ➜ Yüklenecek sürüm: **1.2.9.0**
 
 | | |
