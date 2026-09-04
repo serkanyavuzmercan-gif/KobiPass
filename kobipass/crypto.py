@@ -441,15 +441,6 @@ def build_vault_file(
     return _finalize_vault_bytes(b"".join(parts))
 
 
-def write_vault_file_with_keys(
-    path: Path,
-    vault: KobiVault,
-    keys: VaultFileKeys,
-) -> None:
-    """Mevcut sarmalayıcıları koruyarak yalnızca vault gövdesini yeniden şifreler."""
-    _atomic_write(path, _serialize_keys(keys, vault))
-
-
 def update_user_wraps(
     keys: VaultFileKeys,
     user_passwords: list[tuple[bool, str]],

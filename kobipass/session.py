@@ -24,9 +24,6 @@ class AdminSession:
     def user_slot(self) -> int | None:
         return None
 
-    def display_role(self) -> str:
-        return "admin"
-
 
 @dataclass
 class UserSession:
@@ -38,9 +35,6 @@ class UserSession:
     @property
     def is_admin(self) -> bool:
         return False
-
-    def display_role(self) -> str:
-        return f"user_{self.user_slot}"
 
 
 Session = AdminSession | UserSession
@@ -72,24 +66,6 @@ def session_from_unlock(
         user_password=password,
         keys=result.keys,
     )
-
-
-def full_admin_passwords(
-    session: AdminSession,
-    enabled_flags: list[bool],
-    new_passwords: list[str],
-) -> list[tuple[bool, str]]:
-    """Kayıt için kullanıcı slot parolalarını birleştirir."""
-    result: list[tuple[bool, str]] = []
-    for index in range(3):
-        enabled = enabled_flags[index] if index < len(enabled_flags) else False
-        pwd = new_passwords[index] if index < len(new_passwords) else ""
-        if enabled and not pwd and session.user_passwords:
-            old_enabled, old_pwd = session.user_passwords[index]
-            if old_enabled and old_pwd:
-                pwd = old_pwd
-        result.append((enabled, pwd))
-    return result
 
 
 def admin_permissions() -> UserPermissions:

@@ -216,28 +216,6 @@ class CustomTitleBar(QWidget):
         self._refresh_maximize_button()
         return size
 
-    def center_on_screen(
-        self,
-        width: int | None = None,
-        height: int | None = None,
-    ) -> None:
-        """Pencereyi ekranın ortasına yerleştirir (tam ekran değil)."""
-        if width is None or height is None:
-            size = window_size_for_available(self._available_screen_geometry())
-            width = size.width() if width is None else width
-            height = size.height() if height is None else height
-        self._window.setMaximumSize(_QWIDGETSIZE_MAX, _QWIDGETSIZE_MAX)
-        self._window.setMinimumSize(
-            min(_MIN_WINDOW_WIDTH, width), min(_MIN_WINDOW_HEIGHT, height)
-        )
-        target = self._centered_geometry(width, height)
-        self._window.winId()
-        set_window_geometry(self._window, target, restoring=False)
-        self._restore_size = (width, height)
-        self._restore_pos = (target.x(), target.y())
-        self._maximized = False
-        self._refresh_maximize_button()
-
     def _update_theme_icon(self) -> None:
         self.btn_theme.setIcon(
             icon_sun() if theme_manager.is_dark() else icon_theme()

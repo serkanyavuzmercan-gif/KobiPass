@@ -39,21 +39,6 @@ def effective_permissions(session: Session, vault: KobiVault) -> UserPermissions
     return vault.permissions_for_slot(int(slot))
 
 
-def view_only_permissions(perms: UserPermissions) -> UserPermissions:
-    """Yönetici dışı oturumlarda tüm yazma yetkilerini kaldırır."""
-
-    def strip_write(level: FieldLevel) -> FieldLevel:
-        return "read" if level == "write" else level
-
-    return UserPermissions(
-        name=strip_write(perms.name),
-        info=strip_write(perms.info),
-        can_add_entry=False,
-        can_delete_entry=False,
-        can_save=False,
-    )
-
-
 def field_label(field_name: str, vault: KobiVault | None = None) -> str:
     if vault is not None:
         custom = vault.label_for(field_name)

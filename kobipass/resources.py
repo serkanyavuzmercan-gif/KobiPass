@@ -8,8 +8,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QRect, Qt
-from PyQt6.QtGui import QColor, QIcon, QImage, QPixmap
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon, QPixmap
 
 
 def _project_root() -> Path:
@@ -61,22 +61,6 @@ def logo_pixmap(height: int = 40) -> QPixmap:
     return pm.scaledToHeight(height, Qt.TransformationMode.SmoothTransformation)
 
 
-def hero_art_pixmap(height: int = 360) -> QPixmap:
-    """Karşılama ekranı hero görseli (opsiyonel).
-
-    ``assets/hero_vault.png`` varsa oranı korunarak ölçeklenir; yoksa boş
-    QPixmap döner (arayüz görseli göstermez). Böylece tasarım PNG'si sonradan
-    eklendiğinde otomatik devreye girer.
-    """
-    path = asset_path("hero_vault.png")
-    if not path.is_file():
-        return QPixmap()
-    pm = QPixmap(str(path))
-    if pm.isNull():
-        return QPixmap()
-    return pm.scaledToHeight(height, Qt.TransformationMode.SmoothTransformation)
-
-
 def hero_left_pixmap(english: bool = False, light: bool = False) -> QPixmap:
     """Karşılama ekranının sol panelini komple kaplayan görsel (opsiyonel).
 
@@ -97,60 +81,3 @@ def hero_left_pixmap(english: bool = False, light: bool = False) -> QPixmap:
             if not pm.isNull():
                 return pm
     return QPixmap()
-
-
-def security_shield_pixmap(width: int | None = 320) -> QPixmap:
-    """Özet panelindeki güvenlik kartı görseli (opsiyonel).
-
-    ``assets/security_shield.png`` varsa döner; yoksa boş QPixmap (arayüz
-    çizili kalkana düşer). ``width`` verilirse oran korunarak o genişliğe
-    ölçeklenir; ``None`` ise ham (tam çözünürlük) görsel döner — çağıran taraf
-    kendi alanına göre ölçekleyebilir (responsive kalkan için).
-    """
-    path = asset_path("security_shield.png")
-    if not path.is_file():
-        return QPixmap()
-    pm = QPixmap(str(path))
-    if pm.isNull():
-        return QPixmap()
-    if width is None or width <= 0:
-        return pm
-    return pm.scaledToWidth(width, Qt.TransformationMode.SmoothTransformation)
-
-
-def watermark_mask_pixmap(height: int = 512) -> QPixmap:
-    """Yüksek çözünürlüklü logo2'den arka plansız, tek renk filigran maskesi."""
-    path = asset_path("logo2.png")
-    if not path.is_file():
-        return logo_pixmap(height)
-    source = QImage(str(path)).convertToFormat(QImage.Format.Format_ARGB32)
-    if source.isNull():
-        return logo_pixmap(height)
-
-    # Köşe beyazlarını dışarıda bırak; yalnızca açık renkli KP/kilit sembolünü al.
-    margin_x = max(1, int(source.width() * 0.11))
-    margin_top = max(1, int(source.height() * 0.055))
-    margin_bottom = max(1, int(source.height() * 0.08))
-    crop_rect = QRect(
-        margin_x,
-        margin_top,
-        source.width() - 2 * margin_x,
-        source.height() - margin_top - margin_bottom,
-    )
-    cropped = source.copy(crop_rect)
-    mask = QImage(cropped.size(), QImage.Format.Format_ARGB32)
-    mask.fill(Qt.GlobalColor.transparent)
-
-    for y in range(cropped.height()):
-        for x in range(cropped.width()):
-            color = cropped.pixelColor(x, y)
-            r, g, b = color.red(), color.green(), color.blue()
-            luminance = int(0.2126 * r + 0.7152 * g + 0.0722 * b)
-            saturation = max(r, g, b) - min(r, g, b)
-            if luminance <= 96 or saturation >= 72:
-                continue
-            alpha = max(0, min(255, int((luminance - 96) * 1.6)))
-            mask.setPixelColor(x, y, QColor(255, 255, 255, alpha))
-
-    pm = QPixmap.fromImage(mask)
-    return pm.scaledToHeight(height, Qt.TransformationMode.SmoothTransformation)

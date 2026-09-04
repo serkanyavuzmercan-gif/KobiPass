@@ -91,9 +91,6 @@ class HeroPanel(QFrame):
         self._bg = pm
         self.update()
 
-    def has_background(self) -> bool:
-        return not self._bg.isNull()
-
     def paintEvent(self, event) -> None:  # noqa: N802
         super().paintEvent(event)  # QSS degrade fon + kenarlık (yedek)
         if self._bg.isNull():

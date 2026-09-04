@@ -22,12 +22,9 @@ from kobipass.crypto import (
     write_vault_file_updated,
 )
 from kobipass.permissions import (
-    can_edit,
-    can_view,
     diff_entries_for_audit,
     is_sensitive_audit_field,
     mask_audit_value,
-    view_only_permissions,
 )
 from kobipass.session import UserSession
 from kobipass.vault_model import (
@@ -444,16 +441,6 @@ def test_write_updated_preserves_version(tmp_path: Path) -> None:
     new_keys = write_vault_file_updated(path, vault, unlocked.keys)
     assert new_keys.version == VERSION_PBKDF2
     assert read_vault_file(path, "user").vault.entries[-1].name == "B"
-
-
-def test_view_only_permissions() -> None:
-    perms = UserPermissions(name="write", info="write", can_add_entry=True)
-    locked = view_only_permissions(perms)
-    assert locked.name == "read"
-    assert locked.info == "read"
-    assert locked.can_add_entry is False
-    assert can_view(locked.info)
-    assert not can_edit(locked.info)
 
 
 def test_audit_masks_sensitive_fields(tmp_path: Path) -> None:
