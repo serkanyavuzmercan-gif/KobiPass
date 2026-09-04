@@ -28,7 +28,6 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from kobipass.vault_model import (
     KobiVault,
-    USER_SLOT_COUNT,
     hidden_tabs_json_bytes,
     merge_hidden_tabs,
     vault_from_json_bytes,

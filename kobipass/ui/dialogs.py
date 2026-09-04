@@ -4,8 +4,7 @@ kobiPass dialog pencereleri.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QPoint, Qt
-from PyQt6.QtGui import QMouseEvent
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -25,7 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.crypto import MAX_USER_SLOTS, passwords_are_unique
-from kobipass.i18n import MIN_PASSWORD_LENGTH, i18n, tr
+from kobipass.i18n import MIN_PASSWORD_LENGTH, tr
 from kobipass.resources import app_icon
 from kobipass.ui.strength import attach_strength_label
 from kobipass.ui.user_admin_dialog import (

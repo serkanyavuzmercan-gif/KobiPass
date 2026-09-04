@@ -685,7 +685,7 @@ def test_password_age_roundtrip() -> None:
 
 def test_atomic_write_roundtrip(tmp_path: Path) -> None:
     """Atomik yazım sonrası dosya okunur ve geçici .tmp kalmaz."""
-    from kobipass.vault_model import KobiVault, VaultEntry
+    from kobipass.vault_model import VaultEntry
 
     vault = mkvault(entries=[VaultEntry(name="A", info1="secret")])
     path = tmp_path / "atomic.enc"

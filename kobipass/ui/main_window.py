@@ -34,7 +34,6 @@ from PyQt6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
-    QScrollArea,
     QSizeGrip,
     QSizePolicy,
     QStackedWidget,
@@ -100,12 +99,9 @@ from kobipass.ui.icons import (
     icon_save,
     icon_search,
     icon_shield,
-    icon_sun,
-    icon_theme,
     icon_users,
 )
 from kobipass.ui.tab_bar import VaultTabBar
-from kobipass.ui.theme import theme_manager
 from kobipass.ui.title_bar import CustomTitleBar
 from kobipass.ui.user_admin_dialog import UserAdminDialog
 from kobipass.ui.vault_settings_dialog import VaultSettingsDialog
@@ -2330,9 +2326,9 @@ class MainWindow(QMainWindow):
             box.setWindowTitle(tr("exit_title"))
             box.setText(tr("exit_text"))
             save_btn = box.addButton(tr("exit_save"), QMessageBox.ButtonRole.AcceptRole)
-            discard_btn = box.addButton(
-                tr("exit_discard"), QMessageBox.ButtonRole.DestructiveRole
-            )
+            # "Kaydetmeden çık": tıklanması ayrıca kontrol edilmez — iptal ve
+            # kaydet dışındaki her seçim aşağıda kapatmaya düşer.
+            box.addButton(tr("exit_discard"), QMessageBox.ButtonRole.DestructiveRole)
             cancel_btn = box.addButton(tr("exit_cancel"), QMessageBox.ButtonRole.RejectRole)
             box.setDefaultButton(save_btn)
             box.exec()
