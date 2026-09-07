@@ -132,12 +132,12 @@ QScrollArea#entryFieldsScroll QScrollBar:vertical {
 
 QScrollArea#entryFieldsScroll QScrollBar:horizontal {
     background: transparent;
-    height: 6px;
-    margin: 2px 0 0 0;
+    height: 4px;
+    margin: 3px 0 0 0;
 }
 
 QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover {
-    height: 12px;
+    height: 9px;
     margin: 0;
 }
 
@@ -2239,12 +2239,12 @@ QScrollArea#entryFieldsScroll QScrollBar:vertical {
 
 QScrollArea#entryFieldsScroll QScrollBar:horizontal {
     background: transparent;
-    height: 6px;
-    margin: 2px 0 0 0;
+    height: 4px;
+    margin: 3px 0 0 0;
 }
 
 QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover {
-    height: 12px;
+    height: 9px;
     margin: 0;
 }
 

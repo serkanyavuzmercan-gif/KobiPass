@@ -181,10 +181,10 @@ class EntryFieldsScroll(QScrollArea):
     viewport_resized = pyqtSignal()
 
     def sizeHint(self) -> QSize:
-        return QSize(0, ROW_CONTROL_HEIGHT + 4)  # çubuk gizli: küçük nefes payı
+        return QSize(0, ROW_CONTROL_HEIGHT + 9)  # ince kaydırma çubuğu payı
 
     def minimumSizeHint(self) -> QSize:
-        return QSize(0, ROW_CONTROL_HEIGHT + 4)
+        return QSize(0, ROW_CONTROL_HEIGHT + 9)
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
@@ -797,17 +797,18 @@ class EntryRowWidget(QWidget):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Minimum,
         )
-        # Sınıfın tasarımı "scrollbar gizli, tekerlek ile kayar": görünen yatay
-        # çubuk satırın altında ayrı bir şerit gibi duruyor ve garip görünüyordu.
-        # Kaydırma tekerlek (ve Shift+tekerlek) ile yapılır.
+        # Hücreler taştığında kaydırma çubuğu görünür olmalı: gizlendiğinde
+        # görüş alanı dışındaki hücrelere ulaşmanın yolu kalmıyor (tekerlekle
+        # yatay kaydırmayı çoğu fare/kullanıcı bilmez). Çubuk boştayken çok
+        # ince ve siliktir, fare üzerine gelince belirginleşir.
         self._scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self._scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT + 4)
+        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT + 9)
         self._scroll.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
@@ -846,9 +847,6 @@ class EntryRowWidget(QWidget):
         self._add_field_btn.clicked.connect(self._add_extra_field)
         field_step_layout.addWidget(self._add_field_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        self._extras_layout.addWidget(
-            self._field_step_column, 0, Qt.AlignmentFlag.AlignTop
-        )
 
         # Parola tazeliği: son değişiklik tarihi. Sabit sağda değil, kaydırılan
         # alanın İÇİNDE, en sağdaki hücrenin ('+' düğmesinin) hemen yanında
@@ -864,6 +862,13 @@ class EntryRowWidget(QWidget):
 
         self._scroll.setWidget(self._extras_host)
         row.addWidget(self._scroll, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
+
+        # '+' düğmesi kaydırma alanının DIŞINDA, satırın sağına sabitlenir.
+        # İçeride olduğunda, hücreler satırı doldurunca görüş alanının
+        # dışına kayıyor ve yeni alan eklemek imkânsızlaşıyordu.
+        row.addWidget(
+            self._field_step_column, 0, Qt.AlignmentFlag.AlignTop
+        )
 
         self.retranslate()
 
@@ -938,7 +943,12 @@ class EntryRowWidget(QWidget):
             self.remove_requested.emit(self)
 
     def _field_step_index(self) -> int:
-        return self._extras_layout.indexOf(self._field_step_column)
+        """Yeni bilgi hücresinin ekleneceği konum: yaş etiketinden hemen önce.
+
+        ('+' düğmesi artık bu layout'ta değil; satırın sağına sabitlendi.)
+        """
+        index = self._extras_layout.indexOf(self._age_label)
+        return index if index >= 0 else self._extras_layout.count()
 
     def _update_field_step_buttons(self) -> None:
         # '-' düğmesi kaldırıldı; '+' her zaman etkin (sınır yok).
