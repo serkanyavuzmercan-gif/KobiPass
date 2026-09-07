@@ -58,7 +58,9 @@ INFO_FIELD_WIDTH = 180
 INFO_FIELD_MAX_WIDTH = 300
 INFO_VISIBLE_COLUMNS = 3
 FIELD_STEP_BTN_WIDTH = 30
-FIELD_STEP_BTN_HEIGHT = 20
+# '-' düğmesi kaldırıldıktan sonra yükseklik 20'de kalmıştı ve '+' yarım/basık
+# görünüyordu. Kare oran düğmeyi tam gösterir.
+FIELD_STEP_BTN_HEIGHT = 30
 
 _ICON_BTN_SIZE = COPY_BTN_SIZE
 _FIELD_EYE_BTN_SIZE = QSize(28, 28)
@@ -1045,9 +1047,10 @@ class EntryRowWidget(QWidget):
         self._emit_changed()
 
     def _update_info_remove_actions(self) -> None:
-        """1. Bilgi yalnızken silinmez; ek alanlar her zaman silinebilir."""
+        """Tüm bilgi alanları silinebilir. 1. Bilgi tek kalan alansa silmek,
+        kaydı silmek anlamına gelir (satır silme akışına devredilir)."""
         can_edit = not self._view_only
-        self._info1.set_can_remove_field(can_edit and len(self._extra_fields) > 0)
+        self._info1.set_can_remove_field(can_edit)
         for field in self._extra_fields:
             field.set_can_remove_field(can_edit)
 
@@ -1057,6 +1060,11 @@ class EntryRowWidget(QWidget):
             return
         if field is self._info1:
             if not self._extra_fields:
+                # 1. Bilgi son kalan bilgi alanıysa, silmek kaydın kendisini
+                # silmek demektir: satır silme akışına devret (yetki kontrolü ve
+                # onay orada yapılır). Eskiden burada sessizce vazgeçiliyordu,
+                # yani ilk sütun hiç silinemiyordu.
+                self._confirm_and_remove()
                 return
             # 1. Bilgi silinince 2. Bilgi yukarı kayar.
             promoted = self._extra_fields.pop(0)
@@ -1182,9 +1190,16 @@ class EntryRowWidget(QWidget):
         )
         drag.exec(Qt.DropAction.MoveAction)
 
-    def set_sensitive_shown(self, shown: bool) -> None:
+    def set_sensitive_shown(self, shown: bool, *, force: bool = False) -> None:
+        """Satırdaki hassas alanların görünürlüğünü ayarlar.
+
+        ``force=True`` görünürlük kontrolünü atlar: 'Gözleri Aç' gibi kullanıcı
+        tarafından açıkça istenen toplu işlemlerde, henüz çizilmemiş alanların
+        sessizce atlanmaması için gerekir. (Maskeli alanlar yine açılmaz;
+        bu kararı ``set_hidden`` içindeki yetki kontrolü verir.)
+        """
         for field in self._sensitive_fields():
-            if field.isVisible():
+            if force or field.isVisible():
                 field.set_hidden(not shown)
 
     def set_can_delete(self, allowed: bool) -> None:

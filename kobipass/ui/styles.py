@@ -331,59 +331,14 @@ QLabel#summarySecurityText {
     font-size: 10px;
 }
 
-QWidget#vaultWorkspaceSplit {
-    background-color: transparent;
-}
 
-QFrame#vaultRecordsPanel {
-    background-color: #171b22;
-    border: 1px solid #2f3745;
-    border-radius: 14px;
-}
 
-QLabel#vaultRecordsHeader {
-    color: #7f8aa0;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.1px;
-}
 
-QFrame#vaultRecordSummary {
-    background-color: #171b22;
-    border: 1px solid #2f3745;
-    border-radius: 14px;
-}
 
-QLabel#vaultSummaryTitle {
-    color: #7f8aa0;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.1px;
-}
 
-QFrame#vaultSummaryStats {
-    background-color: #1d2330;
-    border: 1px solid #313a4a;
-    border-radius: 10px;
-}
 
-QLabel#vaultSummaryStatLabel {
-    color: #8b96a8;
-    font-size: 11px;
-    font-weight: 500;
-}
 
-QLabel#vaultSummaryStatValue {
-    color: #eef2fb;
-    font-size: 11px;
-    font-weight: 700;
-}
 
-QLabel#vaultSummaryCaption {
-    color: #7d89a0;
-    font-size: 11px;
-    line-height: 1.35;
-}
 
 QWidget#entryFieldsStack {
     background: transparent;
@@ -628,6 +583,25 @@ QPushButton[restricted="true"]:hover {
     background-color: #2d3340;
     border-color: #3d4450;
     color: #7a808a;
+}
+
+QPushButton#summaryAddBtn {
+    background-color: #4b68f4;
+    border: 1px solid #3854e0;
+    border-radius: 6px;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 7px 10px;
+    text-align: center;
+}
+
+QPushButton#summaryAddBtn:hover {
+    background-color: #3854e0;
+    border-color: #2d47c8;
+}
+
+QPushButton#summaryAddBtn:pressed {
+    background-color: #2d47c8;
 }
 
 QPushButton#primaryBtn {
@@ -2710,6 +2684,25 @@ QPushButton[restricted="true"]:hover {
     background-color: #edf0fa;
     border-color: #dde3f0;
     color: #98a0ad;
+}
+
+QPushButton#summaryAddBtn {
+    background-color: #4b68f4;
+    border: 1px solid #3854e0;
+    border-radius: 6px;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 7px 10px;
+    text-align: center;
+}
+
+QPushButton#summaryAddBtn:hover {
+    background-color: #3854e0;
+    border-color: #2d47c8;
+}
+
+QPushButton#summaryAddBtn:pressed {
+    background-color: #2d47c8;
 }
 
 QPushButton#primaryBtn {

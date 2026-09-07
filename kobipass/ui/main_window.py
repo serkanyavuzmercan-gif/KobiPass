@@ -91,11 +91,13 @@ from kobipass.backup import (
 )
 from kobipass.ui.icons import (
     icon_chevron_left,
+    icon_eye,
     icon_folder_open,
     icon_history,
     icon_home,
     icon_info,
     icon_more,
+    icon_plus,
     icon_save,
     icon_search,
     icon_shield,
@@ -118,7 +120,13 @@ from kobipass.vault_model import (
     utc_now_iso,
 )
 
-_FILTER_PAGE_SIZE = 100
+# Bir seferde kurulan satır sayısı. Her satır ~36 widget doğurur; 100 satır
+# açılışta ~3600 widget demekti ve sekme geçişini/tema değişimini saniyelerce
+# bekletiyordu. Kalanı kaydırdıkça yüklenir (sonsuz kaydırma).
+_FILTER_PAGE_SIZE = 30
+
+# 'Gözleri Aç' düğmesinin şifreleri açık tuttuğu süre (saniye).
+REVEAL_ALL_SECONDS = 10
 _FILTER_DEBOUNCE_MS = 300
 
 
@@ -257,6 +265,9 @@ class MainWindow(QMainWindow):
         self._loading_batch = False
 
         self._build_ui()
+        self._reveal_all_left = 0
+        self._reveal_all_timer = QTimer(self)
+        self._reveal_all_timer.timeout.connect(self._tick_reveal_all)
         self._copy_notice_timer = QTimer(self)
         self._copy_notice_timer.setSingleShot(True)
         self._copy_notice_timer.timeout.connect(self._end_copy_notice)
@@ -379,6 +390,21 @@ class MainWindow(QMainWindow):
         self._btn_save.clicked.connect(self._save_vault)
         toolbar.addWidget(self._btn_save, 0, Qt.AlignmentFlag.AlignVCenter)
 
+        # Kayıt ekle — araç çubuğunda, çünkü listenin sonundaki çubuğa ulaşmak
+        # için yüzlerce satır kaydırmak gerekiyordu.
+        self._btn_add_record = QPushButton()
+        self._btn_add_record.setIcon(icon_plus(_tb_icon, size=16))
+        self._btn_add_record.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_add_record.clicked.connect(self._add_record_from_toolbar)
+        toolbar.addWidget(self._btn_add_record, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        # Tüm şifreleri 10 sn göster — onay sormaz, süre bitince kendi kapanır.
+        self._btn_reveal_all = QPushButton()
+        self._btn_reveal_all.setIcon(icon_eye())
+        self._btn_reveal_all.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_reveal_all.clicked.connect(self._reveal_all_passwords)
+        toolbar.addWidget(self._btn_reveal_all, 0, Qt.AlignmentFlag.AlignVCenter)
+
         self._btn_users = QPushButton()
         self._btn_users.setIcon(icon_users(_tb_icon, size=17))
         self._btn_users.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -500,6 +526,9 @@ class MainWindow(QMainWindow):
 
         self._summary_panel = VaultSummaryPanel()
         self._summary_panel.collapse_requested.connect(self._collapse_summary)
+        self._summary_panel.add_record_requested.connect(
+            self._add_record_from_toolbar
+        )
 
         # Özet paneli gizliyken sağ kenarda görünen ince 'aç' tutamacı.
         self._summary_reopen_btn = QPushButton()
@@ -511,7 +540,9 @@ class MainWindow(QMainWindow):
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
         )
         self._summary_reopen_btn.clicked.connect(self._expand_summary)
-        self._summary_reopen_btn.hide()
+        # Sağ özet paneli varsayılan KAPALI: çalışma alanını daraltıyor ve
+        # çoğu zaman gerekmiyor. Kullanıcı ok düğmesiyle açabilir.
+        self._summary_panel.hide()
 
         body_row = QHBoxLayout()
         body_row.setSpacing(14)
@@ -624,6 +655,55 @@ class MainWindow(QMainWindow):
             return
         self._add_row()
 
+    def _add_record_from_toolbar(self) -> None:
+        """Araç çubuğundan kayıt ekler ve yeni satıra kaydırıp odaklanır.
+
+        Listenin sonundaki 'Kayıt Ekle' çubuğuna ulaşmak için yüzlerce satır
+        kaydırmak gerekiyordu; bu düğme her zaman üstte durur.
+        """
+        before = len(self._row_widgets)
+        self._request_add_row()
+        if len(self._row_widgets) <= before or not self._row_widgets:
+            return
+        row = self._row_widgets[-1]
+        self._scroll.ensureWidgetVisible(row, 0, 40)
+        edits = row.focus_edits()
+        if edits:
+            edits[0].setFocus()
+
+    def _reveal_all_passwords(self) -> None:
+        """Tüm satırlardaki şifreleri 10 saniyeliğine gösterir.
+
+        Onay sorulmaz: tek tıkla açılır, süre dolunca kendiliğinden kapanır.
+        Maskeli (hidden_read) alanlar yetki gereği yine açılmaz.
+        """
+        if self._kilitli_mi or self._session is None:
+            return
+        for row in self._row_widgets:
+            row.set_sensitive_shown(True, force=True)
+        self._reveal_all_left = REVEAL_ALL_SECONDS
+        self._btn_reveal_all.setEnabled(False)
+        self._tick_reveal_all()
+        self._reveal_all_timer.start(1000)
+
+    def _tick_reveal_all(self) -> None:
+        """Geri sayımı durum çubuğunda gösterir; bitince gözleri kapatır."""
+        if self._reveal_all_left <= 0:
+            self._end_reveal_all()
+            return
+        self._status_left.setText(
+            tr("reveal_all_active", sec=self._reveal_all_left)
+        )
+        self._reveal_all_left -= 1
+
+    def _end_reveal_all(self) -> None:
+        self._reveal_all_timer.stop()
+        self._reveal_all_left = 0
+        for row in self._row_widgets:
+            row.set_sensitive_shown(False, force=True)
+        self._btn_reveal_all.setEnabled(True)
+        self._update_status()
+
     def _on_empty_state_add(self) -> None:
         before = len(self._row_widgets)
         self._request_add_row()
@@ -689,6 +769,12 @@ class MainWindow(QMainWindow):
             )
         else:
             self._add_bar.setVisible(False)
+
+        # Araç çubuğu ve panel: kasa açık ve kilitsizken, yetki varsa görünür.
+        unlocked = self._session is not None and not self._kilitli_mi
+        self._btn_add_record.setVisible(unlocked and add_allowed)
+        self._btn_reveal_all.setVisible(unlocked and has_rows)
+        self._summary_panel.set_add_enabled(unlocked and add_allowed)
 
     def _shortcut_add_row(self) -> None:
         if self._kilitli_mi:
@@ -1289,6 +1375,10 @@ class MainWindow(QMainWindow):
     def _retranslate_ui(self) -> None:
         self._btn_home.setToolTip(tr("btn_home_tip"))
         self._btn_save.setText(tr("btn_save"))
+        self._btn_add_record.setText(tr("btn_add_record"))
+        self._btn_add_record.setToolTip(tr("btn_add_record_tip"))
+        self._btn_reveal_all.setText(tr("btn_reveal_all"))
+        self._btn_reveal_all.setToolTip(tr("btn_reveal_all_tip"))
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_import.setText(tr("import_csv_btn"))

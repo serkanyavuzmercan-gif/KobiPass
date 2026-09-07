@@ -23,6 +23,7 @@ from kobipass.i18n import tr
 from kobipass.resources import asset_path
 from kobipass.ui.icons import (
     icon_bar_chart,
+    icon_plus,
     icon_chevron_right,
     icon_clock,
     icon_grid,
@@ -93,6 +94,7 @@ class VaultSummaryPanel(QFrame):
     düğmesiyle daraltılabilir (collapse_requested sinyali)."""
 
     collapse_requested = pyqtSignal()
+    add_record_requested = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -124,6 +126,16 @@ class VaultSummaryPanel(QFrame):
         header.addWidget(self._collapse_btn, 0)
         outer.addLayout(header)
         outer.addSpacing(1)
+
+        # Kayıt ekleme paneldeyken de elinin altında olsun; listenin en
+        # altına inmek zorunda kalmamak için.
+        self._btn_add = QPushButton()
+        self._btn_add.setObjectName('summaryAddBtn')
+        self._btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_add.setIcon(icon_plus(QColor('#ffffff'), size=15))
+        self._btn_add.clicked.connect(self.add_record_requested.emit)
+        outer.addWidget(self._btn_add)
+        outer.addSpacing(4)
 
         self._row_rows, self._value_rows = self._make_stat_row(icon_layers)
         outer.addWidget(self._row_rows)
@@ -197,8 +209,14 @@ class VaultSummaryPanel(QFrame):
         self._value_access.setText(last_access_text)
         self._value_saved.setText(last_saved_text)
 
+    def set_add_enabled(self, allowed: bool) -> None:
+        """Kayıt ekleme yetkisi yoksa düğmeyi gizler."""
+        self._btn_add.setVisible(allowed)
+
     def retranslate(self) -> None:
         self._title.setText(tr("summary_title"))
+        self._btn_add.setText(tr("btn_add_record"))
+        self._btn_add.setToolTip(tr("btn_add_record_tip"))
         self._collapse_btn.setToolTip(tr("summary_collapse"))
         self._row_rows._label_widget.setText(tr("summary_total_rows"))  # type: ignore[attr-defined]
         self._row_cells._label_widget.setText(tr("summary_total_cells"))  # type: ignore[attr-defined]
