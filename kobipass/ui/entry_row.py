@@ -181,10 +181,10 @@ class EntryFieldsScroll(QScrollArea):
     viewport_resized = pyqtSignal()
 
     def sizeHint(self) -> QSize:
-        return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
+        return QSize(0, ROW_CONTROL_HEIGHT + 4)  # çubuk gizli: küçük nefes payı
 
     def minimumSizeHint(self) -> QSize:
-        return QSize(0, ROW_CONTROL_HEIGHT + 14)  # +14 Scrollbar boşluğu
+        return QSize(0, ROW_CONTROL_HEIGHT + 4)
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
@@ -797,14 +797,17 @@ class EntryRowWidget(QWidget):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Minimum,
         )
+        # Sınıfın tasarımı "scrollbar gizli, tekerlek ile kayar": görünen yatay
+        # çubuk satırın altında ayrı bir şerit gibi duruyor ve garip görünüyordu.
+        # Kaydırma tekerlek (ve Shift+tekerlek) ile yapılır.
         self._scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT + 14)
+        self._scroll.setMinimumHeight(ROW_CONTROL_HEIGHT + 4)
         self._scroll.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )

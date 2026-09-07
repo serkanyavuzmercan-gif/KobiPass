@@ -33,6 +33,7 @@ from PyQt6.QtWidgets import (
 from kobipass.i18n import tr
 from kobipass.resources import asset_path
 from kobipass.ui.icons import icon_eye, icon_eye_off, icon_lock
+from kobipass.ui.theme import theme_manager
 
 # Aurora blob'ları: (renk, faz kayması, merkez X oranı, merkez Y oranı).
 _AURORA = (
@@ -40,6 +41,19 @@ _AURORA = (
     (QColor(124, 99, 255), 2.2, 0.72, 0.36),
     (QColor(46, 170, 160), 4.1, 0.44, 0.74),
 )
+
+# Aydınlık temanın kendi paleti: kilit ekranı da temayla değişsin. Koyu temada
+# aurora toplamalı (Plus) harmanla ışırken, açık zeminde aynı teknik beyazı
+# patlatır; bu yüzden açıkta normal harman ve daha düşük alfa kullanılır.
+_AURORA_LIGHT = (
+    (QColor(120, 145, 255), 0.0, 0.28, 0.30),
+    (QColor(160, 140, 255), 2.2, 0.72, 0.36),
+    (QColor(120, 205, 195), 4.1, 0.44, 0.74),
+)
+_BASE_DARK = (QColor(7, 11, 20), QColor(11, 17, 32))
+_BASE_LIGHT = (QColor(238, 242, 251), QColor(223, 231, 246))
+_LOCK_ICON_DARK = "#7c93ff"
+_LOCK_ICON_LIGHT = "#3b5bfd"
 
 
 class LockOverlay(QWidget):
@@ -83,7 +97,8 @@ class LockOverlay(QWidget):
         cl.addWidget(self._brand_label)
 
         icon = QLabel()
-        icon.setPixmap(icon_lock(QColor("#7c93ff"), size=44).pixmap(44, 44))
+        self._lock_icon = icon
+        self._refresh_lock_icon()
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         cl.addWidget(icon)
 
@@ -146,17 +161,30 @@ class LockOverlay(QWidget):
         root.addLayout(row)
         root.addStretch(1)
 
+        theme_manager.theme_changed.connect(self._on_theme_changed)
+
+    def _refresh_lock_icon(self) -> None:
+        color = _LOCK_ICON_DARK if theme_manager.is_dark() else _LOCK_ICON_LIGHT
+        self._lock_icon.setPixmap(
+            icon_lock(QColor(color), size=44).pixmap(44, 44)
+        )
+
+    def _on_theme_changed(self) -> None:
+        self._refresh_lock_icon()
+        self.update()
+
     # ---- animasyon ----------------------------------------------------
     def _tick(self) -> None:
         self._phase += 0.016
         pulse = 0.5 + 0.5 * math.sin(self._phase * 2.3)  # 0..1 nefes
         self._glow.setBlurRadius(34 + 30 * pulse)
+        alpha = 175 if theme_manager.is_dark() else 90
         self._glow.setColor(
             QColor(
                 int(59 + 46 * pulse),
                 int(91 + 24 * pulse),
                 int(253 - 34 * pulse),
-                175,
+                alpha,
             )
         )
         self.update()
@@ -166,10 +194,14 @@ class LockOverlay(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         r = self.rect()
 
-        # 1) Tam OPAK koyu taban — arkadaki kasa kesinlikle görünmez.
+        dark = theme_manager.is_dark()
+
+        # 1) Tam OPAK taban — arkadaki kasa kesinlikle görünmez. Renk temaya
+        # göre seçilir; aydınlık modda koyu bir örtü tema bütünlüğünü bozuyordu.
+        top, bottom = _BASE_DARK if dark else _BASE_LIGHT
         base = QLinearGradient(0, 0, r.width(), r.height())
-        base.setColorAt(0.0, QColor(7, 11, 20))
-        base.setColorAt(1.0, QColor(11, 17, 32))
+        base.setColorAt(0.0, top)
+        base.setColorAt(1.0, bottom)
         painter.fillRect(r, base)
 
         # 2) Soluk, sürüklenen marka izi (logo3) — sağ altta, hafif kayar.
@@ -185,21 +217,22 @@ class LockOverlay(QWidget):
                 drift = math.sin(self._phase * 0.7) * 10
                 bx = int(r.width() * 0.80 - scaled.width() / 2 + drift)
                 by = int(r.height() * 0.74 - scaled.height() / 2 - drift)
-                painter.setOpacity(0.05)
+                painter.setOpacity(0.05 if dark else 0.08)
                 painter.drawPixmap(bx, by, scaled)
                 painter.setOpacity(1.0)
 
         # 3) Yavaşça dolaşan renkli aurora — toplamalı harmanla yumuşak ışıma.
-        painter.setCompositionMode(
-            QPainter.CompositionMode.CompositionMode_Plus
-        )
+        if dark:
+            painter.setCompositionMode(
+                QPainter.CompositionMode.CompositionMode_Plus
+            )
         radius = max(r.width(), r.height()) * 0.55
-        for color, offset, fx, fy in _AURORA:
+        for color, offset, fx, fy in (_AURORA if dark else _AURORA_LIGHT):
             ax = r.width() * fx + math.cos(self._phase + offset) * r.width() * 0.12
             ay = r.height() * fy + math.sin(self._phase * 0.9 + offset) * r.height() * 0.12
             grad = QRadialGradient(ax, ay, radius)
             inner = QColor(color)
-            inner.setAlpha(48)
+            inner.setAlpha(48 if dark else 30)
             outer = QColor(color)
             outer.setAlpha(0)
             grad.setColorAt(0.0, inner)

@@ -2336,12 +2336,12 @@ QWidget#vaultWatermarkPane {
 }
 
 QWidget#vaultBody {
-    background-color: #f4f6fb;
+    background-color: #eceef3;
 }
 
 QFrame#recordsPanel {
-    background-color: #f4f6fb;
-    border: 1px solid #dde3f0;
+    background-color: #ffffff;
+    border: 1px solid #e1e5ec;
     border-radius: 14px;
 }
 
@@ -2842,44 +2842,44 @@ QToolButton#vaultTabAddBtn:hover {
 }
 
 /* Kilit örtüsü */
-/* Kilit ekranı her iki temada da bilinçli olarak KOYU/mühürlü görünür —
-   arkaplan paintEvent ile çizilir; kart ve kontroller onunla uyumlu kalır. */
+/* Kilit örtüsü — AYDINLIK tema: arkaplan paintEvent ile aydınlık çizilir,
+   kart ve kontroller de onunla uyumlu. */
 QWidget#lockOverlay {
-    background-color: #070b14;
+    background-color: #eef2fb;
 }
 QFrame#lockCard {
-    background-color: rgba(18, 26, 43, 0.92);
-    border: 1px solid #2b3a58;
+    background-color: rgba(255, 255, 255, 0.94);
+    border: 1px solid #c9d4ee;
     border-radius: 16px;
 }
 QLabel#lockBrand {
-    color: #5b6a8f;
+    color: #7b88a8;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 3px;
 }
 QLabel#lockCardTitle {
-    color: #eef2fb;
+    color: #16203a;
     font-size: 18px;
     font-weight: 700;
 }
 QLabel#lockCardSubtitle {
-    color: #9aa7c2;
+    color: #5a6683;
     font-size: 12px;
 }
 QLineEdit#lockPwd {
-    background-color: #0d1420;
-    border: 1px solid #2a3a56;
+    background-color: #ffffff;
+    border: 1px solid #c9d4ee;
     border-radius: 8px;
     padding: 8px 12px;
-    color: #eef2fb;
+    color: #16203a;
     font-size: 13px;
 }
 QLineEdit#lockPwd:focus {
     border-color: #4b68f4;
 }
 QLabel#lockError {
-    color: #f08080;
+    color: #c0392b;
     font-size: 12px;
 }
 QPushButton#lockUnlockBtn {
@@ -2896,11 +2896,11 @@ QPushButton#lockUnlockBtn:hover {
 QPushButton#lockHomeBtn {
     background: transparent;
     border: none;
-    color: #8f9bb3;
+    color: #5a6683;
     font-size: 12px;
 }
 QPushButton#lockHomeBtn:hover {
-    color: #cdd6e6;
+    color: #1f2a44;
     text-decoration: underline;
 }
 
@@ -2924,7 +2924,7 @@ QScrollArea#vaultTabScroll QScrollBar::sub-line:horizontal {
 
 QFrame#vaultCommandSurface {
     background-color: #ffffff;
-    border: 1px solid #dce2ec;
+    border: 1px solid #e1e5ec;
     border-radius: 13px;
 }
 
@@ -3224,9 +3224,9 @@ QMenu::item:selected {
 }
 
 QStatusBar#vaultStatusBar {
-    background-color: #f8f9fc;
-    color: #687386;
-    border-top: 1px solid #dce2ec;
+    background-color: #f2f4f7;
+    color: #5b6575;
+    border-top: 1px solid #dfe3ea;
     min-height: 27px;
     padding: 2px 8px;
 }
