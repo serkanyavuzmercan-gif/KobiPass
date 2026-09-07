@@ -478,7 +478,12 @@ def update_admin_wrap(keys: VaultFileKeys, new_admin_password: str) -> VaultFile
     yönetici parolasıyla açılır).
     """
     aek_wrap = keys.aek_wrap
-    if keys.version in HIDDEN_VERSIONS and keys.aek is not None:
+    # AEK sarmalayıcısı, sürümden BAĞIMSIZ olarak yeni parolayla yenilenir.
+    # Eskiden yalnızca gizli-yetenekli sürümlerde yenileniyordu; oysa gizli
+    # olmayan bir sürümde de oturum bir AEK taşır (kilit açarken üretilir).
+    # O AEK eski parolayla sarılı kalır, sonra kasa gizli sürüme yükseltilince
+    # bayat sarmalayıcı dosyaya yazılır ve YÖNETİCİ KASASINDAN TAMAMEN KİLİTLENİR.
+    if keys.aek is not None:
         aek_wrap = _wrap_dek(keys.aek, new_admin_password, keys.version)
     return VaultFileKeys(
         admin_wrap=_wrap_dek(keys.dek, new_admin_password, keys.version),
@@ -519,7 +524,11 @@ def write_vault_file_updated(
     aek_wrap = keys.aek_wrap
     if admin_password:
         admin_wrap = _wrap_dek(keys.dek, admin_password, version)
-        if version in HIDDEN_VERSIONS and keys.aek is not None:
+        # AEK'i admin_wrap ile HER ZAMAN senkron tut (sürüm koşulu yok).
+        # Aksi halde gizli olmayan bir sürümde parola değiştirilip ardından
+        # gizli sekme eklendiğinde, eski parolayla sarılı AEK dosyaya yazılır
+        # ve yönetici kendi kasasını hiçbir parolayla açamaz hale gelir.
+        if keys.aek is not None:
             aek_wrap = _wrap_dek(keys.aek, admin_password, version)
     new_keys = VaultFileKeys(
         admin_wrap=admin_wrap,

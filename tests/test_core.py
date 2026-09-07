@@ -774,3 +774,69 @@ def test_backup_matcher_accepts_own_stamped_names(tmp_path) -> None:
     assert not _is_backup_of(tmp_path / "kasa-yedek-20260904-064248.enc", "kasa")
     assert not _is_backup_of(tmp_path / "kasa-2026-20260904-064248.enc", "kasa")
     assert _is_backup_of(tmp_path / "kasa-yedek-20260904-064248.enc", "kasa-yedek")
+
+
+def test_admin_password_change_then_hidden_tab_keeps_admin_access(tmp_path) -> None:
+    """Yönetici parolası değişip ardından gizli sekme eklenince kasa kilitlenmemeli.
+
+    Regresyon: AEK sarmalayıcısı yalnızca gizli-yetenekli sürümlerde yenileniyordu.
+    Gizli olmayan bir sürümde (v1-v4) oturum yine de bir AEK taşır; parola
+    değişince o AEK eski parolayla sarılı kalıyor, sonra kasa gizli sürüme
+    yükseltilince bayat sarmalayıcı diske yazılıyor ve yönetici kasasını NE
+    yeni NE eski parolayla açabiliyordu (kalıcı kilitlenme, veri erişilemez).
+    """
+    from kobipass import crypto as C
+
+    legacy = {C.VERSION_PBKDF2, C.VERSION_ARGON2}
+    for version in (
+        C.VERSION_PBKDF2,
+        C.VERSION_ARGON2,
+        C.VERSION_ARGON2_MULTI,
+        C.VERSION_PBKDF2_MULTI,
+        C.VERSION,
+    ):
+        path = tmp_path / f"v{version}.enc"
+        vault = KobiVault(tabs=[VaultTab.new("Genel")])
+        vault.entries = [VaultEntry(name="A", info1="1")]
+        slots = (
+            [(True, "user-pw"), (False, ""), (False, "")]
+            if version in legacy
+            else [(True, "user-pw")]
+        )
+        C.write_vault_file(path, vault, "old-admin", slots, version=version)
+
+        opened = C.read_vault_file(path, "old-admin")
+        keys = C.write_vault_file_updated(
+            path, opened.vault, opened.keys, admin_password="new-admin"
+        )
+
+        # Aynı oturumda gizli sekme ekle -> dosya gizli sürüme yükselir.
+        opened.vault.tabs.append(VaultTab.new("GIZLI", hidden=True))
+        opened.vault.tabs[-1].entries = [VaultEntry(name="SIR", info1="gizli-deger")]
+        C.write_vault_file_updated(path, opened.vault, keys)
+
+        again = C.read_vault_file(path, "new-admin")
+        assert again.role == "admin", f"v{version}: yönetici kilitlendi"
+        hidden = [t for t in again.vault.tabs if t.hidden]
+        assert hidden and hidden[0].entries[0].info1 == "gizli-deger"
+        # Eski parola artık geçmemeli.
+        with pytest.raises(C.AccessDeniedError):
+            C.read_vault_file(path, "old-admin")
+
+
+def test_update_admin_wrap_rewraps_aek_on_legacy_version(tmp_path) -> None:
+    """update_admin_wrap da AEK'i sürümden bağımsız yenilemeli (aynı kök neden)."""
+    from kobipass import crypto as C
+
+    path = tmp_path / "u.enc"
+    vault = KobiVault(tabs=[VaultTab.new("G")])
+    vault.entries = [VaultEntry(name="A", info1="1")]
+    C.write_vault_file(path, vault, "a1", [], version=C.VERSION_ARGON2_MULTI)
+
+    opened = C.read_vault_file(path, "a1")
+    new_keys = C.update_admin_wrap(opened.keys, "a2")
+    opened.vault.tabs.append(VaultTab.new("H", hidden=True))
+    opened.vault.tabs[-1].entries = [VaultEntry(name="S", info1="z")]
+    C.write_vault_file_updated(path, opened.vault, new_keys)
+
+    assert C.read_vault_file(path, "a2").role == "admin"
