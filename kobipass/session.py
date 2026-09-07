@@ -24,6 +24,13 @@ class AdminSession:
     def user_slot(self) -> int | None:
         return None
 
+    @property
+    def user_label(self) -> str:
+        """Değişiklik geçmişinde yöneticiyi adlandırmak için kullanılır."""
+        from kobipass.i18n import tr
+
+        return tr("role_admin")
+
 
 @dataclass
 class UserSession:

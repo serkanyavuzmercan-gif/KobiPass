@@ -124,7 +124,7 @@ def diff_entries_for_audit(
             logs.append(
                 AuditEntry(
                     at=utc_now_iso(),
-                    user_slot=session.user_slot,
+                    user_slot=session.user_slot or 0,
                     user_label=session.user_label,
                     action="field_edit",
                     entry_name=entry_name,
@@ -151,7 +151,7 @@ def diff_entries_for_audit(
         logs.append(
             AuditEntry(
                 at=utc_now_iso(),
-                user_slot=session.user_slot,
+                user_slot=session.user_slot or 0,
                 user_label=session.user_label,
                 action="reorder",
                 entry_name="",
@@ -166,7 +166,7 @@ def diff_entries_for_audit(
         logs.append(
             AuditEntry(
                 at=utc_now_iso(),
-                user_slot=session.user_slot,
+                user_slot=session.user_slot or 0,
                 user_label=session.user_label,
                 action="vault_save",
                 entry_name="",

@@ -467,11 +467,50 @@ def make_icon(processed: Image.Image) -> None:
         raise SystemExit(f"icon.ico cok kucuk ({size_kb:.1f} KB)")
 
 
+def defringe(img: Image.Image, band: int = 2) -> Image.Image:
+    """Saydam kenara bitisik yari-saydam piksellerin RENGINI ic renkle degistirir.
+
+    Arkaplan temizleme, kenardaki yumusatilmis pikselleri eski (acik) arkaplanla
+    harmanlanmis halde birakir; kucuk boyutlara olceklendiginde bu, logonun
+    etrafinda beyazimsi bir hale olarak gorunur. Alfa korunur, yalnizca renk
+    duzeltilir; boylece kenar puruzsuz kalir ama hale kaybolur.
+    """
+    img = img.convert("RGBA")
+    w, h = img.size
+    out = img.copy()
+    px = out.load()
+
+    def solid(x: int, y: int) -> bool:
+        return 0 <= x < w and 0 <= y < h and px[x, y][3] > 200
+
+    for _ in range(band):
+        targets = []
+        for y in range(h):
+            for x in range(w):
+                alpha = px[x, y][3]
+                if alpha == 0 or alpha > 250:
+                    continue
+                cols = [
+                    px[x + dx, y + dy][:3]
+                    for dx in (-2, -1, 0, 1, 2)
+                    for dy in (-2, -1, 0, 1, 2)
+                    if solid(x + dx, y + dy)
+                ]
+                if cols:
+                    avg = tuple(sum(c[i] for c in cols) // len(cols) for i in range(3))
+                    targets.append((x, y, avg, alpha))
+        for x, y, rgb, alpha in targets:
+            px[x, y] = (rgb[0], rgb[1], rgb[2], alpha)
+    return out
+
+
 def process_source(path: Path) -> Image.Image:
     if not path.is_file():
         raise SystemExit(f"Kaynak logo bulunamadi: {path}")
     raw = Image.open(path)
     cleaned = remove_background_flood(raw)
+    # Arkaplan temizlemeden kalan acik 'hale'yi sil (bkz. defringe).
+    cleaned = defringe(cleaned)
     return trim_transparent(cleaned, pad=6)
 
 

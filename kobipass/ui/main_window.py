@@ -59,7 +59,13 @@ from kobipass.permissions import (
 )
 from kobipass.platform_win import enable_native_window_features
 from kobipass.resources import app_icon
-from kobipass.session import AdminSession, Session, UserSession, session_from_unlock
+from kobipass.session import (
+    AdminSession,
+    Session,
+    UserSession,
+    admin_permissions,
+    session_from_unlock,
+)
 from kobipass.settings import (
     add_recent_file,
     get_clipboard_clear_ms,
@@ -1108,8 +1114,6 @@ class MainWindow(QMainWindow):
             # Yeni / kaydedilmemiş kasa: onu oluşturan kişi yöneticidir ve tam
             # yetkiyle çalışır (alan ekle/sil, kaydet...). Karşılama ekranında
             # durum çubuğu gizli olduğu için bu görünmez, sorun olmaz.
-            from kobipass.session import admin_permissions
-
             return admin_permissions()
         return effective_permissions(self._session, self._vault)
 
@@ -2282,6 +2286,18 @@ class MainWindow(QMainWindow):
 
         self._sync_vault_entries()
         self._vault.entries = entries
+
+        # Değişiklik geçmişi eskiden YALNIZCA alt kullanıcı kayıtlarında
+        # yazılıyordu; tek yöneticiyle kullanılan kasalarda geçmiş sürekli boş
+        # kalıyordu. Yöneticinin düzenlemeleri de kaydediliyor.
+        logs = diff_entries_for_audit(
+            self._snapshot_entries,
+            entries,
+            self._session,
+            admin_permissions(),
+            self._vault,
+        )
+        self._vault.audit_log.extend(logs)
 
         try:
             clear_read_only(path)

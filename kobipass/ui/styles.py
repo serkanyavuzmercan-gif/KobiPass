@@ -2113,7 +2113,7 @@ LIGHT_STYLESHEET = """
 QMainWindow, QDialog {
     background-color: #f4f6fb;
     color: #1f2937;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
 }
 
 QWidget#customTitleBar {
@@ -2298,7 +2298,7 @@ QFrame#tabDropMarker {
 QToolButton#addFieldBtn,
 QToolButton#removeFieldBtn {
     background-color: #edf0fa;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 4px;
     font-size: 15px;
     font-weight: 600;
@@ -2341,7 +2341,7 @@ QWidget#vaultBody {
 
 QFrame#recordsPanel {
     background-color: #ffffff;
-    border: 1px solid #e1e5ec;
+    border: 1px solid #d6dce6;
     border-radius: 14px;
 }
 
@@ -2354,7 +2354,7 @@ QLabel#recordsPanelTitle {
 
 QFrame#summaryPanel {
     background-color: #ffffff;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 14px;
 }
 
@@ -2370,7 +2370,7 @@ QPushButton#summaryCollapseBtn:hover {
 
 QPushButton#summaryReopenBtn {
     background-color: #ffffff;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 10px;
 }
 
@@ -2388,7 +2388,7 @@ QLabel#summaryTitle {
 
 QFrame#summaryStatRow {
     background-color: #f4f7ff;
-    border: 1px solid #d8e0f2;
+    border: 1px solid #cdd7e9;
     border-radius: 10px;
 }
 
@@ -2521,7 +2521,7 @@ QLabel#brandSlogan {
 QLineEdit {
     background-color: #ffffff;
     color: #1f2937;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 6px;
     padding: 8px 10px;
     font-size: 13px;
@@ -2533,7 +2533,7 @@ QLineEdit:focus {
 }
 
 QWidget#copyGroup {
-    border: 2px solid #dde3f0;
+    border: 2px solid #d4dbe7;
     border-radius: 8px;
     background-color: #ffffff;
     min-height: 38px;
@@ -2562,7 +2562,7 @@ QWidget#copyGroup[cellRole="label"] QLineEdit {
 
 QWidget#copyGroup[cellRole="value"] {
     background-color: #ffffff;
-    border: 2px solid #dde3f0;
+    border: 2px solid #d4dbe7;
 }
 
 QWidget#copyGroup[primaryField="true"] {
@@ -2616,7 +2616,7 @@ QWidget#copyGroup QLineEdit[readOnlyPerm="true"] {
 
 QWidget#copyGroup QToolButton#copyBtn {
     border: none;
-    border-right: 1px solid #dde3f0;
+    border-right: 1px solid #d4dbe7;
     border-radius: 5px;
     background-color: #edf0fa;
     min-width: 32px;
@@ -2632,7 +2632,7 @@ QWidget#copyGroup QToolButton#copyBtn:hover {
 }
 
 QWidget#copyGroup[copied="true"] QToolButton#copyBtn {
-    border-right: 1px solid #dde3f0;
+    border-right: 1px solid #d4dbe7;
     background-color: #dbeafe;
 }
 
@@ -2659,7 +2659,7 @@ QLineEdit:disabled {
 QPushButton {
     background-color: #edf0fa;
     color: #1f2937;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 6px;
     padding: 8px 16px;
     font-size: 13px;
@@ -2682,7 +2682,7 @@ QPushButton[restricted="true"] {
 
 QPushButton[restricted="true"]:hover {
     background-color: #edf0fa;
-    border-color: #dde3f0;
+    border-color: #d4dbe7;
     color: #98a0ad;
 }
 
@@ -2924,7 +2924,7 @@ QScrollArea#vaultTabScroll QScrollBar::sub-line:horizontal {
 
 QFrame#vaultCommandSurface {
     background-color: #ffffff;
-    border: 1px solid #e1e5ec;
+    border: 1px solid #d6dce6;
     border-radius: 13px;
 }
 
@@ -3035,14 +3035,14 @@ QTextBrowser#helpBrowser {
 
 QDialog#helpDialog {
     background-color: #ffffff;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 8px;
 }
 
 /* --- Gömülü yardım paneli — AYDINLIK tema: panel de temayla değişir --- */
 QWidget#helpPanel {
     background-color: #ffffff;
-    border-bottom: 1px solid #dde3f0;
+    border-bottom: 1px solid #d4dbe7;
 }
 
 QLabel#helpStepBadge {
@@ -3097,7 +3097,7 @@ QLabel#helpCreditsFooter {
 
 QWidget#helpFeatureCard {
     background-color: #f4f6fb;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 8px;
 }
 
@@ -3123,7 +3123,7 @@ QLabel#helpDialogTitle {
 QPushButton#addRecordBtn {
     background-color: #edf0fa;
     color: #1f2937;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 6px;
     padding: 0 10px;
     font-size: 12px;
@@ -3152,7 +3152,7 @@ QPushButton#dangerBtn:hover {
 
 QToolButton {
     background-color: #edf0fa;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 6px;
     padding: 4px;
 }
@@ -3204,7 +3204,7 @@ QWidget#copyGroup QToolButton#fieldMenuBtn::menu-indicator {
 QMenu {
     background-color: #ffffff;
     color: #1f2937;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 6px;
     padding: 4px;
 }
@@ -3226,7 +3226,7 @@ QMenu::item:selected {
 QStatusBar#vaultStatusBar {
     background-color: #f2f4f7;
     color: #5b6575;
-    border-top: 1px solid #dfe3ea;
+    border-top: 1px solid #d6dce6;
     min-height: 27px;
     padding: 2px 8px;
 }
@@ -3267,14 +3267,14 @@ QStatusBar#vaultStatusBar QLabel#statusFile {
 
 QWidget#statusFileWrap {
     background-color: #ffffff;
-    border: 1px solid #dce2ec;
+    border: 1px solid #d4dbe7;
     border-radius: 10px;
     padding: 0;
 }
 
 QStatusBar#vaultStatusBar QPushButton#statusMenuBtn {
     background-color: #ffffff;
-    border: 1px solid #dce2ec;
+    border: 1px solid #d4dbe7;
     border-radius: 7px;
 }
 
@@ -3317,7 +3317,7 @@ QTableWidget {
     alternate-background-color: #f4f6fb;
     color: #1f2937;
     gridline-color: #e5e9f2;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 6px;
 }
 
@@ -3335,8 +3335,8 @@ QHeaderView::section {
     background-color: #eef1fa;
     color: #374151;
     border: none;
-    border-right: 1px solid #dde3f0;
-    border-bottom: 1px solid #dde3f0;
+    border-right: 1px solid #d4dbe7;
+    border-bottom: 1px solid #d4dbe7;
     padding: 6px 8px;
     font-weight: 600;
 }
@@ -3347,7 +3347,7 @@ QTableCornerButton::section {
 }
 
 QTabWidget::pane {
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     background-color: #ffffff;
     border-radius: 6px;
     margin-top: -1px;
@@ -3357,7 +3357,7 @@ QTabBar::tab {
     background-color: #f4f6fb;
     color: #6b7280;
     padding: 8px 16px;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-bottom: none;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
@@ -3379,7 +3379,7 @@ QTabBar::tab:hover:!selected {
 /* --- Karşılama Ekranı: ikiye bölen paneller --- */
 QFrame#landingPanel {
     background-color: #ffffff;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 18px;
 }
 
@@ -3416,7 +3416,7 @@ QLabel#landingRecentEmpty {
 
 QListWidget#landingRecentList {
     background-color: #ffffff;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 10px;
     color: #1f2937;
     padding: 6px;
@@ -3443,7 +3443,7 @@ QLabel#landingAccessLock {
 /* --- Sağ panel (aydınlık): nav satırları, süsler, son açılanlar --- */
 QFrame#landingNavRow {
     background-color: #f4f7ff;
-    border: 1px solid #d8e0f2;
+    border: 1px solid #cdd7e9;
     border-radius: 12px;
 }
 
@@ -3562,7 +3562,7 @@ QLabel#landingHeroArt {
 
 QFrame#landingFeatureCard, QFrame#landingFeatureCardWide {
     background-color: #ffffff;
-    border: 1px solid #d8e0f2;
+    border: 1px solid #cdd7e9;
     border-radius: 14px;
 }
 
@@ -3589,7 +3589,7 @@ QLabel#landingFeatureDesc {
 
 QFrame#landingActions {
     background-color: #ffffff;
-    border: 1px solid #dce2ec;
+    border: 1px solid #d4dbe7;
     border-radius: 22px;
 }
 
@@ -3702,7 +3702,7 @@ QWidget#landingActionsContent {
 
 QFrame#landingActions QWidget#landingRecentRow {
     background-color: #f7f8fb;
-    border: 1px solid #e0e5ee;
+    border: 1px solid #d8dee9;
     border-radius: 9px;
 }
 
@@ -3886,7 +3886,7 @@ QFrame#vaultEmptyHero {
 
 QFrame#vaultEmptySteps {
     background-color: rgba(248, 249, 252, 232);
-    border: 1px solid #dce2ec;
+    border: 1px solid #d4dbe7;
     border-radius: 18px;
 }
 
@@ -3970,7 +3970,7 @@ QLabel#vaultEmptySecurity {
 /* --- Grup kutuları, onay kutuları, açılır menüler (aydınlık tema) --- */
 QGroupBox {
     color: #1f2937;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 8px;
     margin-top: 12px;
     padding-top: 8px;
@@ -4040,7 +4040,7 @@ QComboBox::drop-down {
 QComboBox QAbstractItemView {
     background-color: #ffffff;
     color: #1f2937;
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 6px;
     selection-background-color: #dbe4fd;
     selection-color: #1f2937;
@@ -4106,7 +4106,7 @@ QDialog#userAdminDialog QLabel#strengthLabel {
 }
 
 QFrame#userSlotCard {
-    border: 1px solid #dde3f0;
+    border: 1px solid #d4dbe7;
     border-radius: 8px;
     background-color: #ffffff;
 }
@@ -4137,7 +4137,7 @@ QPushButton#slotRemoveBtn:hover {
 QWidget#permissionBlock,
 QWidget#permissionActionBlock {
     background-color: #f8f9fc;
-    border: 1px solid #dce2ec;
+    border: 1px solid #d4dbe7;
     border-radius: 9px;
 }
 
@@ -4154,7 +4154,7 @@ QLabel#permissionDescription {
 
 QWidget#passwordChangePanel {
     background-color: #f7f8fb;
-    border: 1px solid #dce2ec;
+    border: 1px solid #d4dbe7;
     border-radius: 9px;
 }
 
