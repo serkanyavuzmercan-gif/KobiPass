@@ -434,3 +434,108 @@ def test_user_password_missing_message_names_the_card():
     )
     assert "Muhasebe" in targeted
     assert targeted != generic
+
+
+def test_delete_then_scroll_does_not_duplicate_rows(window):
+    """Satır silip aşağı kaydırmak satırları ÇİFTLEMEMELİ.
+
+    Regresyon: _remove_row _display_entries'i güncellemiyordu; _load_next_batch
+    bayat listeyi kaynak, satır sayısını da ofset olarak kullandığı için zaten
+    görüntülenen kayıtları tekrar satır olarak ekliyor ve vault_index'ler
+    çakışıyordu.
+    """
+    from kobipass.ui.main_window import _FILTER_PAGE_SIZE
+
+    total = _FILTER_PAGE_SIZE + 10
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name=f"k{i:03d}", info1="p") for i in range(total)]
+    window._load_vault_data(vault)
+    assert len(window._row_widgets) == _FILTER_PAGE_SIZE
+
+    for _ in range(3):
+        window._remove_row(window._row_widgets[0])
+    window._load_next_batch()
+    window._load_next_batch()
+
+    names = [row.to_entry().name for row in window._row_widgets]
+    assert len(names) == len(set(names)), f"çift satır: {names}"
+    indexes = [row.vault_index for row in window._row_widgets if row.vault_index is not None]
+    assert len(indexes) == len(set(indexes)), "vault_index çakışması"
+    assert names == [e.name for e in vault.entries[: len(names)]]
+
+
+def test_search_result_rows_map_to_correct_records(window):
+    """Arama sonucundaki satırlar doğru kayda bağlanmalı (içerik-özdeş kayıtlar).
+
+    Regresyon: _vault_entry_index eşitlikle arıyordu ve VaultEntry eşitliği
+    uid'i yok sayıyor; filtrelenmiş iki özdeş satır da BİRİNCİ kaydın indeksini
+    alıyor, ikinci satırdaki düzenleme birincinin üzerine yazılıyordu.
+    """
+    vault = KobiVault()
+    vault.entries = [
+        VaultEntry(name="ortak", info1="p", uid="u1"),
+        VaultEntry(name="başka", info1="q", uid="u2"),
+        VaultEntry(name="ortak", info1="p", uid="u3"),
+    ]
+    window._load_vault_data(vault)
+
+    # Arama sonucunu doğrudan uygula (arka plan iş parçacığını beklemeden).
+    matches = [vault.entries[0], vault.entries[2]]
+    window._apply_filter_results(matches, window._filter_request_id)
+    assert len(window._row_widgets) == 2
+    assert [row.vault_index for row in window._row_widgets] == [0, 2]
+
+    window._row_widgets[1]._name.setText("ikinci-değişti")
+    window._merge_row_edits_into_vault()
+    assert vault.entries[0].name == "ortak"
+    assert vault.entries[2].name == "ikinci-değişti"
+
+
+def test_user_save_path_does_not_duplicate_audit_for_new_row(window, tmp_path):
+    """Alt kullanıcı yeni kayıt ekleyip kaydedince audit'e ÇİFT satır yazılmamalı.
+
+    Regresyon: _save_vault önce _sync_vault_entries() ile yeni satırı modele
+    ekliyor, hemen ardından _collect_entries()'i TEKRAR çağırıyordu; satır hâlâ
+    vault_index=None taşıdığı için aynı kayıt listeye ikinci kez giriyor ve
+    diff her alan değişikliğini iki kez logluyordu.
+    """
+    from kobipass.crypto import read_vault_file, write_vault_file
+    from kobipass.session import session_from_unlock
+    from kobipass.ui import main_window as mw
+    from kobipass.vault_model import UserPermissions
+
+    shown: list = []
+    original_info, original_error = mw.show_info, mw.show_error
+    mw.show_info = lambda *a, **k: shown.append(("info", a[1:]))
+    mw.show_error = lambda *a, **k: shown.append(("error", a[1:]))
+    try:
+        path = tmp_path / "kasa.enc"
+        vault = KobiVault()
+        vault.entries = [VaultEntry(name="var olan", info1="p", uid="u1")]
+        vault.set_slot_permissions(
+            [UserPermissions(name="write", info="write", can_add_entry=True).normalized()]
+        )
+        write_vault_file(path, vault, "admin-parola", [(True, "kullanici-parola")])
+
+        unlock = read_vault_file(path, "kullanici-parola")
+        window._session = session_from_unlock(unlock, "kullanici-parola", unlock.vault)
+        window._current_path = path
+        window._load_vault_data(unlock.vault)
+
+        window._add_row(None, vault_index=None, refresh_session=False)
+        window._row_widgets[-1]._name.setText("yeni kayıt")
+        window._row_widgets[-1]._info1.setText("yeni parola")
+        window._mark_dirty()
+        window._save_vault()
+
+        saved = read_vault_file(path, "admin-parola").vault
+        assert [e.name for e in saved.entries] == ["var olan", "yeni kayıt"]
+        name_edits = [
+            a
+            for a in saved.audit_log
+            if a.action == "field_edit" and a.field == "name" and a.entry_name == "yeni kayıt"
+        ]
+        assert len(name_edits) == 1, f"mükerrer audit: {len(name_edits)}"
+        assert len([a for a in saved.audit_log if a.action == "vault_save"]) == 1
+    finally:
+        mw.show_info, mw.show_error = original_info, original_error

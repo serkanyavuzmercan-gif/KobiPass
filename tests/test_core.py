@@ -1224,3 +1224,44 @@ def test_csv_import_warns_on_unbalanced_quote() -> None:
     # Sağlam dosyada uyarı çıkmamalı (yanlış pozitif yok).
     clean = parse_csv(b'name,pw\nA,p1\nB,p2\n')
     assert clean.warnings == []
+
+
+def test_password_generator_respects_selected_classes() -> None:
+    """Üreteç yalnızca SEÇİLEN karakter sınıflarını kullanmalı.
+
+    Mevcut test yalnızca uzunluğu doğruluyordu; bayraklar tamamen yok sayılsa
+    bile geçiyordu.
+    """
+    from kobipass.password_tools import (
+        DIGITS,
+        LOWER,
+        SYMBOLS,
+        UPPER,
+        generate_password,
+    )
+
+    only_digits = generate_password(
+        20, use_upper=False, use_lower=False, use_digits=True, use_symbols=False
+    )
+    assert len(only_digits) == 20
+    assert set(only_digits) <= set(DIGITS)
+
+    no_symbols = generate_password(
+        24, use_upper=True, use_lower=True, use_digits=True, use_symbols=False
+    )
+    assert set(no_symbols) <= set(LOWER + UPPER + DIGITS)
+    # Seçilen HER sınıftan en az bir karakter garantisi.
+    assert set(no_symbols) & set(LOWER)
+    assert set(no_symbols) & set(UPPER)
+    assert set(no_symbols) & set(DIGITS)
+    assert not set(no_symbols) & set(SYMBOLS)
+
+    # Hiçbir sınıf seçilmezse yedek havuz devreye girer (parola boş kalmaz).
+    fallback = generate_password(
+        12, use_upper=False, use_lower=False, use_digits=False, use_symbols=False
+    )
+    assert len(fallback) == 12
+    assert set(fallback) <= set(LOWER + UPPER + DIGITS)
+
+    # Uzunluk alt sınırı: istenen uzunluk sınıf sayısından/4'ten küçük olamaz.
+    assert len(generate_password(1, use_symbols=False)) >= 4
