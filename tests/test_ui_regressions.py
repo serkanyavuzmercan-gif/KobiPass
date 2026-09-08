@@ -17,7 +17,6 @@ pytest.importorskip("PyQt6.QtWidgets")
 
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
-from kobipass.session import AdminSession  # noqa: E402
 from kobipass.ui.main_window import MainWindow  # noqa: E402
 from kobipass.vault_model import KobiVault, VaultEntry, VaultTab  # noqa: E402
 
