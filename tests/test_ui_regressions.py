@@ -299,3 +299,37 @@ def test_tab_delete_sees_unsaved_row(window, monkeypatch):
 
     assert [t.id for t in vault.tabs] == ["t1", "t2"], "dolu sekme silindi"
     assert shown, "kullanıcı uyarılmadı"
+
+
+def test_single_instance_ignores_foreign_squatter(app):
+    """Adı kapan yabancı bir süreç KobiPass'i başlamaktan alıkoymamalı.
+
+    Regresyon: sabit ve kimliksiz uç noktaya bağlanabilmek "zaten çalışıyor"
+    kanıtı sayılıyordu; adı önceden oluşturan yetkisiz bir süreç uygulamayı
+    oturum boyunca engelleyebiliyordu. Ayrıca dinleme başarısızlığı yakalanmamış
+    RuntimeError fırlatıyor, --windowed derlemede uygulama hiçbir şey
+    göstermeden ölüyordu.
+    """
+    from PyQt6.QtNetwork import QLocalServer
+    from PyQt6.QtWidgets import QMainWindow
+
+    from kobipass.single_instance import (
+        _SERVER_NAME,
+        SingleInstanceGuard,
+        activate_existing_instance,
+    )
+
+    QLocalServer.removeServer(_SERVER_NAME)
+    squatter = QLocalServer()
+    assert squatter.listen(_SERVER_NAME)
+    try:
+        # Yabancı taraf el sıkışmaya yanıt vermez → "çalışıyor" sayılmaz.
+        assert activate_existing_instance(200) is False
+        # Guard istisna FIRLATMAMALI; koruma kurulamasa da uygulama açılır.
+        win = QMainWindow()
+        guard = SingleInstanceGuard(win, None)
+        assert isinstance(guard.active, bool)
+        win.close()
+    finally:
+        squatter.close()
+        QLocalServer.removeServer(_SERVER_NAME)

@@ -527,6 +527,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shortcut_fail_text": "Masaüstü kısayolu oluşturulamadı. KobiPass'i Başlat menüsünden açabilirsiniz.",
         "yes": "Evet",
         "no": "Hayır",
+        "fatal_error_text": (
+            "Beklenmeyen bir hata oluştu ve uygulama kapanabilir.\n\n{error}"
+        ),
         "crypto.invalid_salt": "Geçersiz salt uzunluğu",
         "crypto.file_too_short": "Dosya çok kısa veya bozuk",
         "crypto.invalid_file": "Geçersiz KobiPass dosyası",
@@ -1063,6 +1066,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shortcut_fail_text": "Could not create the desktop shortcut. You can open KobiPass from the Start menu.",
         "yes": "Yes",
         "no": "No",
+        "fatal_error_text": (
+            "An unexpected error occurred and the app may close.\n\n{error}"
+        ),
         "crypto.invalid_salt": "Invalid salt length",
         "crypto.file_too_short": "File is too short or corrupted",
         "crypto.invalid_file": "Invalid KobiPass file",

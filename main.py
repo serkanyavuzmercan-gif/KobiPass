@@ -36,8 +36,36 @@ def _preferred_ui_font() -> QFont:
     return QFont("Segoe UI")
 
 
+def _install_crash_reporter() -> None:
+    """Yakalanmamış istisnayı kullanıcıya GÖSTER.
+
+    Yayınlanan derlemeler PyInstaller ``--windowed`` ile üretiliyor; konsol
+    olmadığı için traceback hiçbir yere yazılmıyor ve uygulama tek bir mesaj
+    bile göstermeden ölüyordu.
+    """
+    import traceback
+
+    def hook(exc_type, exc_value, exc_tb) -> None:
+        traceback.print_exception(exc_type, exc_value, exc_tb)
+        if issubclass(exc_type, KeyboardInterrupt):
+            return
+        try:
+            from PyQt6.QtWidgets import QMessageBox
+
+            QMessageBox.critical(
+                None,
+                tr("app_name"),
+                tr("fatal_error_text", error=f"{exc_type.__name__}: {exc_value}"),
+            )
+        except Exception:
+            pass
+
+    sys.excepthook = hook
+
+
 def main() -> int:
     app = QApplication(sys.argv)
+    _install_crash_reporter()
     app.setApplicationName(tr("app_name"))
     app.setOrganizationName("MercanSoftware")
     app.setFont(_preferred_ui_font())
@@ -49,6 +77,8 @@ def main() -> int:
         return 0
 
     window = MainWindow()
+    # Koruma kurulamazsa (adı yabancı bir süreç tutuyor) uygulama yine açılır;
+    # tek örnek koruması bir kolaylıktır, çalışma şartı değildir.
     SingleInstanceGuard(window, app)
     window.show()
 
