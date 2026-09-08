@@ -12,10 +12,22 @@ from kobipass.vault_model import (
     KobiVault,
     UserPermissions,
     VaultEntry,
+    is_password_audit_field,
+    is_sensitive_audit_field,
     utc_now_iso,
 )
 
-SENSITIVE_AUDIT_FIELDS = frozenset({"info1"})
+__all__ = [
+    "can_view",
+    "can_edit",
+    "can_copy",
+    "diff_entries_for_audit",
+    "effective_permissions",
+    "field_label",
+    "is_password_audit_field",
+    "is_sensitive_audit_field",
+    "mask_audit_value",
+]
 
 
 def can_view(level: FieldLevel) -> bool:
@@ -63,16 +75,41 @@ def field_label(field_name: str, vault: KobiVault | None = None) -> str:
     return field_name
 
 
-def is_sensitive_audit_field(field_name: str) -> bool:
-    return field_name in SENSITIVE_AUDIT_FIELDS or field_name == "info1"
-
-
 def mask_audit_value(value: str, field_name: str) -> str:
     if not value:
         return tr("audit_empty_value")
     if is_sensitive_audit_field(field_name):
         return tr("audit_masked_value")
     return value
+
+
+def _info_values(entry: VaultEntry) -> list[str]:
+    """Kaydın bilgi hücreleri, ekrandaki sırayla (info1, info2, ...)."""
+    return [entry.info1, *entry.more_infos]
+
+
+def _detect_field_shift(old: VaultEntry, new: VaultEntry) -> tuple[str, int] | None:
+    """Tek bir bilgi HÜCRESİNİN eklendiğini/silindiğini saptar.
+
+    Bir hücre silinince sonraki tüm hücreler SOLA KAYAR. Konum bazlı fark bunu
+    "VERİ2 şu oldu, VERİ3 boşaldı" gibi bir zincir olarak raporluyordu:
+    kullanıcı böyle bir düzenleme yapmadığı için geçmiş yanıltıcı görünüyor,
+    üstelik kayan değerler geçmişe yazılıyordu. Kaymayı tanıyıp TEK bir
+    "hücre silindi/eklendi" kaydı düşürüyoruz.
+
+    Döndürür: ("field_delete" | "field_add", 0 tabanlı hücre konumu) ya da None.
+    """
+    old_vals = _info_values(old)
+    new_vals = _info_values(new)
+    if len(new_vals) == len(old_vals) - 1:
+        for k in range(len(old_vals)):
+            if old_vals[:k] == new_vals[:k] and old_vals[k + 1 :] == new_vals[k:]:
+                return ("field_delete", k)
+    elif len(new_vals) == len(old_vals) + 1:
+        for k in range(len(new_vals)):
+            if new_vals[:k] == old_vals[:k] and new_vals[k + 1 :] == old_vals[k:]:
+                return ("field_add", k)
+    return None
 
 
 def _entry_field_names(entry: VaultEntry) -> list[str]:
@@ -120,7 +157,7 @@ def diff_entries_for_audit(
                 return value
         return tr("audit_unknown_entry")
 
-    def record(action: str, entry_name: str, summary: str) -> None:
+    def record(action: str, entry_name: str, summary: str, field: str = "") -> None:
         logs.append(
             AuditEntry(
                 at=utc_now_iso(),
@@ -128,7 +165,7 @@ def diff_entries_for_audit(
                 user_label=session.user_label,
                 action=action,
                 entry_name=entry_name,
-                field="",
+                field=field,
                 summary=summary,
                 old_value="",
                 new_value="",
@@ -137,9 +174,34 @@ def diff_entries_for_audit(
         )
 
     def diff_pair(old: VaultEntry, new: VaultEntry) -> None:
-        entry_name = new.name or old.name or tr("audit_unknown_entry")
+        entry_name = display_name(new.name, old.name)
+        # Hücre ekleme/silme: konum bazlı zincir yerine TEK kayıt.
+        shift = _detect_field_shift(old, new)
+        shifted_from = None
+        if shift is not None and can_edit(permissions.info):
+            action, position = shift
+            cell = f"info{position + 1}"
+            record(
+                action,
+                entry_name,
+                tr(
+                    "audit_field_added" if action == "field_add" else "audit_field_removed",
+                    field=field_label(cell, vault),
+                ),
+                field=cell,
+            )
+            shifted_from = position
+
         field_names = set(_entry_field_names(old)) | set(_entry_field_names(new))
         for field_name in sorted(field_names, key=_field_sort_key):
+            # Kaymadan ETKİLENEN konumlar zaten tek kayıtla anlatıldı.
+            if (
+                shifted_from is not None
+                and field_name.startswith("info")
+                and field_name[4:].isdigit()
+                and int(field_name[4:]) - 1 >= shifted_from
+            ):
+                continue
             if field_name == "name":
                 level = permissions.name
             elif field_name.startswith("info") and field_name[4:].isdigit():
@@ -155,9 +217,23 @@ def diff_entries_for_audit(
 
             label = field_label(field_name, vault)
             if is_sensitive_audit_field(field_name):
-                summary = tr("audit_password_updated")
+                # Değer SAKLANMAZ. Arayüzde her değer hücresi maskelidir;
+                # geçmişin onları çıplak taşıması hem tutarsız hem sızıntıydı.
+                # Özet yalnızca gerçekten parola olan alanda "Şifre alanı" der.
+                summary = (
+                    tr("audit_password_updated")
+                    if is_password_audit_field(field_name)
+                    else tr("audit_field_updated", field=label)
+                )
                 stored_old = ""
                 stored_new = ""
+            elif field_name == "name":
+                # Kayıt adı özel: "Kayıt" sütunu zaten yeni adı gösterdiği için
+                # "<etiket> güncellendi" demek dairesel ve kafa karıştırıcıydı
+                # (özellikle isim sütununa özel bir etiket verilmişse).
+                summary = tr("audit_name_changed")
+                stored_old = old_val
+                stored_new = new_val
             else:
                 summary = tr("audit_field_updated", field=label)
                 stored_old = old_val

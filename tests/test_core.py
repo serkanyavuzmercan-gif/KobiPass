@@ -1017,8 +1017,8 @@ def test_hidden_tab_audit_stays_out_of_main_body(tmp_path: Path) -> None:
             entry_name="SIZMASIN-AD",
             field="info2",
             summary="2. Bilgi güncellendi",
-            old_value="eski",
-            new_value="SIZMASIN-IBAN",
+            old_value="",
+            new_value="",
             tab_id="h1",
         ),
         AuditEntry(
@@ -1029,8 +1029,8 @@ def test_hidden_tab_audit_stays_out_of_main_body(tmp_path: Path) -> None:
             entry_name="acik",
             field="info2",
             summary="2. Bilgi güncellendi",
-            old_value="a",
-            new_value="GORUNEBILIR",
+            old_value="",
+            new_value="",
             tab_id="n1",
         ),
     ]
@@ -1040,8 +1040,9 @@ def test_hidden_tab_audit_stays_out_of_main_body(tmp_path: Path) -> None:
     main_json = vault_main_json_bytes(user.vault)
     assert b"SIZMASIN-AD" not in main_json
     assert b"SIZMASIN-IBAN" not in main_json
-    # Normal sekmenin kaydı görünmeye devam etmeli.
-    assert b"GORUNEBILIR" in main_json
+    # Normal sekmenin KAYDI görünmeye devam etmeli (değerler artık hiçbir
+    # sekmede saklanmıyor — bkz. test_audit_never_stores_value_cells).
+    assert b"acik" in main_json
     assert [a.entry_name for a in user.vault.audit_log] == ["acik"]
 
     # Yönetici gizli kaydı da eksiksiz görür ve sıra korunur.
@@ -1265,3 +1266,127 @@ def test_password_generator_respects_selected_classes() -> None:
 
     # Uzunluk alt sınırı: istenen uzunluk sınıf sayısından/4'ten küçük olamaz.
     assert len(generate_password(1, use_symbols=False)) >= 4
+
+
+def test_audit_never_stores_value_cells() -> None:
+    """Değişiklik geçmişi hiçbir DEĞER hücresini saklamamalı.
+
+    Regresyon: yalnızca info1 maskeleniyordu. info2 ve sonrası (API anahtarı,
+    token, hesap no) düz metin olarak kasa gövdesine yazılıyor ve geçmiş
+    penceresinde çıplak gösteriliyordu. Arayüzde İSİM dışındaki her hücre
+    maskeli olduğu için bu hem tutarsızdı hem de alanı 'Görmez'/'Maskeli' olan
+    alt kullanıcıya DEK gövdesi üzerinden sızdırıyordu.
+    """
+    old = [
+        VaultEntry(
+            name="Vercel",
+            info1="parola",
+            more_infos=["DEEPSEEK_API_KEY", "sk-1d90e087d89644"],
+            uid="u1",
+        )
+    ]
+    new = [
+        VaultEntry(
+            name="Vercel",
+            info1="parola2",
+            more_infos=["DEEPSEEK_API_KEY", "sk-YENI-ANAHTAR"],
+            uid="u1",
+        )
+    ]
+    perms = UserPermissions(name="write", info="write")
+    logs = diff_entries_for_audit(old, new, _audit_session(), perms)
+
+    blob = " ".join(f"{a.old_value} {a.new_value}" for a in logs)
+    assert "sk-1d90e087d89644" not in blob
+    assert "sk-YENI-ANAHTAR" not in blob
+    assert "parola" not in blob
+    # Hangi alanın değiştiği yine de kayıtlı.
+    edits = {a.field for a in logs if a.action == "field_edit"}
+    assert edits == {"info1", "info3"}
+
+
+def test_audit_scrubs_legacy_plaintext_on_read() -> None:
+    """Eski sürümlerin düz metin yazdığı değerler OKURKEN düşürülmeli."""
+    from kobipass.vault_model import AuditEntry
+
+    legacy = {
+        "at": "2026-01-01T00:00:00Z",
+        "user_slot": 0,
+        "user_label": "Yönetici",
+        "action": "field_edit",
+        "entry_name": "Vercel",
+        "field": "info2",
+        "summary": "2. Bilgi güncellendi",
+        "old_value": "sk-ESKI-ANAHTAR",
+        "new_value": "sk-YENI-ANAHTAR",
+    }
+    entry = AuditEntry.from_dict(legacy)
+    assert entry.old_value == ""
+    assert entry.new_value == ""
+    # Ad ve alan bilgisi korunur; yalnızca DEĞER düşürülür.
+    assert entry.entry_name == "Vercel"
+    assert entry.field == "info2"
+
+    # İsim alanı duyarlı değildir; adı bilmek geçmişin işine yarar.
+    name_entry = AuditEntry.from_dict({**legacy, "field": "name",
+                                       "old_value": "Eski Ad", "new_value": "Yeni Ad"})
+    assert name_entry.old_value == "Eski Ad"
+    assert name_entry.new_value == "Yeni Ad"
+
+
+def test_removing_a_cell_is_one_record_not_a_shift_chain() -> None:
+    """Bir hücre silinince geçmişe TEK kayıt düşmeli, kayma zinciri değil.
+
+    Regresyon: hücre silinince sonrakiler sola kayıyor, konum bazlı fark bunu
+    "VERİ2 şu oldu, VERİ3 boşaldı" zinciri olarak raporluyordu. Kullanıcı böyle
+    bir düzenleme yapmadığı için geçmiş yanıltıcı görünüyordu.
+    """
+    old = [
+        VaultEntry(
+            name="SS VERCEL",
+            info1="p",
+            more_infos=["RESEND_API_KEY", "re_iVX8QFdj"],
+            uid="u1",
+        )
+    ]
+    new = [VaultEntry(name="SS VERCEL", info1="p", more_infos=["re_iVX8QFdj"], uid="u1")]
+    perms = UserPermissions(name="write", info="write")
+    logs = diff_entries_for_audit(old, new, _audit_session(), perms)
+
+    assert [a.action for a in logs] == ["field_delete", "vault_save"]
+    assert "info2" in logs[0].field or logs[0].field == ""
+    # Kayan değer geçmişe hiç yazılmamalı.
+    blob = " ".join(f"{a.old_value} {a.new_value} {a.summary}" for a in logs)
+    assert "re_iVX8QFdj" not in blob
+    assert "RESEND_API_KEY" not in blob
+
+
+def test_adding_a_cell_is_one_record() -> None:
+    """Hücre eklemek de tek kayıt üretmeli."""
+    old = [VaultEntry(name="A", info1="p", more_infos=["x"], uid="u1")]
+    new = [VaultEntry(name="A", info1="p", more_infos=["yeni", "x"], uid="u1")]
+    perms = UserPermissions(name="write", info="write")
+    logs = diff_entries_for_audit(old, new, _audit_session(), perms)
+    assert [a.action for a in logs] == ["field_add", "vault_save"]
+
+
+def test_rename_has_its_own_summary() -> None:
+    """Kayıt adı değişimi 'Kayıt adı değiştirildi' demeli.
+
+    Regresyon: isim sütununa özel etiket verilmişse (ör. 'AÇIKLAMA') özet
+    '<etiket> güncellendi' oluyordu; 'Kayıt' sütunu zaten yeni adı gösterdiği
+    için satır dairesel ve anlaşılmaz görünüyordu.
+    """
+    from kobipass.i18n import tr
+
+    vault = KobiVault()
+    vault.field_labels = {"name": "AÇIKLAMA"}
+    old = [VaultEntry(name="HEPSİBURADA SATICI PANELİ", info1="p", uid="u1")]
+    new = [VaultEntry(name="MOBİLİZ", info1="p", uid="u1")]
+    perms = UserPermissions(name="write", info="write")
+    logs = diff_entries_for_audit(old, new, _audit_session(), perms, vault)
+
+    name_edit = next(a for a in logs if a.field == "name")
+    assert name_edit.summary == tr("audit_name_changed")
+    assert name_edit.old_value == "HEPSİBURADA SATICI PANELİ"
+    assert name_edit.new_value == "MOBİLİZ"

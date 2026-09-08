@@ -219,6 +219,31 @@ class UserPermissions:
         return self.info
 
 
+def is_sensitive_audit_field(field_name: str) -> bool:
+    """Bu alanın DEĞERİ değişiklik geçmişinde saklanmamalı mı?
+
+    Kasa arayüzünde İSİM dışındaki TÜM değer hücreleri maskelidir (göz
+    düğmesiyle açılır). Audit ise yalnızca info1'i maskeliyordu: info2 ve
+    sonrası (API anahtarları, tokenlar, hesap numaraları) DÜZ METİN olarak
+    kasa gövdesine yazılıyor ve değişiklik geçmişinde çıplak gösteriliyordu.
+    Bu hem programın kendi maskeleme mantığına aykırıydı hem de alanı
+    'Görmez'/'Maskeli' olan alt kullanıcıya, DEK ile şifrelenen gövde
+    üzerinden sızdırıyordu.
+    """
+    return field_name.startswith("info") and field_name[4:].isdigit()
+
+
+def is_password_audit_field(field_name: str) -> bool:
+    """Bu alan PAROLA alanı mı?
+
+    Maskeleme ile parola olmak ayrı şeylerdir: bütün değer hücreleri maskelenir
+    (is_sensitive_audit_field), ama yalnızca 1. Bilgi parola alanıdır. Bu ayrım
+    olmadan geçmiş, IBAN veya token içeren bir hücre için de "Şifre alanı
+    güncellendi" diyordu.
+    """
+    return field_name == "info1"
+
+
 @dataclass
 class AuditEntry:
     """Kullanıcı değişiklik kaydı."""
@@ -254,6 +279,8 @@ class AuditEntry:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AuditEntry:
+        field_name = str(data.get("field", ""))
+        sensitive = is_sensitive_audit_field(field_name)
         return cls(
             at=str(data.get("at", "")),
             user_slot=int(data.get("user_slot", 0)),
@@ -262,8 +289,11 @@ class AuditEntry:
             entry_name=str(data.get("entry_name", "")),
             field=str(data.get("field", "")),
             summary=str(data.get("summary", "")),
-            old_value=str(data.get("old_value", "")),
-            new_value=str(data.get("new_value", "")),
+            # Eski sürümlerin düz metin yazdığı duyarlı değerler OKURKEN
+            # düşürülür: hem geçmiş penceresinde bir daha görünmezler hem de
+            # bir sonraki kayıtta dosyadan kalıcı olarak silinirler.
+            old_value="" if sensitive else str(data.get("old_value", "")),
+            new_value="" if sensitive else str(data.get("new_value", "")),
             tab_id=str(data.get("tab_id", "")),
         )
 

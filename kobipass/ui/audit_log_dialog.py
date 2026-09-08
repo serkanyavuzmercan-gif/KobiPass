@@ -20,7 +20,12 @@ from PyQt6.QtWidgets import (
 )
 
 from kobipass.i18n import _STRINGS, tr
-from kobipass.permissions import field_label, is_sensitive_audit_field, mask_audit_value
+from kobipass.permissions import (
+    field_label,
+    is_password_audit_field,
+    is_sensitive_audit_field,
+    mask_audit_value,
+)
 from kobipass.resources import app_icon
 from kobipass.vault_model import AuditEntry, KobiVault
 
@@ -35,8 +40,18 @@ def _audit_summary_display(entry: AuditEntry, vault: KobiVault) -> str:
         return tr("audit_entry_added")
     if entry.action == "entry_delete":
         return tr("audit_entry_deleted")
+    if entry.action in ("field_add", "field_delete"):
+        return tr(
+            "audit_field_added" if entry.action == "field_add" else "audit_field_removed",
+            field=field_label(entry.field, vault) if entry.field else "",
+        )
     if entry.action == "field_edit":
-        if is_sensitive_audit_field(entry.field):
+        if entry.field == "name":
+            # "Kayıt" sütunu zaten yeni adı gösteriyor; buraya sütun etiketini
+            # yazmak ("AÇIKLAMA güncellendi") satırı dairesel ve anlaşılmaz
+            # kılıyordu.
+            return tr("audit_name_changed")
+        if is_password_audit_field(entry.field):
             return tr("audit_password_updated")
         return tr("audit_field_updated", field=field_label(entry.field, vault))
     return entry.summary
@@ -102,13 +117,12 @@ def _is_default_slot_label(label: str, slot: int) -> bool:
 def _audit_value_display(entry: AuditEntry, which: str) -> str:
     if entry.action != "field_edit":
         return ""
-    raw = entry.old_value if which == "old" else entry.new_value
+    # Değer hücreleri arayüzde maskelidir; geçmiş de öyle göstermeli. Eski
+    # kayıtlar düz metin taşıyor olabilir (AuditEntry.from_dict onları okurken
+    # düşürür); yine de burada koşulsuz maskeliyoruz.
     if is_sensitive_audit_field(entry.field):
-        if entry.old_value or entry.new_value or entry.summary:
-            return tr("audit_masked_value")
         return tr("audit_masked_value")
-    if not entry.old_value and not entry.new_value and entry.field == "info1":
-        return tr("audit_masked_value")
+    raw = entry.old_value if which == "old" else entry.new_value
     return mask_audit_value(raw, entry.field)
 
 
