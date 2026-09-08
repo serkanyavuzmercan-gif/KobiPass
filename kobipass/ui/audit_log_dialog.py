@@ -4,6 +4,8 @@ Yönetici: kullanıcı değişiklik geçmişi görüntüleme.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -38,6 +40,25 @@ def _audit_summary_display(entry: AuditEntry, vault: KobiVault) -> str:
             return tr("audit_password_updated")
         return tr("audit_field_updated", field=field_label(entry.field, vault))
     return entry.summary
+
+
+def _audit_time_display(iso: str) -> str:
+    """UTC damgasını YEREL saate çevirir.
+
+    Kayıtlar utc_now_iso() ile UTC saklanıyor; tablo bu metni olduğu gibi
+    basıyor, ne dönüştürüyor ne de 'UTC' olduğunu söylüyordu. Kullanıcı kendi
+    saatiyle örtüşmeyen bir zaman görüyordu (uygulamanın kendi yardımcısı
+    password_tools.format_date bunu doğru yapıyor).
+    """
+    if not iso:
+        return ""
+    try:
+        when = datetime.fromisoformat(iso.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return iso
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return when.astimezone().strftime("%d.%m.%Y %H:%M")
 
 
 def _audit_user_display(entry: AuditEntry, vault: KobiVault) -> str:
@@ -169,6 +190,7 @@ class AuditLogDialog(QDialog):
         return " ".join(
             [
                 entry.at,
+                _audit_time_display(entry.at),
                 entry.user_label,
                 _audit_user_display(entry, self._vault),
                 entry.entry_name,
@@ -188,7 +210,9 @@ class AuditLogDialog(QDialog):
             field_display = (
                 field_label(entry.field, self._vault) if entry.field else ""
             )
-            self._table.setItem(row, 0, QTableWidgetItem(entry.at))
+            self._table.setItem(
+                row, 0, QTableWidgetItem(_audit_time_display(entry.at))
+            )
             self._table.setItem(
                 row, 1, QTableWidgetItem(_audit_user_display(entry, self._vault))
             )

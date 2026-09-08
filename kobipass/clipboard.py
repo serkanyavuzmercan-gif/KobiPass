@@ -30,6 +30,23 @@ class ClipboardGuard(QObject):
         if text:
             self._timer.start(get_clipboard_clear_ms())
 
+    def clear(self) -> None:
+        """Bekleyen kopyayı HEMEN panodan siler.
+
+        Otomatik temizleme yalnızca süreç yaşarken çalışan bir QTimer'a
+        dayanıyordu; kilitleme, ana ekrana dönüş ve çıkış yollarında pano hiç
+        temizlenmiyordu. Windows'ta pano içeriği sahibi süreç ölse de sistemde
+        kaldığı için kopyalanan parola uygulamadan sonra da erişilebilir
+        kalıyordu.
+        """
+        self._timer.stop()
+        if not self._pending_text:
+            return
+        clipboard = QGuiApplication.clipboard()
+        if clipboard.text() == self._pending_text:
+            clipboard.clear()
+        self._pending_text = ""
+
     def _clear_if_unchanged(self) -> None:
         clipboard = QGuiApplication.clipboard()
         if clipboard.text() == self._pending_text:
@@ -49,3 +66,8 @@ def clipboard_guard() -> ClipboardGuard:
 
 def copy_text(text: str) -> None:
     clipboard_guard().copy(text)
+
+
+def clear_clipboard() -> None:
+    """Kilitleme / ana ekrana dönüş / çıkış yollarında panoyu temizler."""
+    clipboard_guard().clear()

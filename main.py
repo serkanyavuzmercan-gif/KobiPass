@@ -20,6 +20,7 @@ if sys.platform == "win32":
 from PyQt6.QtGui import QFont, QFontDatabase
 from PyQt6.QtWidgets import QApplication
 
+from kobipass.clipboard import clear_clipboard
 from kobipass.resources import app_icon
 from kobipass.single_instance import SingleInstanceGuard, activate_existing_instance
 from kobipass.ui.main_window import MainWindow
@@ -75,6 +76,10 @@ def main() -> int:
 
     if activate_existing_instance():
         return 0
+
+    # Süreç herhangi bir yoldan sonlanırken (görev yöneticisi hariç) pano
+    # temizlensin; kopyalanan parola uygulamadan sonra sistemde kalmasın.
+    app.aboutToQuit.connect(clear_clipboard)
 
     window = MainWindow()
     # Koruma kurulamazsa (adı yabancı bir süreç tutuyor) uygulama yine açılır;

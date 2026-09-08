@@ -27,7 +27,14 @@ def can_edit(level: FieldLevel) -> bool:
 
 
 def can_copy(level: FieldLevel) -> bool:
-    return level in ("read", "hidden_read", "write")
+    """Alanın değeri panoya alınabilir mi?
+
+    'hidden_read' (Maskeli görüntüleyebilir) BİLEREK dışarıda: o seviyede
+    parola asla açığa çıkarılmaz — göz düğmesi kapalıdır ve echo modu zorla
+    maskede tutulur. Kopyala düğmesi etkin bırakılınca aynı satırdaki iki
+    düğme birbirini çürütüyor, tek tıkla açık metin panoya gidiyordu.
+    """
+    return level in ("read", "write")
 
 
 def effective_permissions(session: Session, vault: KobiVault) -> UserPermissions:

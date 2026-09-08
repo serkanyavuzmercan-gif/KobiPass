@@ -539,3 +539,120 @@ def test_user_save_path_does_not_duplicate_audit_for_new_row(window, tmp_path):
         assert len([a for a in saved.audit_log if a.action == "vault_save"]) == 1
     finally:
         mw.show_info, mw.show_error = original_info, original_error
+
+
+def test_masked_field_cannot_be_copied(app):
+    """'Maskeli görüntüleyebilir' alanın parolası kopyalanamamalı.
+
+    Regresyon: aynı satırdaki iki düğme birbirini çürütüyordu — göz düğmesi
+    kapalı ve echo modu zorla maskede, ama kopyala düğmesi etkin: tek tıkla
+    açık metin panoya gidiyordu.
+    """
+    from kobipass.permissions import can_copy
+    from kobipass.ui.entry_row import EntryRowWidget
+    from kobipass.vault_model import UserPermissions
+
+    assert can_copy("read")
+    assert can_copy("write")
+    assert not can_copy("hidden_read")
+    assert not can_copy("none")
+
+    row = EntryRowWidget()
+    try:
+        row.load_entry(VaultEntry(name="A", info1="COK-GIZLI"))
+        row.apply_permissions(UserPermissions(name="read", info="hidden_read"))
+        assert row._info1._eye_btn is not None
+        assert not row._info1._eye_btn.isEnabled()
+        assert not row._info1._copy_btn.isEnabled(), "maskeli alan kopyalanabiliyor"
+    finally:
+        row.deleteLater()
+
+
+def test_clipboard_is_cleared_on_lock_and_home(window):
+    """Kilitleme ve ana ekrana dönüş panodaki parolayı temizlemeli."""
+    from PyQt6.QtGui import QGuiApplication
+
+    from kobipass.clipboard import copy_text
+    from kobipass.session import AdminSession
+
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name="a", info1="p")]
+    window._session = AdminSession(admin_password="pw")
+    window._load_vault_data(vault)
+
+    copy_text("PANODAKI-PAROLA")
+    assert QGuiApplication.clipboard().text() == "PANODAKI-PAROLA"
+    window._guvenlik_kilidini_aktif_et()
+    assert QGuiApplication.clipboard().text() != "PANODAKI-PAROLA"
+
+    window._kilitli_mi = False
+    copy_text("IKINCI-PAROLA")
+    window._dirty = False
+    window._go_home()
+    assert QGuiApplication.clipboard().text() != "IKINCI-PAROLA"
+
+
+def test_lock_accepts_pending_new_admin_password(window):
+    """Yeni yönetici parolası kaydedilmeden kilit gelirse yeni parola geçmeli.
+
+    Regresyon: kilit ekranı dosyadaki ESKİ sarmalayıcıyla doğruluyordu;
+    kullanıcıya "uygulandı" denen yeni parola reddediliyor, kilitliyken
+    kaydetmek de mümkün olmadığı için oturum ve kaydedilmemiş veri erişilemez
+    hale geliyordu.
+    """
+    from kobipass.crypto import read_vault_file, write_vault_file
+    from kobipass.session import session_from_unlock
+
+    import tempfile
+
+    tmp = Path(tempfile.mkdtemp())
+    path = tmp / "kasa.enc"
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name="a", info1="p")]
+    write_vault_file(path, vault, "eski-parola", [(True, "kullanici-parola")])
+    unlock = read_vault_file(path, "eski-parola")
+    window._session = session_from_unlock(unlock, "eski-parola", unlock.vault)
+    window._session.keys = unlock.keys
+    window._current_path = path
+    window._load_vault_data(unlock.vault)
+
+    keys = unlock.keys
+    assert window._lock_password_matches_session(keys, "eski-parola")
+    assert not window._lock_password_matches_session(keys, "yeni-parola")
+
+    # Parola değiştirildi ama HENÜZ kaydedilmedi.
+    window._pending_admin_password = "yeni-parola"
+    window._session.admin_password = "yeni-parola"
+    assert window._lock_password_matches_session(keys, "yeni-parola")
+    assert not window._lock_password_matches_session(keys, "rastgele")
+
+
+def test_summary_panel_counts_all_records_not_just_loaded(window):
+    """Kayıt özeti TÜM kayıtları saymalı, yalnızca ekrana yüklenenleri değil."""
+    from kobipass.ui.main_window import _FILTER_PAGE_SIZE
+
+    total = _FILTER_PAGE_SIZE + 17
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name=f"k{i:03d}", info1="p") for i in range(total)]
+    window._load_vault_data(vault)
+    assert len(window._row_widgets) == _FILTER_PAGE_SIZE
+
+    window._update_summary_panel()
+    assert window._summary_panel._value_rows.text() == str(total)
+
+
+def test_audit_timestamps_are_shown_in_local_time():
+    """Değişiklik geçmişi zaman damgası yerel saate çevrilmeli."""
+    from datetime import datetime, timezone
+
+    from kobipass.ui.audit_log_dialog import _audit_time_display
+
+    shown = _audit_time_display("2026-01-15T09:30:00Z")
+    expected = (
+        datetime(2026, 1, 15, 9, 30, tzinfo=timezone.utc)
+        .astimezone()
+        .strftime("%d.%m.%Y %H:%M")
+    )
+    assert shown == expected
+    assert _audit_time_display("") == ""
+    assert _audit_time_display("bozuk") == "bozuk"

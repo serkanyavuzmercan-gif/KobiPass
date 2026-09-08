@@ -5,6 +5,7 @@ kobiPass ana pencere: rol tabanlı kasa yönetimi.
 from __future__ import annotations
 
 import copy
+import secrets
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -52,6 +53,7 @@ from kobipass.crypto import (
     write_vault_file,
     write_vault_file_updated,
 )
+from kobipass.clipboard import clear_clipboard
 from kobipass.i18n import crypto_message, i18n, localize_default_tab_name, tr
 from kobipass.permissions import (
     diff_entries_for_audit,
@@ -71,6 +73,7 @@ from kobipass.settings import (
     get_clipboard_clear_ms,
     get_idle_lock_ms,
     get_recent_files,
+    remove_recent_file,
 )
 from kobipass.ui.about_dialog import AboutDialog
 from kobipass.ui.add_record_bar import AddRecordBar
@@ -957,6 +960,7 @@ class MainWindow(QMainWindow):
         girmek zorunda kalıyordu.
         """
         self._idle_timer.stop()
+        clear_clipboard()
         self._session = None
         self._vault = None
         self._current_path = None
@@ -1030,6 +1034,9 @@ class MainWindow(QMainWindow):
             return
         self._kilitli_mi = True
         self._idle_timer.stop()
+        # Kilitlenirken panoda duran parola da temizlenmeli; otomatik temizleme
+        # yalnızca zamanlayıcı dolarsa çalışıyordu.
+        clear_clipboard()
         for row in self._row_widgets:
             row.set_sensitive_shown(False)
         self._update_status()
@@ -1093,7 +1100,18 @@ class MainWindow(QMainWindow):
             )
         # Yönetici oturumu (veya keys taşıyan tek olası diğer durum).
         if isinstance(self._session, AdminSession):
-            return password_matches_admin(keys, password)
+            if password_matches_admin(keys, password):
+                return True
+            # Yönetici parolası DEĞİŞTİRİLDİ ama henüz kaydedilmedi: dosyadaki
+            # sarmalayıcı hâlâ eskisini taşır. Kullanıcıya "ayarlar uygulandı"
+            # dendiği için kilit ekranı yeni parolayı da kabul etmeli. Aksi
+            # halde kaydetmeden önce kilit devreye girerse oturum ve
+            # kaydedilmemiş veri erişilemez oluyordu — kilitliyken kaydetmek de
+            # mümkün olmadığı için kullanıcının hiçbir çıkışı kalmıyordu.
+            pending = self._pending_admin_password
+            if pending:
+                return secrets.compare_digest(password, pending)
+            return False
         return False
 
     def _on_lock_home(self) -> None:
@@ -1567,10 +1585,13 @@ class MainWindow(QMainWindow):
         return when.strftime("%d.%m.%Y")
 
     def _update_summary_panel(self) -> None:
-        total_rows = len(self._row_widgets)
-        total_cells = 0
-        for row in self._row_widgets:
-            total_cells += row.to_entry().max_info_index()
+        # Sayım MODELDEN yapılmalı. _row_widgets yalnızca sonsuz kaydırmanın o
+        # ana kadar yüklediği sayfayı içeriyor; etiketler "Toplam Satır" /
+        # "Toplam Değer Hücresi" dediği hâlde panel kısmi sayı gösteriyor,
+        # aynı ekrandaki durum çubuğu ise doğru rakamı veriyordu.
+        entries = self._collect_entries()
+        total_rows = len(entries)
+        total_cells = sum(entry.max_info_index() for entry in entries)
         if self._dirty or self._last_saved_at is None:
             last_saved_text = tr("summary_not_saved")
         else:
@@ -2367,6 +2388,12 @@ class MainWindow(QMainWindow):
                 tr("backup_missing_text", path=str(path), backup=latest.name),
                 default_yes=True,
             ):
+                # 'Hayır' kalıcı olmalı: kayıt son dosyalar listesinden
+                # düşmezse teklif her açılışta tekrar geliyor ve arayüzden
+                # susturulamıyordu (karşılama ekranı var olmayan yolları
+                # zaten elediği için o satırın 'Listeden kaldır' menüsü hiç
+                # görünmüyor).
+                remove_recent_file(path)
                 continue
             try:
                 restore_backup(latest, path)
@@ -2672,6 +2699,11 @@ class MainWindow(QMainWindow):
             )
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        # Çıkışta pano her hâlükârda temizlenir: Windows'ta pano içeriği sahibi
+        # süreç öldükten sonra da sistemde kalır, yani kopyalanan parola
+        # uygulamadan sonra erişilebilir kalıyordu. (Kapatma iptal edilse bile
+        # temizlemek zararsızdır; kullanıcı yeniden kopyalayabilir.)
+        clear_clipboard()
         # GÜVENLİK: Kilitliyken kimliği doğrulanmamış biri değişiklikleri
         # KAYDEDEMEZ — aşağıdaki onayda 'Kaydet' seçeneği hiç sunulmaz.
         # Ancak kapanmayı tümden engellemiyoruz: kaydedilmemiş değişiklikler

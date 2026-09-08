@@ -462,6 +462,14 @@ class UserAdminDialog(QDialog):
                     return True
         return False
 
+    def _slot_was_disabled(self, orig_index: int | None) -> bool:
+        """Bu slot, diske YAZILI hâliyle devre dışı mı?"""
+        if self._keys is None or orig_index is None:
+            return False
+        if not 0 <= orig_index < len(self._keys.user_slots):
+            return False
+        return not self._keys.user_slots[orig_index].enabled
+
     def _pending_password_for(self, orig_index: int | None) -> str:
         """Bu slot için bekleyen (kaydedilmemiş) parola; yoksa boş."""
         if orig_index is None or not 0 <= orig_index < len(self._pending_passwords):
@@ -516,7 +524,17 @@ class UserAdminDialog(QDialog):
                 # varsa onu TAŞI; aksi halde kaydetmeden diyaloğu ikinci kez
                 # açmak rotasyonu geri alıyor, eski parola çalışmaya devam
                 # ediyor ve yönetici hiçbir uyarı almıyordu.
-                entry_pw = (True, self._pending_password_for(oi))
+                carried = self._pending_password_for(oi)
+                if not carried and self._slot_was_disabled(oi):
+                    # Devre dışı bırakılıp KAYDEDİLMİŞ bir slotun eski
+                    # sarmalayıcısı sıfırlanmıştır; "parola değişmedi" diye
+                    # korunacak bir şey yok. Boş bırakılırsa crypto katmanı
+                    # slotu yeniden devre dışı yazıyor, diyalog ise "kullanıcı
+                    # ayarları uygulandı" diyor ve kullanıcı kasaya hâlâ
+                    # giremiyordu — hiçbir uyarı olmadan.
+                    self._warn(tr("pwd_user_required", name=label))
+                    return
+                entry_pw = (True, carried)
             else:
                 entry_pw = (False, "")
 
