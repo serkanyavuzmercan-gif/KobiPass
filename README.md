@@ -31,7 +31,9 @@ Hidroteknik Yazılım ekibi tarafından geliştirilen, PyQt6 tabanlı parola yö
 | Anahtar türetme | **Argon2id** (t=3, m=64 MB, p=4) · PBKDF2-HMAC-SHA256 100.000 (eski dosyalar) |
 | Şifreleme | **AES-256-GCM** |
 | Bütünlük | Dosya sonu SHA-256 özeti + atomik yazma |
-| Silinme koruması | Her kayıtta AppData'ya şifreli yedek (son 10) + salt-okunur kilidi + açılışta silinme tespiti ve yedekten geri yükleme |
+| Silinme koruması | Her kayıtta AppData'ya şifreli yedek (son 10, kasanın klasörüne göre ayrılmış adlarla) + salt-okunur kilidi + açılışta silinme tespiti ve **atomik** yedekten geri yükleme |
+| Dosya izinleri | Kasa dosyası yalnızca sahibi okuyabilir (`0400`); yedekler `0600` |
+| Pano | Kopyalanan değer süre dolunca, ayrıca kilitlemede / ana ekrana dönüşte / çıkışta temizlenir |
 
 > **İzinlerin kapsamı — bilinmesi gereken sınır.** *Gizli sekmeler* kriptografik
 > olarak korunur: alt kullanıcı anahtara sahip olmadığı için içeriği hiçbir
@@ -41,6 +43,17 @@ Hidroteknik Yazılım ekibi tarafından geliştirilen, PyQt6 tabanlı parola yö
 > Bu nedenle **gerçekten gizlenmesi gereken kayıtları gizli sekmeye koyun**;
 > alan izinlerini yetkisiz gözlere karşı tek başına bir güvenlik sınırı olarak
 > değerlendirmeyin.
+
+> **Rol sınırı.** Aynı gerekçe roller için de geçerlidir: yönetici ve tüm alt
+> kullanıcılar AYNI veri anahtarını (DEK) sarar, yani alt kullanıcı zaten DEK'e
+> sahiptir ve kasa dosyasını istediği gibi yeniden üretebilir. Dolayısıyla
+> "alt kullanıcı arayüzde yönetici gibi davranamaz" garantisi **kriptografik
+> değildir**; bu, DEK'i elinde tutan bir tarafa karşı kapatılamaz. Kapatılabilen
+> ve kapatılan sınır gizli sekmelerdir: onlar yalnızca yönetici parolasıyla
+> sarılan AEK ile şifrelenir. Buna ek olarak uygulama kurcalamayı **görünür**
+> kılar: bir parola hem yönetici hem de bir alt kullanıcı slotunu açıyorsa
+> (parolalar benzersiz zorunlu olduğu için normalde imkânsızdır) kilit
+> açılışında uyarı gösterilir.
 
 ## Geliştirme
 
