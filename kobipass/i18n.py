@@ -497,6 +497,19 @@ _STRINGS: dict[str, dict[str, str]] = {
         "import_csv_security_note": "İçe aktardıktan sonra CSV dosyasını güvenle silin — düz metin parolalar içerir. İçe aktarım parola değerlerini değişiklik geçmişine yazmaz.",
         "import_csv_do": "İçeri Aktar",
         "import_csv_read_error": "Dosya okunamadı: {error}",
+        "import_csv_warn_quotes": (
+            "Dosyada kapanmayan tırnak işareti var gibi görünüyor; bazı satırlar "
+            "tek bir hücreye yapışmış olabilir. Önizlemeyi kontrol edin."
+        ),
+        "import_csv_warn_columns": (
+            "Bazı satırlarda çok fazla kolon var. Kayıt başına en fazla {max} "
+            "bilgi alanı alınır; fazlası içe aktarılmaz."
+        ),
+        "import_csv_warn_encoding": (
+            "Dosyanın karakter kodlaması saptanamadı, tahmin edildi. Türkçe "
+            "karakterler ve parolalar bozuk görünüyorsa dosyayı UTF-8 olarak "
+            "yeniden kaydedip tekrar deneyin."
+        ),
         "import_csv_none_title": "İçeri aktarma",
         "import_csv_none": "Bu dosyada içe aktarılacak kayıt bulunamadı.",
         "import_csv_done_title": "İçeri aktarıldı",
@@ -1020,6 +1033,19 @@ _STRINGS: dict[str, dict[str, str]] = {
         "import_csv_security_note": "Securely delete the CSV file after importing — it contains plain-text passwords. Import does not write password values to the change history.",
         "import_csv_do": "Import",
         "import_csv_read_error": "Could not read file: {error}",
+        "import_csv_warn_quotes": (
+            "The file seems to contain an unclosed quote; some rows may have "
+            "been merged into a single cell. Check the preview."
+        ),
+        "import_csv_warn_columns": (
+            "Some rows have too many columns. At most {max} info fields per "
+            "record are imported; the rest is dropped."
+        ),
+        "import_csv_warn_encoding": (
+            "The file's character encoding could not be detected and was "
+            "guessed. If accented characters or passwords look wrong, save the "
+            "file as UTF-8 and try again."
+        ),
         "import_csv_none_title": "Import",
         "import_csv_none": "No records to import were found in this file.",
         "import_csv_done_title": "Imported",

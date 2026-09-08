@@ -22,8 +22,30 @@ from kobipass.vault_model import VaultEntry
 
 # Sırayla denenen kodlamalar: BOM'lu UTF-8, Windows Türkçe, son çare Latin-1.
 _ENCODINGS = ("utf-8-sig", "utf-8", "cp1254", "latin-1")
+# BOM → kodlama. Sıralı deneme tek başına yetmez: bir UTF-16 dosyasının
+# baytları utf-8 olarak çözülemez ama cp1254'te GEÇERLİDİR (\xff=ÿ, \xfe=ş).
+# Sonuç sessizce her karakterin arasına NUL serpiştirilmiş çöp metin olur ve
+# bozuk parolalar uyarısız kasaya yazılır. Excel'in "Unicode Metin (*.txt)"
+# çıktısı tam olarak UTF-16LE'dir ve dosya filtresi *.txt içerir.
+_BOMS = (
+    (b"\x00\x00\xfe\xff", "utf-32-be"),
+    (b"\xff\xfe\x00\x00", "utf-32-le"),
+    (b"\xef\xbb\xbf", "utf-8-sig"),
+    (b"\xff\xfe", "utf-16-le"),
+    (b"\xfe\xff", "utf-16-be"),
+)
 # Aday ayraçlar — Türkçe Excel çoğu zaman ';' kullanır (virgül ondalık ayracı).
 _DELIMITERS = ";,\t|"
+# Bir kayıt için en fazla bilgi alanı. Sınırsız bırakıldığında 1000 kolonlu bir
+# CSV, satır başına 998 alan üretiyor; EntryRowWidget her alan eklemede tüm alt
+# bileşenleri gezdiği için maliyet kuadratik oluyor ve arayüz dakikalarca
+# donuyordu (önizleme diyaloğu bu maliyeti hiç göstermiyor).
+MAX_IMPORT_FIELDS = 24
+
+# Kullanıcıya gösterilecek uyarı anahtarları (i18n).
+WARN_UNBALANCED_QUOTES = "import_csv_warn_quotes"
+WARN_TOO_MANY_COLUMNS = "import_csv_warn_columns"
+WARN_DECODE_FALLBACK = "import_csv_warn_encoding"
 
 
 @dataclass
@@ -33,6 +55,9 @@ class CsvDocument:
     rows: list[list[str]]
     delimiter: str
     encoding: str
+    # Kullanıcıya gösterilecek uyarılar (i18n anahtarları). Sessiz veri kaybını
+    # görünür kılar; içe aktarmayı engellemez.
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -44,13 +69,30 @@ class ImportPlan:
     field_labels: dict[str, str] = field(default_factory=dict)
 
 
-def _decode(data: bytes) -> tuple[str, str]:
+def _decode(data: bytes) -> tuple[str, str, bool]:
+    """(metin, kodlama, tahmin_mi) döndürür.
+
+    Önce BOM'a bakılır — bu kesin bilgidir. BOM yoksa liste sırayla denenir;
+    ``latin-1`` hiçbir zaman hata vermediği için son eleman DAİMA başarılıdır,
+    yani "çözülemedi" diye bir durum oluşmaz. Bu yüzden latin-1'e düşüldüğünde
+    sonucun bir TAHMİN olduğu ayrıca bildirilir.
+    """
+    for bom, encoding in _BOMS:
+        if data.startswith(bom):
+            try:
+                return data.decode(encoding), encoding, False
+            except UnicodeDecodeError:
+                break
     for encoding in _ENCODINGS:
         try:
-            return data.decode(encoding), encoding
+            text = data.decode(encoding)
         except UnicodeDecodeError:
             continue
-    return data.decode("latin-1", errors="replace"), "latin-1"
+        # NUL karakteri, yanlış kodlamayla çözülmüş UTF-16'nın imzasıdır.
+        if "\x00" in text:
+            continue
+        return text, encoding, encoding == "latin-1"
+    return data.decode("latin-1", errors="replace"), "latin-1", True
 
 
 def _sniff_delimiter(text: str) -> str:
@@ -71,12 +113,31 @@ def _sniff_delimiter(text: str) -> str:
 
 def parse_csv(data: bytes) -> CsvDocument:
     """Ham baytları çözer, ayracı saptar ve boş olmayan satırları döndürür."""
-    text, encoding = _decode(data)
+    text, encoding, guessed = _decode(data)
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     delimiter = _sniff_delimiter(text)
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
     rows = [row for row in reader if any(cell.strip() for cell in row)]
-    return CsvDocument(rows=rows, delimiter=delimiter, encoding=encoding)
+
+    warnings: list[str] = []
+    if guessed:
+        warnings.append(WARN_DECODE_FALLBACK)
+
+    # Kapanmayan tırnak: csv okuyucu, kaçışsız bir " gördüğünde dosyanın
+    # sonuna kadar tüm satırları TEK hücreye yutar ve hata vermez. Kullanıcı
+    # "içe aktardıktan sonra CSV'yi silin" notuna uyarsa kayıp kalıcı olur.
+    # Mantıksal satır sayısını fiziksel satır sayısıyla karşılaştırarak yakala.
+    physical = sum(1 for line in text.split("\n") if line.strip())
+    swallowed = any("\n" in cell for row in rows for cell in row)
+    if swallowed and physical > len(rows) + 1:
+        warnings.append(WARN_UNBALANCED_QUOTES)
+
+    if any(len(row) > MAX_IMPORT_FIELDS + 1 for row in rows):
+        warnings.append(WARN_TOO_MANY_COLUMNS)
+
+    return CsvDocument(
+        rows=rows, delimiter=delimiter, encoding=encoding, warnings=warnings
+    )
 
 
 def rows_to_entries(rows: list[list[str]]) -> list[VaultEntry]:
@@ -85,16 +146,25 @@ def rows_to_entries(rows: list[list[str]]) -> list[VaultEntry]:
     Parola yaşı bilinmediği için ``pw_updated_at`` boş bırakılır (sahte 'taze'
     göstermemek için). Tamamen boş satırlar atlanır; sondaki boş bilgi hücreleri
     kırpılır.
+
+    YALNIZCA ``name`` kırpılır. Parola (info1) ve diğer bilgi alanları olduğu
+    gibi korunur — uygulamanın kendi düzenleme yolu da böyle davranır
+    (EntryRowWidget.to_entry). Hepsi kırpılınca baş/son boşluğu olan bir parola
+    CSV'den geldiğinde sessizce değişiyor ve doğrudan çalışmayan bir kimlik
+    bilgisine dönüşüyordu.
+
+    Alan sayısı ``MAX_IMPORT_FIELDS`` ile sınırlıdır; fazlası atılır (bkz.
+    WARN_TOO_MANY_COLUMNS).
     """
     entries: list[VaultEntry] = []
     for row in rows:
-        cells = [(cell.strip() if isinstance(cell, str) else "") for cell in row]
-        if not any(cells):
+        cells = [(cell if isinstance(cell, str) else "") for cell in row]
+        if not any(cell.strip() for cell in cells):
             continue
-        name = cells[0] if cells else ""
+        name = cells[0].strip() if cells else ""
         info1 = cells[1] if len(cells) > 1 else ""
-        more = list(cells[2:])
-        while more and not more[-1]:
+        more = list(cells[2 : 2 + MAX_IMPORT_FIELDS - 1])
+        while more and not more[-1].strip():
             more.pop()
         entries.append(VaultEntry(name=name, info1=info1, more_infos=more))
     return entries

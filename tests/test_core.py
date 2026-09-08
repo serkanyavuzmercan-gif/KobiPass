@@ -1158,3 +1158,69 @@ def test_swapped_admin_wrap_is_reported_as_tampering(tmp_path: Path) -> None:
     # Sağlam dosyada uyarı ÇIKMAMALI (yanlış pozitif yok).
     assert read_vault_file(path, "admin-pw").warning == ""
     assert read_vault_file(path, "user-pw").warning == ""
+
+
+def test_csv_import_detects_utf16_by_bom() -> None:
+    """UTF-16 dosya cp1254 sanılıp bozuk çözülmemeli.
+
+    Regresyon: sıralı deneme BOM'a bakmıyordu. UTF-16 baytları utf-8 olarak
+    çözülemez ama cp1254'te geçerlidir; sonuç, aralara NUL serpiştirilmiş çöp
+    metin oluyor ve bozuk parolalar uyarısız kasaya yazılıyordu. Excel'in
+    "Unicode Metin (*.txt)" çıktısı tam olarak budur.
+    """
+    from kobipass.csv_import import build_import, parse_csv
+
+    text = "Site\tKullanıcı\tParola\r\nGmail\tali\ts3cret\r\n"
+    doc = parse_csv(text.encode("utf-16"))  # BOM'lu UTF-16
+    assert doc.encoding.startswith("utf-16")
+    assert doc.delimiter == "\t"
+    plan = build_import(doc, has_header=True)
+    assert [e.name for e in plan.entries] == ["Gmail"]
+    assert plan.entries[0].more_infos == ["s3cret"]
+    assert all("\x00" not in cell for row in doc.rows for cell in row)
+
+
+def test_csv_import_preserves_password_whitespace() -> None:
+    """Parolanın baş/son boşlukları korunmalı.
+
+    Regresyon: her hücreye strip() uygulanıyordu; elle yazılan parola
+    boşluklarını korurken aynı parola CSV'den geldiğinde sessizce değişiyor ve
+    doğrudan çalışmayan bir kimlik bilgisine dönüşüyordu.
+    """
+    from kobipass.csv_import import build_import, parse_csv
+
+    raw = 'name,pw,note\nGmail," s3cret ", not \n'
+    plan = build_import(parse_csv(raw.encode("utf-8")), has_header=True)
+    assert plan.entries[0].info1 == " s3cret "
+    # İsim yine kırpılır (arayüzdeki davranışla aynı).
+    assert plan.entries[0].name == "Gmail"
+
+
+def test_csv_import_caps_field_count_and_warns() -> None:
+    """Çok geniş CSV alan patlamasına yol açmamalı; kullanıcı uyarılmalı."""
+    from kobipass.csv_import import (
+        MAX_IMPORT_FIELDS,
+        WARN_TOO_MANY_COLUMNS,
+        build_import,
+        parse_csv,
+    )
+
+    header = ",".join(f"c{i}" for i in range(1000))
+    row = ",".join(f"v{i}" for i in range(1000))
+    doc = parse_csv(f"{header}\n{row}\n".encode("utf-8"))
+    assert WARN_TOO_MANY_COLUMNS in doc.warnings
+    plan = build_import(doc, has_header=True)
+    assert len(plan.entries[0].more_infos) <= MAX_IMPORT_FIELDS - 1
+
+
+def test_csv_import_warns_on_unbalanced_quote() -> None:
+    """Kapanmayan tırnak satırları yutuyorsa kullanıcı uyarılmalı."""
+    from kobipass.csv_import import WARN_UNBALANCED_QUOTES, parse_csv
+
+    raw = 'name,pw\nA,"acik-tirnak\nB,p2\nC,p3\nD,p4\n'
+    doc = parse_csv(raw.encode("utf-8"))
+    assert WARN_UNBALANCED_QUOTES in doc.warnings
+
+    # Sağlam dosyada uyarı çıkmamalı (yanlış pozitif yok).
+    clean = parse_csv(b'name,pw\nA,p1\nB,p2\n')
+    assert clean.warnings == []

@@ -21,7 +21,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from kobipass.csv_import import CsvDocument, ImportPlan, build_import
+from kobipass.csv_import import (
+    MAX_IMPORT_FIELDS,
+    WARN_TOO_MANY_COLUMNS,
+    CsvDocument,
+    ImportPlan,
+    build_import,
+)
 from kobipass.i18n import tr
 from kobipass.resources import app_icon
 
@@ -55,6 +61,24 @@ class ImportCsvDialog(QDialog):
         self._summary = QLabel("")
         self._summary.setObjectName("importSummary")
         layout.addWidget(self._summary)
+
+        # Ayrıştırma uyarıları (kapanmayan tırnak, aşırı kolon, tahmini
+        # kodlama). Eskiden hiçbiri gösterilmiyordu; kullanıcı "içe aktardıktan
+        # sonra CSV'yi silin" notuna uyduğunda kayıp kalıcı oluyordu.
+        self._warnings = QLabel("")
+        self._warnings.setObjectName("importWarnings")
+        self._warnings.setWordWrap(True)
+        self._warnings.setVisible(bool(document.warnings))
+        if document.warnings:
+            self._warnings.setText(
+                "\n".join(
+                    tr(key, max=MAX_IMPORT_FIELDS)
+                    if key == WARN_TOO_MANY_COLUMNS
+                    else tr(key)
+                    for key in document.warnings
+                )
+            )
+        layout.addWidget(self._warnings)
 
         self._header_check = QCheckBox(tr("import_csv_first_row_header"))
         self._header_check.setChecked(True)
