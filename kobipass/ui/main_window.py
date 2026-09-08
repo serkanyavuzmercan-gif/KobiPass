@@ -1996,10 +1996,25 @@ class MainWindow(QMainWindow):
             )
             return
 
+        from csv import Error as CsvError
+
         from kobipass.csv_import import parse_csv
         from kobipass.ui.import_dialog import ImportCsvDialog
 
-        dialog = ImportCsvDialog(parse_csv(data), Path(path_str).name, self)
+        # Bozuk CSV (kapanmayan tırnak, aşırı uzun alan) csv modülünden istisna
+        # fırlatır. Eskiden bu çağrı korumasızdı ve uygulama hata penceresi bile
+        # göstermeden kapanıyordu; kasadaki kaydedilmemiş değişiklikler gidiyordu.
+        try:
+            document = parse_csv(data)
+        except (CsvError, ValueError) as exc:
+            show_error(
+                self,
+                tr("import_csv_title"),
+                tr("import_csv_read_error", error=str(exc)),
+            )
+            return
+
+        dialog = ImportCsvDialog(document, Path(path_str).name, self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         plan = dialog.plan()
@@ -2079,9 +2094,21 @@ class MainWindow(QMainWindow):
         return False
 
     def _protect_vault_file(self, path: Path) -> None:
-        """Başarılı kayıt sonrası: şifreli yedek al + salt-okunur kilidi bas."""
-        create_backup(path)
-        set_read_only(path)
+        """Başarılı kayıt sonrası: şifreli yedek al + salt-okunur kilidi bas.
+
+        Bunlar KORUMA katmanıdır; başarısızlıkları kaydı geçersiz kılmaz. Eskiden
+        buradaki OSError (ör. %APPDATA% çevrimdışı ağ payında, disk dolu, izin yok)
+        yakalanmıyordu ve BAŞARILI bir kayıttan hemen sonra uygulama çöküyordu —
+        kullanıcı kaydın diske yazıldığını bilemiyordu.
+        """
+        try:
+            create_backup(path)
+        except OSError:
+            pass
+        try:
+            set_read_only(path)
+        except OSError:
+            pass
 
     def _maybe_prompt_desktop_shortcut(self) -> None:
         """İlk açılışta bir kez masaüstü kısayolu teklif eder (yalnızca Windows,
@@ -2387,6 +2414,11 @@ class MainWindow(QMainWindow):
                 continue  # boş parola ekranını yeniden göster
             except VaultCryptoError as exc:
                 show_error(self, tr("file_err_title"), crypto_message(str(exc)))
+                return
+            except OSError as exc:
+                # Dosya silinmiş/erişilemez olabilir (ağ payı koptu, izin yok).
+                # Eskiden yakalanmıyordu ve uygulama çöküyordu.
+                show_error(self, tr("file_err_title"), tr("err_save_io", error=str(exc)))
                 return
 
         session = session_from_unlock(unlock, password, unlock.vault)

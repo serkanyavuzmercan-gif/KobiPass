@@ -629,7 +629,14 @@ class CompactField(QWidget):
     def _on_copy_clicked(self) -> None:
         global _active_copy_field
         if _active_copy_field is not None and _active_copy_field is not self:
-            _active_copy_field._clear_copy_flash()
+            # Önceki hücre bu arada SİLİNMİŞ olabilir (kullanıcı kopyaladıktan
+            # sonra 900 ms içinde alanı/satırı kaldırırsa). Python nesnesi yaşasa
+            # da altındaki C++ nesnesi yok olur ve erişim uygulamayı çökertirdi.
+            try:
+                _active_copy_field._clear_copy_flash()
+            except RuntimeError:
+                pass
+            _active_copy_field = None
         text = self._edit.text()
         copy_text(text)
         self._show_copy_flash()
