@@ -61,6 +61,10 @@ FIELD_STEP_BTN_WIDTH = 30
 # '-' düğmesi kaldırıldıktan sonra yükseklik 20'de kalmıştı ve '+' yarım/basık
 # görünüyordu. Kare oran düğmeyi tam gösterir.
 FIELD_STEP_BTN_HEIGHT = 30
+# Kenar koridoru: adim oku + 2px nefes payi.
+EDGE_STEP_BTN_WIDTH = 24
+EDGE_STEP_BTN_HEIGHT = 30
+EDGE_GUTTER = 26
 
 _ICON_BTN_SIZE = COPY_BTN_SIZE
 _FIELD_EYE_BTN_SIZE = QSize(28, 28)
@@ -153,12 +157,41 @@ def responsive_field_width(
     return max(minimum, min(maximum, desired))
 
 
-def three_column_info_width(viewport_width: int) -> int:
-    """İlk üç değer hücresi viewport'u eşit paylaşır; sonrası aynı genişlikte scroll olur."""
-    spacing_budget = ROW_LAYOUT_SPACING * INFO_VISIBLE_COLUMNS
+def info_column_width(viewport_width: int, field_count: int = INFO_VISIBLE_COLUMNS) -> int:
+    """Değer hücresi genişliği: viewport alan sayısına bölünür, 180..300 arası kelepçeli.
+
+    NEDEN asgari 3: INFO_VISIBLE_COLUMNS bir 'sabit bölen' değil 'asgari kolon
+    sayısı'dır. 1-3 alanlı satırlar (kasanın ezici çoğunluğu) bugünkü 300px
+    görünümünü PİKSEL PİKSEL korur; yalnızca 4+ alanlı satırlar daralarak
+    viewport'a sığmaya çalışır. Taşmanın çoğu böylece kaynağında yok olur.
+
+    NEDEN FIELD_STEP_BTN_WIDTH hâlâ düşülüyor: '+' 1.3.1'de kaydırma alanının
+    dışına taşındı, yani bu pay artık gerçek bir rezervasyona karşılık gelmiyor.
+    Yine de KORUNUYOR — çıkarılırsa dar pencerelerde (viewport < ~954px) 1-3
+    alanlı satırların hücre genişliği de değişir ve 'küçük satırlar aynı kalır'
+    garantisi bozulur. Zararsız ~30px'lik bu pay marjinal taşmayı da önler.
+    """
+    columns = max(field_count, INFO_VISIBLE_COLUMNS)
+    spacing_budget = ROW_LAYOUT_SPACING * columns
     usable = viewport_width - FIELD_STEP_BTN_WIDTH - spacing_budget
-    width = usable // INFO_VISIBLE_COLUMNS
+    width = usable // columns
     return max(INFO_FIELD_WIDTH, min(INFO_FIELD_MAX_WIDTH, width))
+
+
+def three_column_info_width(viewport_width: int) -> int:
+    """Geriye dönük ad — üç kolonluk (varsayılan) hesap."""
+    return info_column_width(viewport_width, INFO_VISIBLE_COLUMNS)
+
+
+def fields_overflow(viewport_width: int, field_count: int) -> bool:
+    """Hücreler daraltıldıktan SONRA hâlâ taşıyor mu?
+
+    Karar her zaman GUTTER'SIZ (tam) viewport genişliğinden verilir; gutter
+    açılınca ölçünün değişmemesi gerekir, yoksa 'sığıyor/sığmıyor' kararı
+    kendi kendini besleyip aç-kapa salınımı doğurabilir.
+    """
+    width = info_column_width(viewport_width, field_count)
+    return field_count * (width + ROW_LAYOUT_SPACING) > viewport_width
 
 
 def four_column_default_width(row_content_width: int) -> int:
@@ -179,6 +212,17 @@ class EntryFieldsScroll(QScrollArea):
     """Yatay kaydırma — scrollbar gizli, tekerlek ile kayar."""
 
     viewport_resized = pyqtSignal()
+
+    _gutter = 0
+
+    def set_edge_gutters(self, px: int) -> None:
+        if px == self._gutter:
+            return
+        self._gutter = px
+        self.setViewportMargins(px, 0, px, 0)
+
+    def edge_gutter(self) -> int:
+        return self._gutter
 
     def sizeHint(self) -> QSize:
         return QSize(0, ROW_CONTROL_HEIGHT + 9)  # ince kaydırma çubuğu payı
@@ -882,11 +926,26 @@ class EntryRowWidget(QWidget):
             self._field_step_column, 0, Qt.AlignmentFlag.AlignTop
         )
 
+        _hbar = self._scroll.horizontalScrollBar()
+        _hbar.setObjectName("entryFieldsBar")
+        _hbar.setToolTip(tr("row_scroll_tip"))
+
+        self._prev_edge_btn: QToolButton | None = None
+        self._next_edge_btn: QToolButton | None = None
+        _bar = self._scroll.horizontalScrollBar()
+        # DIKKAT: lambda ile baglamak satir -> scroll -> bar -> baglanti ->
+        # lambda -> satir referans dongusu kuruyordu; deleteLater sonrasi GC
+        # silinmis C++ nesnesine dokunup SEGFAULT uretiyordu. PyQt bagli
+        # metotlarda aliciyi zayif tuttugu icin dongu olusmuyor.
+        _bar.valueChanged.connect(self._on_bar_value_changed)
+        _bar.rangeChanged.connect(self._on_bar_range_changed)
+
         self.retranslate()
 
         self._name.textChanged().connect(self._emit_changed)
         self._info1.textChanged().connect(self._emit_changed)
-        self._info1.textChanged().connect(lambda _="": self._refresh_age_label())
+        # Aynı gerekçe (bkz. _ensure_edge_buttons): bağlı metot, lambda değil.
+        self._info1.textChanged().connect(self._on_info1_text_changed)
 
         self._wire_tab_order()
         self._update_field_step_buttons()
@@ -906,10 +965,44 @@ class EntryRowWidget(QWidget):
             child.removeEventFilter(self)
             child.installEventFilter(self)
 
+    def _owner_info_field(self, obj):
+        node = obj
+        while isinstance(node, QWidget):
+            if isinstance(node, CompactField) and node.parentWidget() is self._extras_host:
+                return node
+            node = node.parentWidget()
+        return None
+
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if event.type() in (QEvent.Type.Enter, QEvent.Type.Leave):
             self._refresh_hover()
+        elif event.type() == QEvent.Type.FocusIn:
+            self._reveal_focused_field(obj, event.reason())
         return False
+
+    def _reveal_focused_field(self, obj, reason) -> None:
+        """Klavyeyle gidilen bilgi hücresini görüş alanına getirir.
+
+        NEDEN yalnızca Tab/Backtab/Shortcut: FocusIn başka nedenlerle de gelir
+        ve her birinde kaydırmak kullanıcının konumunu ÇALAR --
+        * ActiveWindowFocusReason: kullanıcı 6. alanı kopyalayıp tarayıcıya
+          geçip döndüğünde satır başa sarıyordu (ölçüldü: 628 -> 0). Bu akış
+          bir parola yöneticisinin varlık sebebidir.
+        * PopupFocusReason: silme onayı/menü kapanınca aynı sıçrama (628 -> 0).
+        * MouseFocusReason: yarım görünen hücreye tıklayınca hücre imlecin
+          altından kayar, tıklama metnin başka yerine düşer.
+        Programatik setFocus() çağrılarının hepsi focus_edits()[0]'a, yani
+        kaydırma alanının DIŞINDAKİ isim alanına gider; oradan zaten None döner.
+        """
+        if reason not in (
+            Qt.FocusReason.TabFocusReason,
+            Qt.FocusReason.BacktabFocusReason,
+            Qt.FocusReason.ShortcutFocusReason,
+        ):
+            return
+        field = self._owner_info_field(obj)
+        if field is not None:
+            self._scroll.ensureWidgetVisible(field, ROW_LAYOUT_SPACING, 0)
 
     def enterEvent(self, event) -> None:  # noqa: N802
         self._refresh_hover()
@@ -926,6 +1019,33 @@ class EntryRowWidget(QWidget):
         self.setProperty("hovered", inside)
         self.style().unpolish(self)
         self.style().polish(self)
+        self._sync_scroll_handle()
+
+    def _sync_scroll_handle(self) -> None:
+        """Yatay çubuğun tutamağını satırın 'hovered' durumuna göre tazeler.
+
+        NEDEN çubuğun kendisi repolish ediliyor: kural ataya bağlı bir torun
+        seçicisi (QWidget#entryRow[hovered="true"] ... ::handle:horizontal).
+        Qt yalnızca ATAYI polish etmekle torunun kurallarını yeniden
+        hesaplamaz; çubuk da polish edilince kural doğru uygulanır
+        (ölçüldü: #343a46 <-> #7d8ba6).
+
+        NEDEN koşullu: taşmayan satırlarda çubuk zaten görünmez; 138 kayıtlık
+        kasada fareyi gezdirirken her satır için bir unpolish/polish ödemenin
+        anlamı yok.
+        """
+        bar = self._scroll.horizontalScrollBar()
+        if bar.maximum() <= 0 and not bar.property("wasStyled"):
+            return
+        # Yalnızca DURUM DEĞİŞTİĞİNDE repolish. Bu fonksiyon valueChanged'den de
+        # çağrılıyor; koşulsuz repolish kaydırmanın adım maliyetini 1,55 ms'den
+        # 2,95 ms'ye çıkarıyordu (ölçüldü) — çubuğu sürüklerken saf israf.
+        wanted = bool(self.property("hovered"))
+        if bar.property("wasStyled") and bar.property("styledHovered") == wanted:
+            return
+        bar.setProperty("wasStyled", True)
+        bar.setProperty("styledHovered", wanted)
+        _restyle(bar)
 
     def _confirm_and_remove(self) -> None:
         if self._view_only:
@@ -981,6 +1101,77 @@ class EntryRowWidget(QWidget):
         for prev, nxt in zip(edits, edits[1:]):
             QWidget.setTabOrder(prev, nxt)
 
+    def _ensure_edge_buttons(self) -> None:
+        if self._next_edge_btn is not None:
+            return
+        from kobipass.ui.icons import icon_chevron_left, icon_chevron_right
+
+        def mk(name, icon, direction):
+            b = QToolButton(self._scroll)
+            b.setObjectName(name)
+            b.setIcon(icon)
+            b.setIconSize(QSize(16, 16))
+            b.setFixedSize(EDGE_STEP_BTN_WIDTH, EDGE_STEP_BTN_HEIGHT)
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            b.setAutoRepeat(True)
+            b.setAutoRepeatDelay(400)
+            b.setAutoRepeatInterval(90)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            # BAĞLI METOT, lambda DEĞİL. Lambda 'self'i güçlü tutar ve
+            # satır -> scroll -> düğme -> bağlantı -> lambda -> satır döngüsünü
+            # kurar; deleteLater C++ nesnesini yok ettikten sonra çöp toplayıcı
+            # silinmiş nesneye dokunup SEGFAULT üretiyordu (ölçüldü: 8/8 çökme).
+            # PyQt bağlı metotlarda alıcıyı ZAYIF tuttuğu için döngü oluşmaz.
+            b.clicked.connect(
+                self._step_fields_back if direction < 0 else self._step_fields_forward
+            )
+            b.hide()
+            return b
+
+        self._prev_edge_btn = mk("fieldScrollPrev", icon_chevron_left(), -1)
+        self._next_edge_btn = mk("fieldScrollNext", icon_chevron_right(), +1)
+        self._prev_edge_btn.setToolTip(tr("row_scroll_prev"))
+        self._next_edge_btn.setToolTip(tr("row_scroll_next"))
+        self._install_hover_tracking()
+
+    def _step_fields_back(self) -> None:
+        self._step_fields(-1)
+
+    def _step_fields_forward(self) -> None:
+        self._step_fields(+1)
+
+    def _step_fields(self, direction: int) -> None:
+        bar = self._scroll.horizontalScrollBar()
+        step = self._info1.width() + ROW_LAYOUT_SPACING
+        bar.setValue(max(0, min(bar.maximum(), bar.value() + direction * step)))
+
+    def _position_edge_buttons(self) -> None:
+        if self._next_edge_btn is None:
+            return
+        vp = self._scroll.viewport().geometry()
+        y = vp.y() + max(0, (vp.height() - EDGE_STEP_BTN_HEIGHT) // 2)
+        self._prev_edge_btn.move(0, y)
+        self._next_edge_btn.move(self._scroll.width() - EDGE_STEP_BTN_WIDTH, y)
+        self._prev_edge_btn.raise_()
+        self._next_edge_btn.raise_()
+
+    def _on_bar_value_changed(self, _v: int) -> None:
+        self._update_edge_buttons()
+
+    def _on_bar_range_changed(self, _a: int, _b: int) -> None:
+        self._update_edge_buttons()
+
+    def _update_edge_buttons(self) -> None:
+        # Taşma tam bu anda doğmuş olabilir ('+' ile 4. alan eklendi).
+        # _refresh_hover 'hovered' değişmediği için erken dönerdi; tutamağı
+        # burada tazelemezsek ray, en çok gerektiği anda soluk kalırdı.
+        self._sync_scroll_handle()
+        if self._next_edge_btn is None:
+            return
+        bar = self._scroll.horizontalScrollBar()
+        self._prev_edge_btn.setVisible(bar.value() > 0)
+        self._next_edge_btn.setVisible(bar.value() < bar.maximum())
+
     def _schedule_info_field_layout(self) -> None:
         QTimer.singleShot(0, self._layout_info_fields)
 
@@ -1003,8 +1194,16 @@ class EntryRowWidget(QWidget):
             viewport_width = (
                 row_content_width - self._name.width() - ROW_LAYOUT_SPACING
             )
-        width = three_column_info_width(viewport_width)
+            full_vp = viewport_width
+        else:
+            full_vp = viewport_width + 2 * self._scroll.edge_gutter()
         fields = [self._info1, *self._extra_fields]
+        width = info_column_width(full_vp, len(fields))
+        overflow = fields_overflow(full_vp, len(fields))
+        self._scroll.set_edge_gutters(EDGE_GUTTER if overflow else 0)
+        if overflow:
+            self._ensure_edge_buttons()
+        viewport_width = self._scroll.viewport().width() or viewport_width
         for field in fields:
             field.set_compact_width(width)
         # Üç kolona kadar viewport dolar; dördüncü hücre yatay scroll'u başlatır.
@@ -1015,6 +1214,8 @@ class EntryRowWidget(QWidget):
         )
         self._extras_host.setMinimumWidth(max(viewport_width, content_width))
         self._extras_layout.invalidate()
+        self._position_edge_buttons()
+        self._update_edge_buttons()
 
     def _sync_scroll_width(self, *, scroll_to_end: bool = False) -> None:
         self._schedule_info_field_layout()
@@ -1251,9 +1452,16 @@ class EntryRowWidget(QWidget):
         for field in self._extra_fields:
             field.retranslate()
         self._add_field_btn.setToolTip(tr("add_field_tip"))
+        self._scroll.horizontalScrollBar().setToolTip(tr("row_scroll_tip"))
+        if self._next_edge_btn is not None:
+            self._next_edge_btn.setToolTip(tr("row_scroll_next"))
+            self._prev_edge_btn.setToolTip(tr("row_scroll_prev"))
         # Parola yaşı etiketi üç çevrilmiş metin üretir; yalnızca __init__ ve
         # load_entry'den çağrıldığı için satır kurulduğu andaki dilde donup
         # kalıyordu.
+        self._refresh_age_label()
+
+    def _on_info1_text_changed(self, _text: str = "") -> None:
         self._refresh_age_label()
 
     def _emit_changed(self) -> None:

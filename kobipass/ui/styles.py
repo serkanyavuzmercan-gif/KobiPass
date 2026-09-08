@@ -130,27 +130,35 @@ QScrollArea#entryFieldsScroll QScrollBar:vertical {
     background: transparent;
 }
 
+/* Bant SABİT 5px. NEDEN: eski kural çubuğun KENDİ :hover'ında 4px -> 9px
+   büyüyordu; büyümeyi görmek için önce görünmeyen 4px'lik kılı fareyle
+   yakalamak gerekiyordu (imkânsız), üstelik viewport 43 -> 38'e düşüp 42px'lik
+   hücreyi KIRPIYOR ve viewport_resized -> yeniden yerleşim tetikliyordu.
+   5px, satır yüksekliğini (47) hiç büyütmeden hücreye tam yer bırakan en
+   kalın banttır: 47 - 5 = 42 = hücre yüksekliği. Geometri sabit olduğu için
+   satır-hover'ında yalnızca REPAINT olur, yeniden yerleşim olmaz. */
 QScrollArea#entryFieldsScroll QScrollBar:horizontal {
     background: transparent;
-    height: 4px;
-    margin: 3px 0 0 0;
-}
-
-QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover {
-    height: 9px;
+    height: 5px;
     margin: 0;
 }
 
 QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal {
     background: #343a46;
     border-radius: 2px;
-    min-width: 24px;
+    min-width: 40px;
 }
 
-QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover QScrollBar::handle:horizontal,
-QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal:hover {
-    background: #4d5566;
-    border-radius: 5px;
+/* Ray yalnızca imleç O satırdayken mürekkep alır: durgun listede 138 satırlık
+   bir "çizgi merdiveni" oluşmaz (1.3.0 şikâyeti), ilgilenilen satırda ise
+   konumu ve ne kadar kaldığını gösterir. */
+QWidget#entryRow[hovered="true"] QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal {
+    background: #7d8ba6;
+}
+
+QWidget#entryRow[hovered="true"] QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal:hover,
+QWidget#entryRow[hovered="true"] QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal:pressed {
+    background: #93a8dd;
 }
 
 QScrollArea#entryFieldsScroll QScrollBar::add-line:horizontal,
@@ -170,6 +178,12 @@ QScrollArea#entryFieldsScroll {
     background-color: transparent;
 }
 
+QToolButton#fieldScrollPrev, QToolButton#fieldScrollNext {
+    background: transparent; border: none; border-radius: 6px; padding: 0;
+}
+QToolButton#fieldScrollPrev:hover, QToolButton#fieldScrollNext:hover {
+    background-color: #2d3340;
+}
 QWidget#entryExtrasHost {
     background-color: transparent;
 }
@@ -2237,27 +2251,35 @@ QScrollArea#entryFieldsScroll QScrollBar:vertical {
     background: transparent;
 }
 
+/* Bant SABİT 5px. NEDEN: eski kural çubuğun KENDİ :hover'ında 4px -> 9px
+   büyüyordu; büyümeyi görmek için önce görünmeyen 4px'lik kılı fareyle
+   yakalamak gerekiyordu (imkânsız), üstelik viewport 43 -> 38'e düşüp 42px'lik
+   hücreyi KIRPIYOR ve viewport_resized -> yeniden yerleşim tetikliyordu.
+   5px, satır yüksekliğini (47) hiç büyütmeden hücreye tam yer bırakan en
+   kalın banttır: 47 - 5 = 42 = hücre yüksekliği. Geometri sabit olduğu için
+   satır-hover'ında yalnızca REPAINT olur, yeniden yerleşim olmaz. */
 QScrollArea#entryFieldsScroll QScrollBar:horizontal {
     background: transparent;
-    height: 4px;
-    margin: 3px 0 0 0;
-}
-
-QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover {
-    height: 9px;
+    height: 5px;
     margin: 0;
 }
 
 QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal {
-    background: #dde3f0;
+    background: #c2cde3;
     border-radius: 2px;
-    min-width: 24px;
+    min-width: 40px;
 }
 
-QScrollArea#entryFieldsScroll QScrollBar:horizontal:hover QScrollBar::handle:horizontal,
-QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal:hover {
-    background: #9ca3af;
-    border-radius: 5px;
+/* Ray yalnızca imleç O satırdayken mürekkep alır: durgun listede 138 satırlık
+   bir "çizgi merdiveni" oluşmaz (1.3.0 şikâyeti), ilgilenilen satırda ise
+   konumu ve ne kadar kaldığını gösterir. */
+QWidget#entryRow[hovered="true"] QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal {
+    background: #7d90b8;
+}
+
+QWidget#entryRow[hovered="true"] QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal:hover,
+QWidget#entryRow[hovered="true"] QScrollArea#entryFieldsScroll QScrollBar::handle:horizontal:pressed {
+    background: #5c7099;
 }
 
 QScrollArea#entryFieldsScroll QScrollBar::add-line:horizontal,
@@ -2275,6 +2297,13 @@ QScrollArea#entryFieldsScroll QScrollBar::sub-page:horizontal {
 
 QScrollArea#entryFieldsScroll {
     background-color: transparent;
+}
+
+QToolButton#fieldScrollPrev, QToolButton#fieldScrollNext {
+    background: transparent; border: none; border-radius: 6px; padding: 0;
+}
+QToolButton#fieldScrollPrev:hover, QToolButton#fieldScrollNext:hover {
+    background-color: #edf0fa;
 }
 
 QWidget#entryExtrasHost {

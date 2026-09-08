@@ -750,3 +750,221 @@ def test_prune_empty_cells_hidden_for_read_only_user(window):
     window._apply_session_ui()
 
     assert window._btn_prune_empty.isVisible() is False
+
+
+# ── Satır içi yatay gezinme ────────────────────────────────────────────────
+def _row_with_fields(app, count, width=1860, writable=True):
+    """Verilen sayıda bilgi hücresi taşıyan, gerçek genişlikte bir satır kurar."""
+    from PyQt6.QtWidgets import QVBoxLayout, QWidget
+
+    from kobipass.ui.entry_row import EntryRowWidget
+    from kobipass.ui.theme import theme_manager
+    from kobipass.vault_model import UserPermissions
+
+    # Stil sayfası ~4200 satır; her satır kurulumunda tüm uygulamaya yeniden
+    # uygulamak test paketini dakikalarca uzatıyordu. Bir kez yeter.
+    if not app.styleSheet():
+        app.setStyleSheet(theme_manager.stylesheet())
+    host = QWidget()
+    layout = QVBoxLayout(host)
+    layout.setContentsMargins(0, 0, 0, 0)
+    row = EntryRowWidget()
+    layout.addWidget(row)
+    host.resize(width, 200)
+    host.show()
+    if writable:
+        row.apply_permissions(UserPermissions(name="write", info="write"))
+    row.load_entry(
+        VaultEntry(name="Kayıt", info1="p", more_infos=[f"v{i}" for i in range(count - 1)])
+    )
+    for _ in range(14):
+        app.processEvents()
+    return host, row
+
+
+def test_six_fields_fit_without_scrolling(app):
+    """Kullanıcının bildirdiği vaka: 6 alanlı satır normal pencerede taşmamalı.
+
+    Regresyon: hücre genişliği HER ZAMAN viewport/3 idi, yani 4. alandan
+    itibaren satır kaçınılmaz olarak taşıyordu. INFO_VISIBLE_COLUMNS artık
+    sabit bölen değil ASGARİ kolon sayısı: 4+ alanlı satırlar daralarak sığmaya
+    çalışıyor, 1-3 alanlı satırların görünümü değişmiyor.
+    """
+    for count in (4, 5, 6):
+        host, row = _row_with_fields(app, count, width=1860)
+        try:
+            bar = row._scroll.horizontalScrollBar()
+            assert bar.maximum() == 0, f"{count} alan hâlâ taşıyor (max={bar.maximum()})"
+        finally:
+            host.close()
+            host.deleteLater()
+            app.processEvents()
+
+
+def test_small_rows_keep_their_column_width(app):
+    """1-3 alanlı satırların hücre genişliği DEĞİŞMEMELİ (görünüm korunur)."""
+    from kobipass.ui.entry_row import INFO_VISIBLE_COLUMNS, info_column_width
+
+    for viewport in (600, 900, 1200, 1600, 2400):
+        base = info_column_width(viewport, INFO_VISIBLE_COLUMNS)
+        for count in (1, 2, 3):
+            assert info_column_width(viewport, count) == base, (
+                f"viewport={viewport} alan={count}: {info_column_width(viewport, count)} != {base}"
+            )
+
+
+def test_overflowing_row_gets_reachable_edge_arrows(app):
+    """Gerçekten taşan satırda kenar okları çıkmalı ve İŞE YARAMALI.
+
+    Regresyon: taşan hücreye ulaşmanın tek yolu 4px'lik, pratikte görünmez ve
+    yakalanamaz bir çubuk ile keşfedilemez Shift+tekerlekti.
+    """
+    host, row = _row_with_fields(app, 12, width=1860)
+    try:
+        bar = row._scroll.horizontalScrollBar()
+        assert bar.maximum() > 0, "12 alan taşmadı; senaryo geçersiz"
+        assert row._next_edge_btn is not None, "kenar oku yaratılmadı"
+        assert row._next_edge_btn.isVisibleTo(row._scroll)
+        assert not row._prev_edge_btn.isVisibleTo(row._scroll), "başta geri ok görünmemeli"
+
+        row._next_edge_btn.click()
+        for _ in range(4):
+            app.processEvents()
+        assert bar.value() > 0, "ileri ok kaydırmadı"
+        assert row._prev_edge_btn.isVisibleTo(row._scroll), "kaydırınca geri ok çıkmalı"
+
+        row._prev_edge_btn.click()
+        for _ in range(4):
+            app.processEvents()
+        assert bar.value() == 0, "geri ok başa döndürmedi"
+    finally:
+        host.close()
+        host.deleteLater()
+        app.processEvents()
+
+
+def test_fitting_row_pays_nothing_for_edge_arrows(app):
+    """Taşmayan satır kenar oku YARATMAMALI (widget bütçesi).
+
+    1.3.0'daki "her satırda duran garip çubuk" şikâyetinin tekrarlamaması da
+    buna bağlı: sığan satırda hiçbir gezinme süsü çıkmaz.
+    """
+    for count in (1, 3, 6):
+        host, row = _row_with_fields(app, count, width=1860)
+        try:
+            assert row._scroll.horizontalScrollBar().maximum() == 0
+            assert row._next_edge_btn is None, f"{count} alanda gereksiz ok yaratıldı"
+            assert row._scroll.edge_gutter() == 0, "gereksiz kenar koridoru açıldı"
+        finally:
+            host.close()
+            host.deleteLater()
+            app.processEvents()
+
+
+def test_tab_reveals_field_but_window_return_does_not_scroll(app):
+    """Tab ile gidilen hücre görünür olmalı; pencereye dönüş konumu KORUMALI.
+
+    Regresyon 1: Tab ile son alana odaklanmak onu görünür kılmıyordu — klavye
+    kullanıcısı görmediği bir alana yazıyordu.
+    Regresyon 2 (düzeltmenin kendisinin doğurabileceği): her FocusIn'de
+    kaydırmak, kullanıcı hücreyi kopyalayıp tarayıcıya geçip döndüğünde satırı
+    başa sarıyordu — bir parola yöneticisinin en sık akışı budur.
+    """
+    from PyQt6.QtCore import Qt
+
+    host, row = _row_with_fields(app, 12, width=1860)
+    try:
+        bar = row._scroll.horizontalScrollBar()
+        bar.setValue(0)
+        for _ in range(3):
+            app.processEvents()
+
+        last = row._extra_fields[-1]
+        last.focus_edit().setFocus(Qt.FocusReason.TabFocusReason)
+        for _ in range(8):
+            app.processEvents()
+        assert bar.value() > 0, "Tab ile odaklanan alan görünür kılınmadı"
+        viewport = row._scroll.viewport().width()
+        assert last.x() >= bar.value() - 2
+        assert last.x() + last.width() <= bar.value() + viewport + 2
+
+        kept = bar.value()
+        last.focus_edit().setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        for _ in range(6):
+            app.processEvents()
+        assert bar.value() == kept, "pencereye dönüş satırı başa sardı"
+
+        last.focus_edit().setFocus(Qt.FocusReason.MouseFocusReason)
+        for _ in range(6):
+            app.processEvents()
+        assert bar.value() == kept, "fare tıklaması hücreyi imlecin altından kaydırdı"
+    finally:
+        host.close()
+        host.deleteLater()
+        app.processEvents()
+
+
+def test_row_height_does_not_grow_with_field_count(app):
+    """Satır yüksekliği alan sayısından ve kaydırma çubuğundan bağımsız olmalı.
+
+    138 kayıtlı bir listede satır başına birkaç piksel büyüme toplamda yüzlerce
+    piksel eder. Çubuğun eski :hover kuralı 4px'ten 9px'e büyüyüp viewport'u
+    kısaltıyor ve hücreyi kırpıyordu.
+    """
+    heights = set()
+    for count in (1, 3, 6, 12):
+        host, row = _row_with_fields(app, count, width=1860)
+        try:
+            heights.add(row.sizeHint().height())
+            bar_h = row._scroll.horizontalScrollBar().height()
+            viewport_h = row._scroll.viewport().height()
+            assert viewport_h >= 42, f"hücre kırpıldı (viewport={viewport_h})"
+            assert bar_h <= 5, f"çubuk satırı büyütüyor ({bar_h}px)"
+        finally:
+            host.close()
+            host.deleteLater()
+            app.processEvents()
+    assert len(heights) == 1, f"satır yüksekliği alan sayısıyla değişiyor: {heights}"
+
+
+def test_scroll_rail_only_inks_on_the_hovered_row(app):
+    """Ray durgunken sönük, imleç o satırdayken belirgin olmalı.
+
+    1.3.0'da her satırda duran çubuk "garip" bulunmuştu; ayrım bu.
+    """
+    host, row = _row_with_fields(app, 12, width=1860)
+    try:
+        bar = row._scroll.horizontalScrollBar()
+
+        def handle_colors():
+            from collections import Counter
+
+            from PyQt6.QtGui import QPixmap
+
+            pixmap = QPixmap(bar.size())
+            bar.render(pixmap)
+            image = pixmap.toImage()
+            counter = Counter(
+                image.pixelColor(x, y).name()
+                for x in range(0, image.width(), 7)
+                for y in range(image.height())
+            )
+            return [name for name, _ in counter.most_common(3)]
+
+        row.setProperty("hovered", False)
+        row._sync_scroll_handle()
+        for _ in range(3):
+            app.processEvents()
+        idle = handle_colors()
+
+        row.setProperty("hovered", True)
+        row._sync_scroll_handle()
+        for _ in range(3):
+            app.processEvents()
+        hovered = handle_colors()
+
+        assert idle != hovered, f"ray hover'da değişmiyor: {idle}"
+    finally:
+        host.close()
+        host.deleteLater()
+        app.processEvents()
