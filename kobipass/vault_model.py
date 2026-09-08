@@ -232,6 +232,11 @@ class AuditEntry:
     summary: str
     old_value: str = ""
     new_value: str = ""
+    # Kaydın ait olduğu sekme. GİZLİLİK İÇİN ZORUNLU: audit kayıtları kayıt
+    # adını ve info2+ değerlerini DÜZ METİN taşır. Bu alan olmadan gizli bir
+    # sekmedeki düzenlemenin audit kaydı ana (DEK) gövdeye yazılıyor ve alt
+    # kullanıcının parolasıyla okunabiliyordu — gizli sekme izolasyonu delik.
+    tab_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -244,6 +249,7 @@ class AuditEntry:
             "summary": self.summary,
             "old_value": self.old_value,
             "new_value": self.new_value,
+            "tab_id": self.tab_id,
         }
 
     @classmethod
@@ -258,6 +264,7 @@ class AuditEntry:
             summary=str(data.get("summary", "")),
             old_value=str(data.get("old_value", "")),
             new_value=str(data.get("new_value", "")),
+            tab_id=str(data.get("tab_id", "")),
         )
 
 
@@ -402,7 +409,12 @@ class KobiVault:
         # Sekme-farkında (v4+) format 'tabs' taşır; eski format 'entries' taşır
         # → tek bir varsayılan sekmeye göç edilir.
         raw_tabs = data.get("tabs")
-        if isinstance(raw_tabs, list) and raw_tabs:
+        # BOŞ liste ile ANAHTAR YOK ayrımı şart: kasadaki tüm sekmeler gizliyse
+        # ana gövdeye "tabs": [] yazılır. Boş listeyi legacy sayarsak sahte bir
+        # varsayılan sekme uydurulur; merge_hidden_tabs gizli sekmeleri
+        # eklediğinde yönetici hiç oluşturmadığı boş bir "hayalet" sekmeyle
+        # karşılaşır ve kaydedince o sekme kalıcı olur.
+        if isinstance(raw_tabs, list):
             tabs = [
                 VaultTab.from_dict(item)
                 for item in raw_tabs
@@ -420,7 +432,10 @@ class KobiVault:
                     hidden=False,
                 )
             ]
-        if not tabs:
+        # Sekme listesi boş kalabilir: hepsi gizliyse ana gövde onları taşımaz
+        # ve merge_hidden_tabs sonradan yerleştirir. Yalnızca 'tabs' anahtarı
+        # HİÇ yoksa (gerçek legacy dosya) varsayılan sekme uydurulur.
+        if not tabs and not isinstance(raw_tabs, list):
             tabs = [VaultTab.new(DEFAULT_TAB_NAME)]
         legacy_perms = UserPermissions.from_dict(data.get("user_permissions", {}))
         labels = data.get("user_slot_labels")
@@ -480,10 +495,24 @@ def vault_from_json_bytes(data: bytes) -> KobiVault:
 # açamaz; alt kullanıcı gizli bloğu opak biçimde taşır.
 
 
+def _hidden_tab_ids(vault: KobiVault) -> set[str]:
+    return {t.id for t in vault.tabs if t.hidden}
+
+
 def vault_main_json_bytes(vault: KobiVault) -> bytes:
-    """Ana (DEK) gövde: yalnızca normal sekmeler + tüm ortak meta."""
+    """Ana (DEK) gövde: yalnızca normal sekmeler + tüm ortak meta.
+
+    Audit kayıtları da sekmeye göre AYRIŞTIRILIR. Gizli sekmelerdeki
+    düzenlemelerin kayıtları kayıt adını ve info2+ değerlerini düz metin
+    taşır; ana gövdeye yazılırlarsa alt kullanıcı kendi parolasıyla okur ve
+    gizli sekme izolasyonu delinir. Onlar AEK bloğuna gider.
+    """
     data = vault.to_dict()
     data["tabs"] = [t.to_dict() for t in vault.normal_tabs()]
+    hidden_ids = _hidden_tab_ids(vault)
+    data["audit_log"] = [
+        a.to_dict() for a in vault.audit_log if a.tab_id not in hidden_ids
+    ]
     return json.dumps(data, ensure_ascii=False).encode("utf-8")
 
 
@@ -496,7 +525,11 @@ def hidden_tabs_json_bytes(vault: KobiVault) -> bytes:
             data = tab.to_dict()
             data["pos"] = index
             tabs.append(data)
-    return json.dumps({"tabs": tabs}, ensure_ascii=False).encode("utf-8")
+    hidden_ids = _hidden_tab_ids(vault)
+    audit = [a.to_dict() for a in vault.audit_log if a.tab_id in hidden_ids]
+    return json.dumps(
+        {"tabs": tabs, "audit_log": audit}, ensure_ascii=False
+    ).encode("utf-8")
 
 
 def merge_hidden_tabs(vault: KobiVault, payload: bytes) -> None:
@@ -520,6 +553,17 @@ def merge_hidden_tabs(vault: KobiVault, payload: bytes) -> None:
     for pos, tab in sorted(parsed, key=lambda item: item[0]):
         index = max(0, min(pos, len(vault.tabs)))
         vault.tabs.insert(index, tab)
+
+    # Gizli sekmelerin audit kayıtları da bu blokta taşınır; yöneticinin
+    # değişiklik geçmişinde eksiksiz görünmesi için zaman sırasına harmanlanır.
+    hidden_audit = raw.get("audit_log", []) if isinstance(raw, dict) else []
+    if isinstance(hidden_audit, list) and hidden_audit:
+        vault.audit_log.extend(
+            AuditEntry.from_dict(item)
+            for item in hidden_audit
+            if isinstance(item, dict)
+        )
+        vault.audit_log.sort(key=lambda a: a.at)
 
 
 def utc_now_iso() -> str:

@@ -282,6 +282,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "audit_reordered": "Kayıt sırası değiştirildi",
         "audit_vault_saved": "Kasa kaydedildi",
         "audit_unknown_entry": "(yeni kayıt)",
+        "audit_entry_added": "Kayıt eklendi",
+        "audit_entry_deleted": "Kayıt silindi",
+        "audit_hidden_entry": "(gizli kayıt)",
         "help_title": "Yardım — KobiPass",
         "help_step1": "Yeni bir kasa oluşturun veya mevcut .enc dosyanızı açın.",
         "help_step2": "Yönetici ve kullanıcı parolalarını, alan izinlerini belirleyin.",
@@ -523,6 +526,13 @@ _STRINGS: dict[str, dict[str, str]] = {
         "crypto.invalid_dek": "Geçersiz veri anahtarı",
         "crypto.invalid_user_slots": "Geçersiz kullanıcı slot sayısı",
         "crypto.duplicate_password": "Yönetici ve kullanıcı parolaları farklı olmalıdır",
+        "crypto.duplicate_role_wrap": (
+            "Bu parola hem yönetici hem de bir alt kullanıcı slotunu açıyor. "
+            "Normalde bu mümkün değildir; dosya kasa dışında değiştirilmiş "
+            "olabilir. Kasayı gözden geçirin, parolaları yenileyin ve gerekirse "
+            "bir yedekten geri yükleyin."
+        ),
+        "tamper_warning_title": "Kasa dosyası uyarısı",
     },
     "en": {
         "app_name": "KobiPass",
@@ -795,6 +805,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "audit_reordered": "Record order changed",
         "audit_vault_saved": "Vault saved",
         "audit_unknown_entry": "(new record)",
+        "audit_entry_added": "Record added",
+        "audit_entry_deleted": "Record deleted",
+        "audit_hidden_entry": "(hidden record)",
         "help_title": "Help — KobiPass",
         "help_step1": "Create a new vault or open your existing .enc file.",
         "help_step2": "Set the admin and user passwords and field permissions.",
@@ -1036,6 +1049,13 @@ _STRINGS: dict[str, dict[str, str]] = {
         "crypto.invalid_dek": "Invalid data encryption key",
         "crypto.invalid_user_slots": "Invalid user slot count",
         "crypto.duplicate_password": "Admin and user passwords must be different",
+        "crypto.duplicate_role_wrap": (
+            "This password opens both the admin and a sub-user slot. That is "
+            "normally impossible; the file may have been modified outside the "
+            "app. Review the vault, reset the passwords, and restore from a "
+            "backup if needed."
+        ),
+        "tamper_warning_title": "Vault file warning",
     },
 }
 

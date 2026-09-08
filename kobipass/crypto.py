@@ -184,6 +184,9 @@ class UnlockResult:
     user_slot: int | None
     vault: KobiVault
     keys: VaultFileKeys
+    # Dosyada kurcalanma şüphesi. Boş = temiz. Kilidi AÇMAYI engellemez;
+    # arayüz kullanıcıyı uyarır (bkz. _tamper_warning).
+    warning: str = ""
 
 
 def derive_key(password: str, salt: bytes, version: int = VERSION) -> bytes:
@@ -543,6 +546,35 @@ def write_vault_file_updated(
     return new_keys
 
 
+def _tamper_warning(user_slots: list[UserSlotWrap], password: str, version: int) -> str:
+    """Yönetici parolası aynı zamanda bir KULLANICI slotunu da açıyor mu?
+
+    GÜVENLİK NOTU — bu formatın sınırları:
+    Rol, dosyadaki KONUMA göre belirlenir (ilk sarmalayıcı = yönetici) ve
+    başlık alanları AEAD ile bağlanmaz. Ayrıca tüm roller AYNI DEK'i sarar;
+    yani alt kullanıcı zaten DEK'e sahiptir. Bu nedenle bir alt kullanıcı
+    kendi sarmalayıcısını yönetici konumuna kopyalayıp arayüzde yönetici gibi
+    davranabilir. Bu KRİPTOGRAFİK olarak engellenemez: DEK'i elinde tutan
+    taraf dosyayı istediği gibi yeniden üretebilir. Gerçek kriptografik sınır
+    gizli sekmelerdir; onlar yalnızca yönetici parolasıyla sarılan AEK ile
+    şifrelenir ve alt kullanıcının DEK'i onları AÇAMAZ (bkz. HIDDEN_VERSIONS).
+
+    Yapabildiğimiz şey bu kurcalamayı GÖRÜNÜR kılmaktır: parolalar yazarken
+    benzersiz olmaya zorlanır (passwords_are_unique), dolayısıyla yönetici
+    parolasının bir kullanıcı slotunu da açması normal bir durum değildir —
+    en olası açıklama sarmalayıcının kopyalanmış olmasıdır.
+    """
+    for slot in user_slots:
+        if not slot.enabled:
+            continue
+        try:
+            _unwrap_dek(slot.wrap, password, version)
+        except (WrongPasswordError, VaultCryptoError):
+            continue
+        return "crypto.duplicate_role_wrap"
+    return ""
+
+
 def try_unlock_vault(data: bytes, password: str) -> UnlockResult:
     version, admin_wrap, user_slots, aek_wrap, hidden_blob, vault_blob = _parse_file(
         data
@@ -569,7 +601,13 @@ def try_unlock_vault(data: bytes, password: str) -> UnlockResult:
             aek=aek,
             hidden_blob=hidden_blob,
         )
-        return UnlockResult(role="admin", user_slot=None, vault=vault, keys=keys)
+        return UnlockResult(
+            role="admin",
+            user_slot=None,
+            vault=vault,
+            keys=keys,
+            warning=_tamper_warning(user_slots, password, version),
+        )
     except WrongPasswordError:
         pass
 

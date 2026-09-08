@@ -27,6 +27,12 @@ def _audit_summary_display(entry: AuditEntry, vault: KobiVault) -> str:
     """Özeti kayıt anında saklanan metinden değil, mevcut dile göre üretir."""
     if entry.action == "vault_save":
         return tr("audit_vault_saved")
+    if entry.action == "reorder":
+        return tr("audit_reordered")
+    if entry.action == "entry_add":
+        return tr("audit_entry_added")
+    if entry.action == "entry_delete":
+        return tr("audit_entry_deleted")
     if entry.action == "field_edit":
         if is_sensitive_audit_field(entry.field):
             return tr("audit_password_updated")

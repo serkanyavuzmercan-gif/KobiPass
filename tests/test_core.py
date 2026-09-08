@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from kobipass.crypto import (
     AccessDeniedError,
     VaultCryptoError,
     VERSION_ARGON2,
+    VERSION_ARGON2_MULTI,
     VERSION_PBKDF2,
     build_vault_file,
     password_matches_admin,
@@ -977,3 +979,182 @@ def test_backup_copies_are_deletable_and_private(tmp_path, monkeypatch) -> None:
     assert mode & stat_mod.S_IWUSR  # silinebilir
     assert not mode & stat_mod.S_IRGRP
     assert not mode & stat_mod.S_IROTH
+
+
+def _audit_session(slot: int = 1) -> UserSession:
+    return UserSession(user_slot=slot, user_label=f"U{slot}", user_password="p", keys=None)
+
+
+def test_hidden_tab_audit_stays_out_of_main_body(tmp_path: Path) -> None:
+    """Gizli sekmedeki düzenlemenin audit kaydı ana (DEK) gövdeye SIZMAMALI.
+
+    Regresyon: audit_log kayıt adını ve info2+ değerlerini düz metin taşır.
+    vault_main_json_bytes tüm audit_log'u ana gövdeye yazdığı için gizli
+    sekmede yapılan bir düzenleme, alt kullanıcının parolasıyla açılan
+    bloktan okunabiliyordu — 'gizli sekmeler kriptografik olarak korunur'
+    güvencesi deliniyordu.
+    """
+    from kobipass.vault_model import AuditEntry, vault_main_json_bytes
+
+    path = tmp_path / "hidden-audit.enc"
+    vault = KobiVault(
+        tabs=[
+            VaultTab(id="n1", name="Genel", entries=[VaultEntry(name="acik", info1="p")]),
+            VaultTab(
+                id="h1",
+                name="GizliDep",
+                entries=[VaultEntry(name="SIZMASIN-AD", info1="p", more_infos=["SIZMASIN-IBAN"])],
+                hidden=True,
+            ),
+        ]
+    )
+    vault.audit_log = [
+        AuditEntry(
+            at="2026-01-01T00:00:00Z",
+            user_slot=0,
+            user_label="Yönetici",
+            action="field_edit",
+            entry_name="SIZMASIN-AD",
+            field="info2",
+            summary="2. Bilgi güncellendi",
+            old_value="eski",
+            new_value="SIZMASIN-IBAN",
+            tab_id="h1",
+        ),
+        AuditEntry(
+            at="2026-01-01T00:01:00Z",
+            user_slot=0,
+            user_label="Yönetici",
+            action="field_edit",
+            entry_name="acik",
+            field="info2",
+            summary="2. Bilgi güncellendi",
+            old_value="a",
+            new_value="GORUNEBILIR",
+            tab_id="n1",
+        ),
+    ]
+    write_vault_file(path, vault, "admin-pw", [(True, "user-pw"), (False, ""), (False, "")])
+
+    user = read_vault_file(path, "user-pw")
+    main_json = vault_main_json_bytes(user.vault)
+    assert b"SIZMASIN-AD" not in main_json
+    assert b"SIZMASIN-IBAN" not in main_json
+    # Normal sekmenin kaydı görünmeye devam etmeli.
+    assert b"GORUNEBILIR" in main_json
+    assert [a.entry_name for a in user.vault.audit_log] == ["acik"]
+
+    # Yönetici gizli kaydı da eksiksiz görür ve sıra korunur.
+    admin = read_vault_file(path, "admin-pw")
+    assert [a.entry_name for a in admin.vault.audit_log] == ["SIZMASIN-AD", "acik"]
+
+
+def test_all_hidden_tabs_do_not_create_ghost_tab(tmp_path: Path) -> None:
+    """Tüm sekmeler gizliyken açılışta uydurma boş sekme oluşmamalı.
+
+    Regresyon: ana gövdeye "tabs": [] yazılıyor, okurken boş liste 'legacy
+    format' sanılıp sahte bir varsayılan sekme uyduruluyordu.
+    """
+    path = tmp_path / "all-hidden.enc"
+    vault = KobiVault(
+        tabs=[
+            VaultTab(id="h1", name="Gizli-1", entries=[VaultEntry(name="a", info1="1")], hidden=True),
+            VaultTab(id="h2", name="Gizli-2", entries=[VaultEntry(name="b", info1="2")], hidden=True),
+        ]
+    )
+    write_vault_file(path, vault, "admin-pw", [(True, "user-pw"), (False, ""), (False, "")])
+
+    admin = read_vault_file(path, "admin-pw")
+    assert [t.name for t in admin.vault.tabs] == ["Gizli-1", "Gizli-2"]
+    assert all(t.hidden for t in admin.vault.tabs)
+
+
+def test_delete_without_field_write_is_audited() -> None:
+    """Silme yetkisi olan ama alan yazma yetkisi olmayan kullanıcının silmesi
+    değişiklik geçmişine düşmeli.
+
+    Regresyon: yalnızca 'field_edit' üretiliyordu ve her alan için
+    can_edit(level) filtresi vardı; tüm alanlar salt-okunur olduğunda kayıt
+    kasadan siliniyor ama geçmişte TEK SATIR bile kalmıyordu.
+    """
+    old = [VaultEntry(name="Silinecek", info1="p", uid="u1")]
+    perms = UserPermissions(
+        name="read", info="read", can_delete_entry=True
+    ).normalized()
+    logs = diff_entries_for_audit(old, [], _audit_session(), perms)
+    assert [item.action for item in logs] == ["entry_delete", "vault_save"]
+    assert logs[0].entry_name == "Silinecek"
+
+
+def test_add_without_field_write_is_audited() -> None:
+    """Ekleme yetkisi olan ama alan yazma yetkisi olmayan kullanıcının eklediği
+    kayıt da geçmişe düşmeli."""
+    new = [VaultEntry(name="Eklendi", info1="p", uid="u1")]
+    perms = UserPermissions(
+        name="read", info="read", can_add_entry=True
+    ).normalized()
+    logs = diff_entries_for_audit([], new, _audit_session(), perms)
+    assert [item.action for item in logs] == ["entry_add", "vault_save"]
+    assert logs[0].entry_name == "Eklendi"
+
+
+def test_audit_hides_entry_name_from_users_who_cannot_see_it() -> None:
+    """Kayıt adını göremeyen kullanıcının geçmişinde de ad görünmemeli."""
+    old = [VaultEntry(name="GIZLI-AD", info1="p", uid="u1")]
+    perms = UserPermissions(
+        name="none", info="read", can_delete_entry=True
+    ).normalized()
+    logs = diff_entries_for_audit(old, [], _audit_session(), perms)
+    deletes = [item for item in logs if item.action == "entry_delete"]
+    assert len(deletes) == 1
+    assert "GIZLI-AD" not in deletes[0].entry_name
+
+
+def test_audit_entries_carry_tab_id() -> None:
+    """Her audit kaydı ait olduğu sekmeyi taşımalı (gizlilik ayrıştırması)."""
+    vault = KobiVault(
+        tabs=[VaultTab(id="t-abc", name="S1", entries=[VaultEntry(name="A", info1="p", uid="u1")])]
+    )
+    old = [VaultEntry(name="A", info1="p", uid="u1")]
+    new = [VaultEntry(name="B", info1="p", uid="u1")]
+    perms = UserPermissions(name="write", info="write")
+    logs = diff_entries_for_audit(old, new, _audit_session(), perms, vault)
+    assert logs
+    assert all(item.tab_id == "t-abc" for item in logs)
+
+
+def test_swapped_admin_wrap_is_reported_as_tampering(tmp_path: Path) -> None:
+    """Alt kullanıcı sarmalayıcısını yönetici konumuna kopyalamak SESSİZ kalmamalı.
+
+    Rol dosyadaki KONUMA göre belirlenir ve tüm roller aynı DEK'i sarar; DEK'i
+    elinde tutan alt kullanıcı bu takası kriptografik olarak engellenemeyecek
+    şekilde yapabilir. Gerçek kripto sınırı gizli sekmelerdir (AEK). Burada
+    beklenen şey takasın GÖRÜNÜR olması: aynı parolanın hem yönetici hem de bir
+    kullanıcı slotunu açması normalde imkânsızdır (parolalar benzersiz zorunlu).
+    """
+    from kobipass.crypto import WRAP_BLOCK_SIZE, try_unlock_vault
+
+    path = tmp_path / "swap.enc"
+    vault = mkvault(entries=[VaultEntry(name="a", info1="1")])
+    write_vault_file(
+        path, vault, "admin-pw", [(True, "user-pw"), (False, ""), (False, "")],
+        version=VERSION_ARGON2_MULTI,
+    )
+    raw = bytearray(path.read_bytes())
+
+    # Başlık: MAGIC(4) + sürüm(1) + slot sayısı(1) + admin_wrap + [enabled+wrap]*n
+    admin_off = 6
+    slot0_off = admin_off + WRAP_BLOCK_SIZE + 1
+    raw[admin_off : admin_off + WRAP_BLOCK_SIZE] = raw[
+        slot0_off : slot0_off + WRAP_BLOCK_SIZE
+    ]
+    body = bytes(raw[:-32])
+    tampered = body + hashlib.sha256(body).digest()
+
+    unlocked = try_unlock_vault(tampered, "user-pw")
+    assert unlocked.role == "admin"  # konum bazlı rol — engellenemiyor
+    assert unlocked.warning == "crypto.duplicate_role_wrap"
+
+    # Sağlam dosyada uyarı ÇIKMAMALI (yanlış pozitif yok).
+    assert read_vault_file(path, "admin-pw").warning == ""
+    assert read_vault_file(path, "user-pw").warning == ""

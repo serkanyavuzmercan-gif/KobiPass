@@ -119,6 +119,7 @@ from kobipass.ui.vault_empty_state import (
     should_show_empty_state,
 )
 from kobipass.vault_model import (
+    AuditEntry,
     KobiVault,
     UserPermissions,
     VaultEntry,
@@ -262,6 +263,9 @@ class MainWindow(QMainWindow):
         self._vault: KobiVault | None = None
         self._session: Session | None = None
         self._snapshot_entries: list[VaultEntry] = []
+        # Sekme kimliği → kasa açıldığındaki (veya son kayıttaki) kayıtların
+        # derin kopyası. Audit farkı bunun üzerinden alınır.
+        self._tab_snapshots: dict[str, list[VaultEntry]] = {}
         self._pending_user_passwords: list[tuple[bool, str]] | None = None
         self._pending_admin_password: str | None = None
         self._kilitli_mi = False
@@ -954,6 +958,7 @@ class MainWindow(QMainWindow):
         self._session = None
         self._vault = None
         self._snapshot_entries = []
+        self._tab_snapshots = {}
         self._pending_user_passwords = None
         self._pending_admin_password = None
         self._kilitli_mi = False
@@ -1590,6 +1595,72 @@ class MainWindow(QMainWindow):
             if old is None or old != entry.info1:
                 entry.pw_updated_at = now
 
+    def _capture_tab_snapshots(self) -> None:
+        """TÜM sekmelerin kayıtlarının derin kopyasını alır (audit temeli)."""
+        if self._vault is None:
+            self._tab_snapshots = {}
+            self._snapshot_entries = []
+            return
+        self._tab_snapshots = {
+            tab.id: copy.deepcopy(tab.entries) for tab in self._vault.tabs
+        }
+        self._snapshot_entries = self._tab_snapshots.get(
+            self._vault.active_tab().id, []
+        )
+
+    def _collect_audit_logs(self, permissions: UserPermissions) -> list[AuditEntry]:
+        """Her sekme için ayrı fark üretir; tek bir 'kaydedildi' satırı ekler.
+
+        Eskiden yalnızca AKTİF sekme denetleniyordu. Kullanıcı A sekmesinde
+        düzenleme yapıp B sekmesine geçtiğinde anlık görüntü B ile
+        değiştiriliyor, A'daki değişiklikler değişiklik geçmişine HİÇ
+        düşmüyordu — üstelik silinen bir sekmenin kayıtları da iz bırakmıyordu.
+        """
+        if self._vault is None or self._session is None:
+            return []
+        logs: list[AuditEntry] = []
+        live_ids: set[str] = set()
+        for tab in self._vault.tabs:
+            live_ids.add(tab.id)
+            logs.extend(
+                diff_entries_for_audit(
+                    self._tab_snapshots.get(tab.id, []),
+                    tab.entries,
+                    self._session,
+                    permissions,
+                    self._vault,
+                    tab_id=tab.id,
+                    include_save_marker=False,
+                )
+            )
+        for tab_id, before in self._tab_snapshots.items():
+            if tab_id in live_ids or not before:
+                continue
+            logs.extend(
+                diff_entries_for_audit(
+                    before,
+                    [],
+                    self._session,
+                    permissions,
+                    self._vault,
+                    tab_id=tab_id,
+                    include_save_marker=False,
+                )
+            )
+        if logs:
+            logs.append(
+                AuditEntry(
+                    at=utc_now_iso(),
+                    user_slot=self._session.user_slot or 0,
+                    user_label=self._session.user_label,
+                    action="vault_save",
+                    entry_name="",
+                    field="",
+                    summary=tr("audit_vault_saved"),
+                )
+            )
+        return logs
+
     def _any_tab_has_entries(self) -> bool:
         """Kasanın herhangi bir sekmesinde içerikli kayıt var mı?"""
         if self._vault is None:
@@ -1672,6 +1743,8 @@ class MainWindow(QMainWindow):
 
     def _load_vault_data(self, vault: KobiVault) -> None:
         self._vault = vault
+        self._tab_snapshots = {}
+        self._capture_tab_snapshots()
         self._set_active_tab_to_first_visible()
         self._reload_active_tab(reset_dirty=True)
         self._apply_session_ui()
@@ -1690,7 +1763,13 @@ class MainWindow(QMainWindow):
         self._clear_all_rows()
         for index, entry in enumerate(vault.entries[:_FILTER_PAGE_SIZE]):
             self._add_row(entry, vault_index=index, refresh_session=False)
-        self._snapshot_entries = copy.deepcopy(vault.entries)
+        # Sekme değiştirmek anlık görüntüyü SIFIRLAMAMALI: eskiden her sekme
+        # geçişinde _snapshot_entries yeni sekmeyle değiştiriliyor, önceki
+        # sekmede yapılan düzenlemeler kayıtta denetime HİÇ düşmüyordu.
+        tab_id = vault.active_tab().id
+        if tab_id not in self._tab_snapshots:
+            self._tab_snapshots[tab_id] = copy.deepcopy(vault.entries)
+        self._snapshot_entries = self._tab_snapshots[tab_id]
         if reset_dirty:
             self._clear_dirty()
         for row in self._row_widgets:
@@ -2241,16 +2320,10 @@ class MainWindow(QMainWindow):
             if not slot_perms.can_save:
                 self._show_restriction("restricted_save")
                 return
+            # _sync_vault_entries ekrandaki düzenlemeleri modele işler;
+            # denetim farkı ondan SONRA, tüm sekmeler üzerinden alınır.
             self._sync_vault_entries()
-            new_entries = self._collect_entries()
-            logs = diff_entries_for_audit(
-                self._snapshot_entries,
-                new_entries,
-                self._session,
-                slot_perms,
-                self._vault,
-            )
-            self._vault.audit_log.extend(logs)
+            self._vault.audit_log.extend(self._collect_audit_logs(slot_perms))
             try:
                 clear_read_only(self._current_path)  # type: ignore[arg-type]
                 new_keys = write_vault_file_updated(
@@ -2268,7 +2341,7 @@ class MainWindow(QMainWindow):
                 )
                 return
             self._protect_vault_file(self._current_path)  # type: ignore[arg-type]
-            self._snapshot_entries = copy.deepcopy(new_entries)
+            self._capture_tab_snapshots()
             self._last_saved_at = datetime.now()
             self._clear_dirty()
             self._resync_rows_after_save()
@@ -2359,15 +2432,8 @@ class MainWindow(QMainWindow):
 
         # Değişiklik geçmişi eskiden YALNIZCA alt kullanıcı kayıtlarında
         # yazılıyordu; tek yöneticiyle kullanılan kasalarda geçmiş sürekli boş
-        # kalıyordu. Yöneticinin düzenlemeleri de kaydediliyor.
-        logs = diff_entries_for_audit(
-            self._snapshot_entries,
-            entries,
-            self._session,
-            admin_permissions(),
-            self._vault,
-        )
-        self._vault.audit_log.extend(logs)
+        # kalıyordu. Yöneticinin düzenlemeleri de, tüm sekmeler için kaydediliyor.
+        self._vault.audit_log.extend(self._collect_audit_logs(admin_permissions()))
 
         try:
             clear_read_only(path)
@@ -2404,7 +2470,7 @@ class MainWindow(QMainWindow):
 
         self._protect_vault_file(path)
         add_recent_file(path)
-        self._snapshot_entries = copy.deepcopy(entries)
+        self._capture_tab_snapshots()
         self._last_saved_at = datetime.now()
         self._clear_dirty()
         self._resync_rows_after_save()
@@ -2482,6 +2548,13 @@ class MainWindow(QMainWindow):
         self._load_vault_data(unlock.vault)
         self._show_vault_view()
         self._landing_page.refresh_recent()
+        # Kurcalanma şüphesi: kilidi açmayı engellemez ama sessiz de geçilmez.
+        if unlock.warning:
+            show_error(
+                self,
+                tr("tamper_warning_title"),
+                crypto_message(unlock.warning),
+            )
 
     def closeEvent(self, event) -> None:  # noqa: N802
         # GÜVENLİK: Kilitliyken kimliği doğrulanmamış biri değişiklikleri

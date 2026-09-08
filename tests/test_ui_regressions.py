@@ -127,3 +127,34 @@ def test_empty_vault_still_blocks_saving(window):
     window._vault = vault
 
     assert window._any_tab_has_entries() is False
+
+
+def test_edits_in_inactive_tab_are_audited(window):
+    """Başka sekmede yapılan düzenleme de değişiklik geçmişine düşmeli.
+
+    Regresyon: _snapshot_entries yalnızca AKTİF sekmeyi tutuyor ve her sekme
+    geçişinde yenileniyordu; A sekmesinde düzenleme yapıp B'ye geçen kullanıcı
+    kaydettiğinde A'daki değişiklikler geçmişte HİÇ görünmüyordu.
+    """
+    from kobipass.session import AdminSession, admin_permissions
+
+    vault = KobiVault()
+    vault.tabs = [
+        VaultTab(id="t1", name="A", entries=[VaultEntry(name="kayıt", info1="p", uid="u1")]),
+        VaultTab(id="t2", name="B", entries=[VaultEntry(name="öteki", info1="q", uid="u2")]),
+    ]
+    vault.active_index = 0
+    window._session = AdminSession(admin_password="pw")
+    window._load_vault_data(vault)
+
+    # A sekmesindeki kaydı değiştir, sonra B sekmesine geç.
+    vault.tabs[0].entries[0].name = "kayıt-değişti"
+    vault.active_index = 1
+    window._reload_active_tab(reset_dirty=False)
+
+    logs = window._collect_audit_logs(admin_permissions())
+    edits = [item for item in logs if item.action == "field_edit"]
+    assert edits, "başka sekmedeki düzenleme denetime düşmedi"
+    assert all(item.tab_id == "t1" for item in edits)
+    # 'Kasa kaydedildi' satırı sekme sayısından bağımsız olarak tek olmalı.
+    assert len([item for item in logs if item.action == "vault_save"]) == 1
