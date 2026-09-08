@@ -1264,12 +1264,25 @@ class MainWindow(QMainWindow):
             self._loading_batch = False
 
     def _vault_entry_index(self, entry: VaultEntry, fallback: int) -> int:
+        """Kaydın modeldeki gerçek indeksini KİMLİKLE bulur.
+
+        ``list.index`` EŞİTLİK kullanır. VaultEntry'de ``uid`` alanı
+        ``compare=False`` olduğundan aynı içerikli iki kayıt birbirine eşit
+        sayılır ve index() daima İLKİNİ döndürürdü: ikinci kopyanın satırı
+        birincinin indeksine bağlanıyor, o satırdaki düzenleme kaydedilince
+        YANLIŞ kaydın üzerine yazılıyordu (ve gerçek kopya hiç güncellenmiyordu).
+        Önce nesne kimliğiyle, sonra kararlı ``uid`` ile ararız.
+        """
         if self._vault is None:
             return fallback
-        try:
-            return self._vault.entries.index(entry)
-        except ValueError:
-            return fallback
+        entries = self._vault.entries
+        for index, candidate in enumerate(entries):
+            if candidate is entry:
+                return index
+        for index, candidate in enumerate(entries):
+            if candidate.uid == entry.uid:
+                return index
+        return fallback
 
     def _merge_row_edits_into_vault(self) -> None:
         if self._vault is None:
@@ -1295,6 +1308,11 @@ class MainWindow(QMainWindow):
             return
         if any(row.vault_index is None for row in self._row_widgets):
             self._reload_active_tab(reset_dirty=True)
+            # _reload_active_tab satırları refresh_session=False ile kurar.
+            # Bu çağrı olmadan kayıttan sonra tazelenen satırlar oturumun
+            # yetkilerini ALMIYORDU: salt-okunur alt kullanıcıda alanlar
+            # yazılabilir, silme menüsü açık kalıyordu.
+            self._apply_session_ui()
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
         if event.mimeData().hasFormat(ROW_MIME):
@@ -1572,6 +1590,14 @@ class MainWindow(QMainWindow):
             if old is None or old != entry.info1:
                 entry.pw_updated_at = now
 
+    def _any_tab_has_entries(self) -> bool:
+        """Kasanın herhangi bir sekmesinde içerikli kayıt var mı?"""
+        if self._vault is None:
+            return False
+        return any(
+            entry.has_content() for tab in self._vault.tabs for entry in tab.entries
+        )
+
     def _sync_vault_entries(self) -> None:
         if self._vault is not None:
             self._vault.entries = self._collect_entries()
@@ -1617,7 +1643,20 @@ class MainWindow(QMainWindow):
             and removed_index is not None
             and 0 <= removed_index < len(self._vault.entries)
         ):
+            removed_entry = self._vault.entries[removed_index]
             del self._vault.entries[removed_index]
+            # Filtre/görüntü listesi de temizlenmeli. Aksi hâlde sonraki
+            # "daha fazla yükle" adımı silinmiş kaydı listeden geri getiriyor,
+            # üstelik modelde artık bulunmadığı için satır YANLIŞ bir indekse
+            # bağlanıyor ve kaydedince başka bir kaydın üzerine yazıyordu.
+            if self._display_entries is not None:
+                # Eşleştirme UID ile: _merge_row_edits_into_vault modeldeki
+                # nesneleri tazeleriyle DEĞİŞTİRDİĞİ için nesne kimliği
+                # görüntü listesiyle örtüşmeyebilir; uid satırla taşınır.
+                for pos, candidate in enumerate(self._display_entries):
+                    if candidate is removed_entry or candidate.uid == removed_entry.uid:
+                        del self._display_entries[pos]
+                        break
             for other in self._row_widgets:
                 if other.vault_index is not None and other.vault_index > removed_index:
                     other.vault_index -= 1
@@ -2179,7 +2218,11 @@ class MainWindow(QMainWindow):
                 self._show_restriction("restricted_save")
                 return
         entries = self._collect_entries()
-        if not entries:
+        # _collect_entries YALNIZCA aktif sekmeyi döndürür. Eskiden boş bir
+        # sekme açıkken kaydetme tümden engelleniyordu: diğer sekmelerdeki
+        # düzenlemeler, kullanıcı/yetki değişiklikleri ve silinen kayıtlar
+        # diske hiç yazılamıyordu. Kilit yalnızca kasanın TAMAMI boşsa geçerli.
+        if not entries and not self._any_tab_has_entries():
             show_error(
                 self,
                 tr("err_no_records_title"),
