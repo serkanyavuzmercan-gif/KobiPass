@@ -283,6 +283,21 @@ _STRINGS: dict[str, dict[str, str]] = {
         "audit_reordered": "Kayıt sırası değiştirildi",
         "audit_vault_saved": "Kasa kaydedildi",
         "audit_unknown_entry": "(yeni kayıt)",
+        "btn_prune_empty": "Boş Hücreleri Sil",
+        "btn_prune_empty_tip": (
+            "Bu sekmedeki kayıtlarda boş kalan bilgi hücrelerini temizler. "
+            "Silmeden önce onay sorar."
+        ),
+        "prune_empty_title": "Boş Hücreleri Sil",
+        "prune_empty_none": "Bu sekmede silinecek boş hücre yok.",
+        "prune_empty_confirm": (
+            "{cells} boş hücre, {records} kayıtta silinecek.\n\n"
+            "Silinen hücrelerden sonraki hücreler SOLA KAYAR. Kasa hemen "
+            "kaydedilmez; sonuç hoşunuza gitmezse kaydetmeden çıkabilirsiniz.\n\n"
+            "Devam edilsin mi?"
+        ),
+        "prune_empty_done": "{cells} boş hücre silindi ({records} kayıt).",
+        "audit_cells_pruned": "Boş hücreler temizlendi",
         "audit_entry_added": "Kayıt eklendi",
         "audit_name_changed": "Kayıt adı değiştirildi",
         "audit_field_added": "{field} hücresi eklendi",
@@ -826,6 +841,22 @@ _STRINGS: dict[str, dict[str, str]] = {
         "audit_reordered": "Record order changed",
         "audit_vault_saved": "Vault saved",
         "audit_unknown_entry": "(new record)",
+        "btn_prune_empty": "Remove Empty Cells",
+        "btn_prune_empty_tip": (
+            "Clears empty info cells from the records in this tab. "
+            "Asks for confirmation first."
+        ),
+        "prune_empty_title": "Remove Empty Cells",
+        "prune_empty_none": "There are no empty cells to remove in this tab.",
+        "prune_empty_confirm": (
+            "{cells} empty cells in {records} records will be removed.\n\n"
+            "Cells after a removed one SHIFT LEFT. The vault is not saved "
+            "immediately; if you don't like the result you can quit without "
+            "saving.\n\n"
+            "Continue?"
+        ),
+        "prune_empty_done": "{cells} empty cells removed ({records} records).",
+        "audit_cells_pruned": "Empty cells cleared",
         "audit_entry_added": "Record added",
         "audit_name_changed": "Record name changed",
         "audit_field_added": "{field} cell added",

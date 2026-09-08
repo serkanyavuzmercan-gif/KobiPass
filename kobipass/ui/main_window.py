@@ -110,6 +110,7 @@ from kobipass.ui.icons import (
     icon_save,
     icon_search,
     icon_shield,
+    icon_trash,
     icon_users,
 )
 from kobipass.ui.tab_bar import VaultTabBar
@@ -417,6 +418,13 @@ class MainWindow(QMainWindow):
         self._btn_reveal_all.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_reveal_all.clicked.connect(self._reveal_all_passwords)
         toolbar.addWidget(self._btn_reveal_all, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        # Boş kalan bilgi hücrelerini toplu temizler; yıkıcı olduğu için onay sorar.
+        self._btn_prune_empty = QPushButton()
+        self._btn_prune_empty.setIcon(icon_trash(_tb_icon, size=16))
+        self._btn_prune_empty.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_prune_empty.clicked.connect(self._prune_empty_cells)
+        toolbar.addWidget(self._btn_prune_empty, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._btn_users = QPushButton()
         self._btn_users.setIcon(icon_users(_tb_icon, size=17))
@@ -787,6 +795,10 @@ class MainWindow(QMainWindow):
         unlocked = self._session is not None and not self._kilitli_mi
         self._btn_add_record.setVisible(unlocked and add_allowed)
         self._btn_reveal_all.setVisible(unlocked and has_rows)
+        # Hücre silmek bir DÜZENLEMEDİR: yalnızca bilgi alanlarında yazma
+        # yetkisi olan oturumlarda görünür.
+        prune_allowed = perms is None or perms.info == "write"
+        self._btn_prune_empty.setVisible(unlocked and has_rows and prune_allowed)
         self._summary_panel.set_add_enabled(unlocked and add_allowed)
 
     def _shortcut_add_row(self) -> None:
@@ -1467,6 +1479,8 @@ class MainWindow(QMainWindow):
         self._btn_add_record.setToolTip(tr("btn_add_record_tip"))
         self._btn_reveal_all.setText(tr("btn_reveal_all"))
         self._btn_reveal_all.setToolTip(tr("btn_reveal_all_tip"))
+        self._btn_prune_empty.setText(tr("btn_prune_empty"))
+        self._btn_prune_empty.setToolTip(tr("btn_prune_empty_tip"))
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_import.setText(tr("import_csv_btn"))
@@ -1745,6 +1759,60 @@ class MainWindow(QMainWindow):
                 set_read_only(path)
             except OSError:
                 pass
+
+    def _prune_empty_cells(self) -> None:
+        """Aktif sekmedeki kayıtlarda BOŞ kalan bilgi hücrelerini siler.
+
+        Yıkıcı ve toplu bir işlem olduğu için önce kaç hücre/kayıt etkileneceğini
+        söyleyip onay ister. Kasa hemen kaydedilmez; kullanıcı sonucu beğenmezse
+        kaydetmeden çıkabilir.
+        """
+        if self._vault is None or self._kilitli_mi:
+            return
+        perms = self._row_permissions()
+        if perms is not None and perms.info != "write":
+            self._show_restriction("restricted_edit_fields")
+            return
+
+        # Ekranda yazılmış ama modele işlenmemiş satırlar da hesaba katılmalı.
+        self._sync_vault_entries()
+
+        plan = [
+            (entry, [v for v in entry.info_values() if v.strip()])
+            for entry in self._vault.entries
+        ]
+        affected = [
+            (entry, kept)
+            for entry, kept in plan
+            if len(kept) != len(entry.info_values())
+        ]
+        cells = sum(len(e.info_values()) - len(kept) for e, kept in affected)
+        if not cells:
+            show_info(self, tr("prune_empty_title"), tr("prune_empty_none"))
+            return
+        if not ask_yes_no(
+            self,
+            tr("prune_empty_title"),
+            tr("prune_empty_confirm", cells=cells, records=len(affected)),
+            default_yes=False,
+        ):
+            return
+
+        for entry, kept in affected:
+            # Kayıt en az bir bilgi hücresi taşımalı; hepsi boşsa tek boş hücre
+            # bırakılır (kaydı silmek bu düğmenin işi değildir).
+            entry.info1 = kept[0] if kept else ""
+            entry.more_infos = list(kept[1:])
+
+        self._reload_active_tab(reset_dirty=False)
+        self._apply_session_ui()
+        self._mark_dirty()
+        self._refresh_empty_state()
+        show_info(
+            self,
+            tr("prune_empty_title"),
+            tr("prune_empty_done", cells=cells, records=len(affected)),
+        )
 
     def _any_tab_has_entries(self) -> bool:
         """Kasanın herhangi bir sekmesinde içerikli kayıt var mı?"""

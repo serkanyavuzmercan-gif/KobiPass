@@ -83,11 +83,6 @@ def mask_audit_value(value: str, field_name: str) -> str:
     return value
 
 
-def _info_values(entry: VaultEntry) -> list[str]:
-    """Kaydın bilgi hücreleri, ekrandaki sırayla (info1, info2, ...)."""
-    return [entry.info1, *entry.more_infos]
-
-
 def _detect_field_shift(old: VaultEntry, new: VaultEntry) -> tuple[str, int] | None:
     """Tek bir bilgi HÜCRESİNİN eklendiğini/silindiğini saptar.
 
@@ -99,8 +94,8 @@ def _detect_field_shift(old: VaultEntry, new: VaultEntry) -> tuple[str, int] | N
 
     Döndürür: ("field_delete" | "field_add", 0 tabanlı hücre konumu) ya da None.
     """
-    old_vals = _info_values(old)
-    new_vals = _info_values(new)
+    old_vals = old.info_values()
+    new_vals = new.info_values()
     if len(new_vals) == len(old_vals) - 1:
         for k in range(len(old_vals)):
             if old_vals[:k] == new_vals[:k] and old_vals[k + 1 :] == new_vals[k:]:

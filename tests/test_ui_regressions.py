@@ -656,3 +656,97 @@ def test_audit_timestamps_are_shown_in_local_time():
     assert shown == expected
     assert _audit_time_display("") == ""
     assert _audit_time_display("bozuk") == "bozuk"
+
+
+def test_prune_empty_cells_asks_and_removes(window, monkeypatch):
+    """'Boş Hücreleri Sil' onay sormalı ve yalnızca boş hücreleri kaldırmalı."""
+    from kobipass.session import AdminSession
+    from kobipass.ui import main_window as mw
+
+    asked: list = []
+    infos: list = []
+    monkeypatch.setattr(mw, "ask_yes_no", lambda *a, **k: (asked.append(a[2]), True)[1])
+    monkeypatch.setattr(mw, "show_info", lambda *a, **k: infos.append(a[2]))
+
+    vault = KobiVault()
+    vault.entries = [
+        # 2 bos hucre (ortada ve sonda) -> kalanlar sola kayar
+        VaultEntry(name="A", info1="p", more_infos=["", "x", ""], uid="u1"),
+        # bos hucre yok
+        VaultEntry(name="B", info1="q", more_infos=["y"], uid="u2"),
+        # ilk hucre bos -> sonraki sola kayar
+        VaultEntry(name="C", info1="", more_infos=["z"], uid="u3"),
+    ]
+    window._session = AdminSession(admin_password="pw")
+    window._load_vault_data(vault)
+
+    window._prune_empty_cells()
+
+    assert asked, "onay sorulmadı"
+    assert "3" in asked[0], f"hücre sayısı yanlış: {asked[0]}"
+    assert vault.entries[0].info_values() == ["p", "x"]
+    assert vault.entries[1].info_values() == ["q", "y"]  # dokunulmadı
+    assert vault.entries[2].info_values() == ["z"]
+    assert window._dirty is True, "değişiklik kirli işaretlenmedi"
+
+
+def test_prune_empty_cells_can_be_cancelled(window, monkeypatch):
+    """Onayda 'Hayır' denince hiçbir şey değişmemeli."""
+    from kobipass.session import AdminSession
+    from kobipass.ui import main_window as mw
+
+    monkeypatch.setattr(mw, "ask_yes_no", lambda *a, **k: False)
+    monkeypatch.setattr(mw, "show_info", lambda *a, **k: None)
+
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name="A", info1="p", more_infos=["", "x"], uid="u1")]
+    window._session = AdminSession(admin_password="pw")
+    window._load_vault_data(vault)
+    window._clear_dirty()
+
+    window._prune_empty_cells()
+    assert vault.entries[0].info_values() == ["p", "", "x"]
+    assert window._dirty is False
+
+
+def test_prune_empty_cells_keeps_one_cell_per_record(window, monkeypatch):
+    """Tüm hücreleri boş olan kayıtta tek boş hücre kalmalı (kayıt silinmez)."""
+    from kobipass.session import AdminSession
+    from kobipass.ui import main_window as mw
+
+    monkeypatch.setattr(mw, "ask_yes_no", lambda *a, **k: True)
+    monkeypatch.setattr(mw, "show_info", lambda *a, **k: None)
+
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name="Sadece isim", info1="", more_infos=["", ""], uid="u1")]
+    window._session = AdminSession(admin_password="pw")
+    window._load_vault_data(vault)
+
+    window._prune_empty_cells()
+    assert len(vault.entries) == 1, "kayıt silindi"
+    assert vault.entries[0].info_values() == [""]
+    assert vault.entries[0].name == "Sadece isim"
+
+
+def test_prune_empty_cells_hidden_for_read_only_user(window):
+    """Alanlarda yazma yetkisi olmayan kullanıcıda düğme görünmemeli."""
+    from kobipass.crypto import read_vault_file, write_vault_file
+    from kobipass.session import session_from_unlock
+    from kobipass.vault_model import UserPermissions
+
+    import tempfile
+
+    tmp = Path(tempfile.mkdtemp())
+    path = tmp / "kasa.enc"
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name="A", info1="p", uid="u1")]
+    vault.set_slot_permissions([UserPermissions(name="read", info="read").normalized()])
+    write_vault_file(path, vault, "admin-parola", [(True, "kullanici-parola")])
+
+    unlock = read_vault_file(path, "kullanici-parola")
+    window._session = session_from_unlock(unlock, "kullanici-parola", unlock.vault)
+    window._current_path = path
+    window._load_vault_data(unlock.vault)
+    window._apply_session_ui()
+
+    assert window._btn_prune_empty.isVisible() is False

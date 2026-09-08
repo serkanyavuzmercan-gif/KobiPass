@@ -123,6 +123,10 @@ class VaultEntry:
                 return self.more_infos[slot]
         return ""
 
+    def info_values(self) -> list[str]:
+        """Kaydın bilgi hücreleri, ekrandaki sırayla (info1, info2, ...)."""
+        return [self.info1, *self.more_infos]
+
     def has_content(self) -> bool:
         if self.name.strip() or self.info1.strip():
             return True
