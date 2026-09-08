@@ -840,3 +840,140 @@ def test_update_admin_wrap_rewraps_aek_on_legacy_version(tmp_path) -> None:
     C.write_vault_file_updated(path, opened.vault, new_keys)
 
     assert C.read_vault_file(path, "a2").role == "admin"
+
+
+def test_backups_of_same_named_vaults_in_different_dirs_are_separate(
+    tmp_path, monkeypatch
+) -> None:
+    """Farklı klasörlerdeki aynı adlı iki kasa yedeklerini karıştırmamalı.
+
+    Regresyon: tüm yedekler tek klasörde toplandığından "is/kasa.enc" ve
+    "ev/kasa.enc" aynı adı üretiyordu; biri diğerinin yedeklerini listeliyor,
+    budama sırasında SİLİYORDU.
+    """
+    from kobipass import backup as B
+
+    monkeypatch.setenv("KOBIPASS_BACKUP_DIR", str(tmp_path / "backups"))
+
+    is_dir = tmp_path / "is"
+    ev_dir = tmp_path / "ev"
+    is_dir.mkdir()
+    ev_dir.mkdir()
+    is_vault = is_dir / "kasa.enc"
+    ev_vault = ev_dir / "kasa.enc"
+    write_vault_file(is_vault, KobiVault(), "pw-is", [])
+    write_vault_file(ev_vault, KobiVault(), "pw-ev", [])
+
+    B.create_backup(ev_vault)
+    ev_backups = B.find_backups(ev_vault)
+    assert len(ev_backups) == 1
+
+    for _ in range(B.BACKUP_KEEP + 3):
+        B.create_backup(is_vault)
+
+    assert len(B.find_backups(is_vault)) == B.BACKUP_KEEP
+    # Ev kasasının tek yedeği hâlâ yerinde ve iş kasasının listesinde değil.
+    assert B.find_backups(ev_vault) == ev_backups
+    assert ev_backups[0].exists()
+    assert ev_backups[0] not in B.find_backups(is_vault)
+
+
+def test_legacy_named_backups_are_still_found(tmp_path, monkeypatch) -> None:
+    """Klasör etiketi eklenmeden önce alınmış yedekler kaybolmamalı."""
+    from kobipass import backup as B
+
+    store = tmp_path / "backups"
+    store.mkdir()
+    monkeypatch.setenv("KOBIPASS_BACKUP_DIR", str(store))
+
+    vault_file = tmp_path / "kasa.enc"
+    write_vault_file(vault_file, KobiVault(), "pw", [])
+    legacy = store / "kasa-20250101-120000-000001.enc"
+    legacy.write_bytes(vault_file.read_bytes())
+
+    found = B.find_backups(vault_file)
+    assert legacy in found
+
+
+def test_restore_backup_is_atomic_on_failure(tmp_path, monkeypatch) -> None:
+    """Geri yükleme yarıda kalırsa hedef dosya BOZULMAMALI.
+
+    Regresyon: yedek doğrudan hedefin üzerine kopyalanıyordu; kopyalama
+    ortasında disk dolarsa hedefte yarım dosya kalıyor, hem mevcut kasa hem
+    geri yükleme kayboluyordu.
+    """
+    from kobipass import backup as B
+
+    monkeypatch.setenv("KOBIPASS_BACKUP_DIR", str(tmp_path / "backups"))
+
+    target = tmp_path / "kasa.enc"
+    write_vault_file(target, mkvault([VaultEntry(name="canlı", info1="p")]), "pw", [])
+    original = target.read_bytes()
+
+    source = tmp_path / "yedek.enc"
+    write_vault_file(source, mkvault([VaultEntry(name="eski", info1="q")]), "pw", [])
+
+    def half_copy_then_fail(src, dst, *args, **kwargs):
+        """Diskin yarı yolda dolmasını taklit eder: kısmi yaz, sonra patla."""
+        data = Path(src).read_bytes()
+        with open(dst, "wb") as handle:
+            handle.write(data[: len(data) // 2])
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(B.shutil, "copyfile", half_copy_then_fail)
+    monkeypatch.setattr(B.shutil, "copy2", half_copy_then_fail)
+    with pytest.raises(OSError):
+        B.restore_backup(source, target)
+
+    assert target.read_bytes() == original
+    # Geçici dosya da temizlenmeli.
+    assert not list(tmp_path.glob(".kasa.enc.*"))
+
+
+def test_vault_file_is_not_world_readable(tmp_path) -> None:
+    """Kilitli kasa dosyasını YALNIZCA sahibi okuyabilmeli (0400).
+
+    Regresyon: 0444 basılıyordu; çok kullanıcılı makinede herkes şifreli kasayı
+    kopyalayıp çevrimdışı parola denemesi yapabilirdi.
+    """
+    import stat as stat_mod
+
+    from kobipass import backup as B
+
+    vault_file = tmp_path / "kasa.enc"
+    write_vault_file(vault_file, KobiVault(), "pw", [])
+    B.set_read_only(vault_file)
+
+    mode = stat_mod.S_IMODE(vault_file.stat().st_mode)
+    assert not mode & stat_mod.S_IRGRP
+    assert not mode & stat_mod.S_IROTH
+    assert mode & stat_mod.S_IRUSR
+
+    B.clear_read_only(vault_file)
+    mode = stat_mod.S_IMODE(vault_file.stat().st_mode)
+    assert mode & stat_mod.S_IWUSR
+    assert not mode & stat_mod.S_IRGRP
+
+
+def test_backup_copies_are_deletable_and_private(tmp_path, monkeypatch) -> None:
+    """Yedekler sahibi tarafından silinebilir olmalı; budama çalışabilsin.
+
+    Regresyon: copy2 kaynağın salt-okunur iznini de kopyalıyordu. Windows'ta
+    salt-okunur öznitelik unlink()'i engeller; budama sessizce başarısız olur,
+    yedekler sonsuza kadar birikirdi.
+    """
+    import stat as stat_mod
+
+    from kobipass import backup as B
+
+    monkeypatch.setenv("KOBIPASS_BACKUP_DIR", str(tmp_path / "backups"))
+    vault_file = tmp_path / "kasa.enc"
+    write_vault_file(vault_file, KobiVault(), "pw", [])
+    B.set_read_only(vault_file)
+
+    created = B.create_backup(vault_file)
+    assert created is not None
+    mode = stat_mod.S_IMODE(created.stat().st_mode)
+    assert mode & stat_mod.S_IWUSR  # silinebilir
+    assert not mode & stat_mod.S_IRGRP
+    assert not mode & stat_mod.S_IROTH
