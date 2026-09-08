@@ -345,6 +345,10 @@ class VaultTabBar(QWidget):
 
         # '+' düğmesini son sekmenin hemen yanına yerleştir (yalnızca yönetici).
         self._add_btn.setVisible(is_admin)
+        # '+' düğmesi yeniden kurulumlarda bilerek KORUNUYOR (yukarı bkz.), bu
+        # yüzden ipucusu da burada yenilenmeli: çipler yeniden yaratıldığı için
+        # onların ipuçları dili takip ediyordu, '+' ise kurulduğu dilde donuyordu.
+        self._add_btn.setToolTip(tr("tab_add_tip"))
         if is_admin:
             self._chips_layout.addWidget(
                 self._add_btn, 0, Qt.AlignmentFlag.AlignVCenter

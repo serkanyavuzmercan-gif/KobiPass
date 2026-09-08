@@ -249,7 +249,17 @@ class UserAdminDialog(QDialog):
             if self._original_count + new_count >= MAX_USER_SLOTS:
                 self._warn(tr("max_users_reached", max=MAX_USER_SLOTS))
                 return
-        n = len(self._slot_cards) + 1
+        # Kartın GÖRSEL sırası değil, GERÇEK slot numarası gösterilmeli.
+        # Aradaki bir slot devre dışıysa kartlar kayıyor ve bir kullanıcıya
+        # başka bir kullanıcının numarasını taşıyan varsayılan etiket
+        # yazılıyordu; bu etiket kasaya kaydedildiği için değişiklik geçmişi de
+        # yanlış kullanıcı adıyla görünüyordu.
+        if orig_index is not None:
+            n = orig_index + 1
+        else:
+            n = self._original_count + 1 + sum(
+                1 for card in self._slot_cards if card["orig_index"] is None
+            )
         perms = permissions.copy() if permissions else UserPermissions()
         is_new = orig_index is None
 
@@ -483,9 +493,15 @@ class UserAdminDialog(QDialog):
             enabled = card["enabled"].isChecked()
             pwd1 = card["p1"].text()
             pwd2 = card["p2"].text()
-            label = card["label"].text().strip() or tr("user_default_label", n=pos)
-            perms = self._collect_card_permissions(card)
             oi = card["orig_index"]
+            # Varsayılan etiket kartın sırasına göre değil, gerçek slot
+            # numarasına göre üretilir (bkz. _add_slot_card).
+            slot_no = oi + 1 if oi is not None else total + len(new_passwords) + 1
+            label = (
+                card["label"].text().strip()
+                or tr("user_default_label", n=slot_no)
+            )
+            perms = self._collect_card_permissions(card)
             if enabled and (pwd1 or pwd2):
                 if len(pwd1) < MIN_PASSWORD_LENGTH:
                     self._warn(tr("pwd_too_short", min_len=MIN_PASSWORD_LENGTH))
@@ -509,8 +525,19 @@ class UserAdminDialog(QDialog):
                 slot_labels[oi] = label
                 slot_permissions[oi] = perms
             else:
-                if not (pwd1 or pwd2):
+                # İşareti kaldırılmış YENİ kart kasaya hiç girmemeli. Eskiden
+                # atlanma koşulu kartın etkin olup olmamasına değil, parola
+                # kutularının dolu olup olmamasına bakıyordu: vazgeçilen bir
+                # kart kasaya devre dışı bir "hayalet" slot ve etiket bırakıyor,
+                # MAX_USER_SLOTS kotasından düşüyor ve arayüzde bir daha
+                # görünmediği için temizlenemiyordu.
+                if not enabled:
                     continue
+                if not (pwd1 or pwd2):
+                    # Sessizce düşürme: yönetici, adını ve izinlerini
+                    # ayarladığı kullanıcının oluşturulduğunu sanıyordu.
+                    self._warn(tr("pwd_user_required", name=label))
+                    return
                 new_passwords.append(entry_pw)
                 new_labels.append(label)
                 new_permissions.append(perms)

@@ -333,3 +333,104 @@ def test_single_instance_ignores_foreign_squatter(app):
     finally:
         squatter.close()
         QLocalServer.removeServer(_SERVER_NAME)
+
+
+def test_loading_rows_does_not_mark_vault_dirty(window):
+    """Kayıtları yüklemek kasayı 'kaydedilmemiş değişiklik' durumuna sokmamalı.
+
+    Regresyon: ek alanı olan her kaydın yüklenmesi satırın changed sinyalini
+    yayıyordu (block_signals yalnızca QLineEdit.textChanged'i bloke ediyor).
+    reset_dirty=False yollarında (sekme değiştirme) ve sonsuz kaydırmada bu
+    temizlenmediği için kasa hiç düzenlenmeden kirli görünüyordu.
+    """
+    vault = KobiVault()
+    vault.tabs = [
+        VaultTab(id="t1", name="A", entries=[VaultEntry(name="a", info1="p")]),
+        VaultTab(
+            id="t2",
+            name="B",
+            entries=[VaultEntry(name="b", info1="q", more_infos=["x", "y", "z"])],
+        ),
+    ]
+    vault.active_index = 0
+    window._load_vault_data(vault)
+    window._clear_dirty()
+    assert window._dirty is False
+
+    # Sekme değiştir (reset_dirty=False yolu) — hiçbir şey düzenlenmedi.
+    vault.active_index = 1
+    window._reload_active_tab(reset_dirty=False)
+    assert window._dirty is False, "yalnızca yükleme kasayı kirli yaptı"
+
+
+def test_loaded_rows_show_password_strength(window):
+    """Kasa açıldığında güç göstergesi boş kalmamalı."""
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name="a", info1="q")]  # çok zayıf
+    window._load_vault_data(vault)
+
+    meter = window._row_widgets[0]._info1._strength_meter
+    assert meter is not None
+    assert "transparent" not in meter.styleSheet()
+
+
+def test_audit_filter_searches_displayed_text(app):
+    """Değişiklik geçmişi filtresi EKRANDA GÖRÜNEN metinde aramalı.
+
+    Regresyon: filtre ham saklanan metinde arıyordu — kaydın yazıldığı andaki
+    dil ve o zamanki kullanıcı adı. Tablo ise güncel etiketi ve aktif dile
+    çevrilmiş özeti gösteriyor; ekranda okunan hiçbir kelime eşleşmiyordu.
+    """
+    from kobipass.ui.audit_log_dialog import AuditLogDialog
+    from kobipass.vault_model import AuditEntry
+
+    vault = KobiVault()
+    vault.user_slot_labels = ["Muhasebe", "Alt Kullanıcı 2", "Alt Kullanıcı 3"]
+    vault.audit_log = [
+        AuditEntry(
+            at="2026-01-01T00:00:00Z",
+            user_slot=1,
+            user_label="ESKI-AD",  # kayıt anındaki ad
+            action="vault_save",
+            entry_name="",
+            field="",
+            summary="eski dilde yazılmış özet",
+        )
+    ]
+    dlg = AuditLogDialog(vault)
+    try:
+        # Kullanıcı ekranda "Muhasebe" görüyor; onu arayabilmeli.
+        dlg._apply_filter("muhasebe")
+        assert dlg._table.rowCount() == 1
+        # Aktif dildeki özet de aranabilmeli.
+        dlg._apply_filter("kaydedildi")
+        assert dlg._table.rowCount() == 1
+    finally:
+        dlg.deleteLater()
+
+
+def test_english_default_slot_label_is_localized():
+    """İngilizce kurulmuş varsayılan etiket 'özel ad' sanılmamalı."""
+    from kobipass.ui.audit_log_dialog import _is_default_slot_label
+
+    assert _is_default_slot_label("Alt Kullanıcı 2", 2)
+    assert _is_default_slot_label("Sub-user 2", 2)
+    assert _is_default_slot_label("Kullanıcı 2", 2)
+    assert not _is_default_slot_label("Muhasebe", 2)
+    # Başka slotun varsayılanı bu slot için özel ad sayılmaz — karışmasın.
+    assert not _is_default_slot_label("Sub-user 3", 2)
+
+
+def test_user_password_missing_message_names_the_card():
+    """Eksik ALT KULLANICI parolası yönetici parolasını işaret etmemeli."""
+    from kobipass.i18n import tr
+    from kobipass.ui.dialogs import _validate_password_pair
+
+    generic = _validate_password_pair("", "", required=True)
+    assert generic == tr("pwd_admin_required")
+
+    targeted = _validate_password_pair(
+        "", "", required=True, missing_message=tr("pwd_user_required", name="Muhasebe")
+    )
+    assert "Muhasebe" in targeted
+    assert targeted != generic

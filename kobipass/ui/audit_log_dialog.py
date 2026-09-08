@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from kobipass.i18n import tr
+from kobipass.i18n import _STRINGS, tr
 from kobipass.permissions import field_label, is_sensitive_audit_field, mask_audit_value
 from kobipass.resources import app_icon
 from kobipass.vault_model import AuditEntry, KobiVault
@@ -49,10 +49,33 @@ def _audit_user_display(entry: AuditEntry, vault: KobiVault) -> str:
     labels = getattr(vault, "user_slot_labels", []) or []
     if 1 <= slot <= len(labels):
         label = str(labels[slot - 1]).strip()
-        # Varsayılan etiketler (eski/yeni) — özel değilse dile göre çevir.
-        if label and label not in (f"Kullanıcı {slot}", f"Alt Kullanıcı {slot}"):
+        if label and not _is_default_slot_label(label, slot):
             return label
     return tr("role_user", slot=slot)
+
+
+def _is_default_slot_label(label: str, slot: int) -> bool:
+    """Etiket, kullanıcının verdiği bir ad mı yoksa varsayılan mı?
+
+    Beyaz liste yalnızca Türkçe kalıpları içeriyordu. Etiket kurulum/kullanıcı
+    diyaloglarında ``tr("user_default_label", n=...)`` ile yazılıyor; arayüz
+    İngilizceyken bu "Sub-user {n}" oluyor ve İngilizce oluşturulmuş varsayılan
+    bir etiket sonsuza kadar "özel ad" sanılıp hiç yerelleştirilmiyordu.
+    """
+    if label in (f"Kullanıcı {slot}", f"Alt Kullanıcı {slot}"):
+        return True
+    for lang in ("tr", "en"):
+        table = _STRINGS.get(lang, {})
+        for key in ("user_default_label", "role_user"):
+            template = table.get(key, "")
+            if not template:
+                continue
+            expected = template.replace("{n}", str(slot)).replace(
+                "{slot}", str(slot)
+            )
+            if label == expected:
+                return True
+    return False
 
 
 def _audit_value_display(entry: AuditEntry, which: str) -> str:
@@ -133,21 +156,30 @@ class AuditLogDialog(QDialog):
         if not term:
             self._populate(self._all_logs)
             return
-        filtered: list[AuditEntry] = []
-        for entry in self._all_logs:
-            haystack = " ".join(
-                [
-                    entry.at,
-                    entry.user_label,
-                    entry.entry_name,
-                    entry.field,
-                    entry.summary,
-                    field_label(entry.field, self._vault) if entry.field else "",
-                ]
-            ).lower()
-            if term in haystack:
-                filtered.append(entry)
+        # Arama EKRANDA GÖRÜNEN metinde yapılmalı. Ham saklanan metin, kaydın
+        # YAZILDIĞI andaki dili ve o zamanki kullanıcı adını taşır; tablo ise
+        # güncel etiketi ve aktif dile çevrilmiş özeti gösterir. Ham metinde
+        # arayınca ekranda okunan hiçbir kelime eşleşmiyordu.
+        filtered = [
+            entry for entry in self._all_logs if term in self._haystack(entry)
+        ]
         self._populate(filtered)
+
+    def _haystack(self, entry: AuditEntry) -> str:
+        return " ".join(
+            [
+                entry.at,
+                entry.user_label,
+                _audit_user_display(entry, self._vault),
+                entry.entry_name,
+                entry.field,
+                field_label(entry.field, self._vault) if entry.field else "",
+                entry.summary,
+                _audit_summary_display(entry, self._vault),
+                _audit_value_display(entry, "old"),
+                _audit_value_display(entry, "new"),
+            ]
+        ).lower()
 
     def _populate(self, logs: list[AuditEntry]) -> None:
         self._empty.setVisible(not self._all_logs)

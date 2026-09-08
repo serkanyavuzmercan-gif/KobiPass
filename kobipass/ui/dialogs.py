@@ -41,9 +41,20 @@ def _validate_password_pair(
     p2: str,
     required: bool,
     min_len: int = MIN_PASSWORD_LENGTH,
+    *,
+    missing_message: str | None = None,
 ) -> str | None:
+    """``missing_message`` verilmezse hata YÖNETİCİ parolasını işaret eder.
+
+    Bu yardımcı hem yönetici parolası hem de her alt kullanıcı kartı için
+    kullanılıyor; sabit "Yönetici parolası zorunludur" mesajı, eksik olan bir
+    alt kullanıcı kartında yanlış alanı işaret ediyor ve yönetici hangi kartın
+    eksik olduğunu anlayamıyordu.
+    """
     if not p1 and not p2:
-        return None if not required else tr("pwd_admin_required")
+        if not required:
+            return None
+        return missing_message or tr("pwd_admin_required")
     if len(p1) < min_len:
         return tr("pwd_too_short", min_len=min_len)
     if p1 != p2:
@@ -296,11 +307,16 @@ class SetupVaultDialog(QDialog):
                 continue
             pwd1 = card["p1"].text()
             pwd2 = card["p2"].text()
-            slot_err = _validate_password_pair(pwd1, pwd2, required=True)
+            label = card["label"].text().strip() or tr("user_default_label", n=pos)
+            slot_err = _validate_password_pair(
+                pwd1,
+                pwd2,
+                required=True,
+                missing_message=tr("pwd_user_required", name=label),
+            )
             if slot_err:
                 self._warn(slot_err)
                 return
-            label = card["label"].text().strip() or tr("user_default_label", n=pos)
             user_passwords.append((True, pwd1))
             slot_labels.append(label)
             slot_permissions.append(

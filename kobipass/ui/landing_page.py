@@ -565,3 +565,7 @@ class LandingPage(QWidget):
         self._recent_title.setText(tr("landing_recent"))
         self._clear_recent.setText(tr("landing_clear_recent"))
         self._recent_empty.setText(tr("landing_recent_empty"))
+        # Son kullanılan kasa satırları "bugün/dün" gibi çevrilmiş metinleri
+        # KURULDUKLARI anda üretiyor ve RecentRow'un retranslate'i yok. Dil
+        # düğmesi en çok bu ekranda kullanıldığı için satırları yeniden kur.
+        self.refresh_recent()

@@ -60,6 +60,35 @@ def _icon_path() -> str:
     return ""
 
 
+def _stable_icon_path() -> str:
+    """Sürümden BAĞIMSIZ bir konuma kopyalanmış simge yolu.
+
+    MSIX kurulum klasörü paketin tam adını (ve dolayısıyla SÜRÜMÜ) içerir:
+    ``C:\\Program Files\\WindowsApps\\<Ad>_1.3.1.0_x64__<hash>\\...``. Mağaza
+    güncellemesi yeni bir klasöre kurup eskisini siler; kısayola gömülen mutlak
+    yol ilk güncellemede kırılır ve masaüstündeki simge boş kutuya döner.
+    Simgeyi kullanıcı profiline kopyalayıp oraya işaret ediyoruz.
+    """
+    source = _icon_path()
+    if not source:
+        return ""
+    try:
+        base = os.environ.get("LOCALAPPDATA")
+        if not base:
+            return source
+        target_dir = os.path.join(base, "KobiPass")
+        os.makedirs(target_dir, exist_ok=True)
+        target = os.path.join(target_dir, "icon.ico")
+        data = open(source, "rb").read()
+        if not os.path.exists(target) or open(target, "rb").read() != data:
+            with open(target, "wb") as handle:
+                handle.write(data)
+        return target
+    except OSError:
+        # Kopyalanamadıysa paketin içindeki yol yine de bugün çalışır.
+        return source
+
+
 def _guid(text: str) -> ctypes.Structure:
     class GUID(ctypes.Structure):
         _fields_ = [
@@ -172,7 +201,7 @@ def create_desktop_shortcut() -> bool:
         windir = os.environ.get("WINDIR", r"C:\Windows")
         target = os.path.join(windir, "explorer.exe")
         arguments = "shell:AppsFolder\\" + aumid
-        icon = _icon_path()
+        icon = _stable_icon_path()
     else:
         target = sys.executable
         arguments = ""

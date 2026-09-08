@@ -695,6 +695,11 @@ class CompactField(QWidget):
 
     def setText(self, value: str) -> None:
         self._edit.setText(value)
+        # Güç göstergesi yalnızca textChanged'e bağlıydı. Kasa açılırken
+        # yükleme sırasında _edit sinyalleri bloke edildiği için hiçbir satırda
+        # güç çubuğu görünmüyor, kullanıcı o hücreye elle yazana kadar zayıf
+        # parolalar hiç işaretlenmiyordu.
+        self._update_strength(value)
 
     def textChanged(self):
         return self._edit.textChanged
@@ -1064,7 +1069,14 @@ class EntryRowWidget(QWidget):
         self._update_field_step_buttons()
         self._update_info_remove_actions()
         self._install_hover_tracking()  # yeni hücre de fare-üzeri takibine girsin
-        self._emit_changed()
+        # YÜKLEME sırasında (block_signals=True) 'changed' YAYILMAMALI.
+        # block_signals yalnızca QLineEdit.textChanged'i bloke ediyordu; satırın
+        # kendi changed sinyali yayıldığı için 1+ ek alanı olan her kaydın
+        # yüklenmesi _mark_dirty tetikliyordu. Sekme değiştirme ve sonsuz
+        # kaydırma yollarında bu temizlenmediğinden kasa, hiç düzenlenmeden
+        # 'kaydedilmemiş değişiklik' durumuna geçiyordu.
+        if not block_signals:
+            self._emit_changed()
 
     def _update_info_remove_actions(self) -> None:
         """Tüm bilgi alanları silinebilir. 1. Bilgi tek kalan alansa silmek,
@@ -1239,6 +1251,10 @@ class EntryRowWidget(QWidget):
         for field in self._extra_fields:
             field.retranslate()
         self._add_field_btn.setToolTip(tr("add_field_tip"))
+        # Parola yaşı etiketi üç çevrilmiş metin üretir; yalnızca __init__ ve
+        # load_entry'den çağrıldığı için satır kurulduğu andaki dilde donup
+        # kalıyordu.
+        self._refresh_age_label()
 
     def _emit_changed(self) -> None:
         self.changed.emit()
