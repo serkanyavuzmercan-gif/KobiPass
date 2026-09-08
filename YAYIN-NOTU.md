@@ -3,91 +3,76 @@
 > **Bu dosya devir notudur.** Store / Partner Center yönetimi geliştirmeyi yapan
 > kişide değildir. Aşağıdaki adım, yayını yöneten kişi tarafından yapılmalıdır.
 
-## ✅ Durum: 1.3.3 yayınlandı — Store'a yüklenmeyi bekliyor
+## ✅ Durum: 1.3.4 yayınlandı — Store'a yüklenmeyi bekliyor
 
 **1.2.9** Partner Center'a Submission 7 ile yüklenip yayınlandı.
-**1.3.3** GitHub'da yayınlandı ve Store'a yüklenmeyi bekliyor.
+**1.3.4** GitHub'da yayınlandı ve Store'a yüklenmeyi bekliyor.
 
-Sıradaki iş: aşağıdaki **Partner Center adımları** ile 1.3.3.0 paketini
+Sıradaki iş: aşağıdaki **Partner Center adımları** ile 1.3.4.0 paketini
 yüklemek. Sertifikasyon genelde birkaç saat, en fazla 3 iş günü sürer; durum
 **Application overview** sayfasından izlenir (Pre-processing → Certification →
 Publishing → In the Store).
 
 > **Önemli:** Sürümler kümülatiftir. Store'da hangi sürüm yayında olursa olsun
-> **doğrudan 1.3.3 yüklenmelidir**; ara sürümleri (1.3.0 – 1.3.2) ayrıca
+> **doğrudan 1.3.4 yüklenmelidir**; ara sürümleri (1.3.0 – 1.3.3) ayrıca
 > yüklemeye gerek yoktur.
 
 Aşağıdaki bölümler, sonraki sürümlerde aynı işlemi yapacak kişi içindir.
 
-## ➜ Yüklenecek sürüm: **1.3.3.0**
+## ➜ Yüklenecek sürüm: **1.3.4.0**
 
 | | |
 |---|---|
-| **Paket** | `KobiPass-1.3.3.0.msix` |
-| **Nereden** | GitHub Releases → **v1.3.3** |
-| **Bağlantı** | https://github.com/serkanyavuzmercan-gif/KobiPass/releases/tag/v1.3.3 |
-| **Öncelik** | **Kritik** — parola/anahtar değerlerinin sızdığı bir hatayı gideriyor |
+| **Paket** | `KobiPass-1.3.4.0.msix` |
+| **Nereden** | GitHub Releases → **v1.3.4** |
+| **Bağlantı** | https://github.com/serkanyavuzmercan-gif/KobiPass/releases/tag/v1.3.4 |
+| **Öncelik** | **Kritik** — 1.3.3'teki parola/anahtar sızıntısı düzeltmesini de kapsar |
 
 Paket, GitHub Actions ile üretilmiş ve yayınlanmıştır; elle derlemeye gerek yoktur.
 
-## Neden yükseltilmeli — 1.3.3 ne getiriyor
+## 1.3.4 ne getiriyor
 
-**1. Değişiklik geçmişindeki değerler artık gizli — asıl sebep bu.**
-Kasa ekranında isim dışındaki her hücre maskelidir; göz düğmesine basmadan
-değeri göremezsiniz. Ama **değişiklik geçmişi bu kuralı uygulamıyordu**:
-1. Bilgi maskeleniyor, 2. Bilgi ve sonrası (API anahtarları, tokenlar, hesap
+**Satır yanlışlıkla taşınmıyor.**
+Bir kayıtta alanlar arasında sağa sola kaydırırken satır istemeden yukarı aşağı
+taşınıyordu — sıralama sürüklemesi satırın **herhangi bir yerinden**
+başlayabiliyordu ve ince kaydırma çubuğunu birkaç piksel ıskalamak yetiyordu.
+Artık sıralama yalnızca satırın **en solundaki tutamaktan** (⠇⠇) başlıyor.
+
+Bu, 1.3.3'te gelen "satır içi sağa sola gezinme" düzeltmesini kullanılabilir
+hale getiren tamamlayıcı düzeltmedir; ikisi birlikte çalışır.
+
+## Önceki sürümden devreden — 1.3.3 (bu pakete dahildir)
+
+**1. Değişiklik geçmişindeki değerler artık gizli.**
+Kasa ekranında isim dışındaki her hücre maskelidir, ama değişiklik geçmişi bu
+kuralı uygulamıyordu: 2. Bilgi ve sonrası (API anahtarları, tokenlar, hesap
 numaraları) düz metin olarak hem ekranda gösteriliyor hem de kasa dosyasına
-yazılıyordu.
+yazılıyordu. O bölüm **her alt kullanıcının parolasıyla açılabilen** bölümdür;
+yani bir alanı "Görmez"/"Maskeli" yaptığınız alt kullanıcı, göremediği değerleri
+geçmişten okuyabiliyordu. Artık hiçbir değer saklanmıyor ve koşulsuz
+maskeleniyor. **Eski kayıtlardaki düz metin değerler de temizleniyor:** kasa
+açılırken düşürülüyor, ilk kayıtta dosyadan kalıcı olarak siliniyor.
 
-Bu yalnızca görüntü sorunu değildi. O bölüm, **her alt kullanıcının parolasıyla
-açılabilen** bölümdür. Yani bir alanı "Görmez" veya "Maskeli" olarak
-ayarladığınız alt kullanıcı, göremediği değerleri değişiklik geçmişinden
-okuyabiliyordu.
+**2. Değişiklik geçmişi doğru anlatıyor.** Hücre silmek artık tek satır
+("VERİ2 hücresi silindi — sonrakiler sola kaydı"), kayıt adı değişimi de kendi
+özetiyle ("Kayıt adı değiştirildi") görünüyor.
 
-Artık hiçbir değer hücresi saklanmıyor ve geçmişte koşulsuz maskeleniyor.
-**Eski kayıtlardaki düz metin değerler de temizleniyor:** kasanız açılırken
-düşürülüyor, ilk kaydınızda dosyadan kalıcı olarak siliniyor. Geçmişte kimin,
-ne zaman, hangi kaydın hangi alanını değiştirdiği görünmeye devam ediyor —
-yalnızca değerin kendisi gitti.
+**3. "Boş Hücreleri Sil" düğmesi.** Onay sorar, kaç hücrenin kaç kayıtta
+etkileneceğini söyler, kayıt silmez.
 
-**2. Değişiklik geçmişi artık doğru anlatıyor.**
-İki ayrı sorun geçmişi güvenilmez gösteriyordu:
-- Bir **hücre sildiğinizde** sonraki hücreler sola kayıyor, geçmiş bunu konum
-  konum "VERİ2 şu oldu, VERİ3 boşaldı" zinciri olarak yazıyordu. Siz öyle bir
-  düzenleme yapmadığınız için uydurma görünüyordu. Artık tek satır:
-  "VERİ2 hücresi silindi (sonrakiler sola kaydı)".
-- **Kayıt adını değiştirdiğinizde**, isim sütununa özel bir etiket verdiyseniz
-  (ör. "AÇIKLAMA") özet "AÇIKLAMA güncellendi" oluyordu — "Kayıt" sütunu zaten
-  yeni adı gösterdiği için satır dairesel ve tanınmaz haldeydi. Artık açıkça
-  "Kayıt adı değiştirildi" diyor.
+**4. Satır içi sağa sola gezinme.** Hücreler artık satıra sığmaya çalışıyor;
+gerçekten taşan satırlarda kenar okları, konum çubuğu ve Tab ile odak takibi var.
 
-**3. Yeni: "Boş Hücreleri Sil" düğmesi.**
-Araç çubuğuna eklendi. Aktif sekmedeki kayıtlarda boş kalan bilgi hücrelerini
-toplu temizler. Silmeden önce **kaç hücrenin kaç kayıtta** etkileneceğini
-söyleyip onay ister; sonrakilerin sola kayacağını ve kasanın hemen
-kaydedilmediğini belirtir — sonucu beğenmezseniz kaydetmeden çıkabilirsiniz.
-Bir kayıt en az bir hücre tutar, yani kayıt silinmez.
+**5. Çökme düzeltmesi.** Satırların bellekten temizlenmesinde çöp toplayıcı
+kaynaklı bir çökme giderildi.
 
-**4. Satırda sağa sola gidememe sorunu.**
-Bir kayda 4'ten fazla bilgi alanı eklendiğinde son alanlara ulaşılamıyordu.
-Kök nedeni giderildi: hücreler artık **satıra sığmaya çalışıyor** — 1920px'lik
-bir pencerede 6 alanlı satır hiç taşmıyor. Gerçekten taşan satırlarda (çok fazla
-alan veya dar pencere) satırın kenarlarında **ok düğmeleri** çıkıyor, ince bir
-konum çubuğu imleç o satırdayken belirginleşiyor ve **Tab** ile gittiğiniz hücre
-görüş alanına getiriliyor. Sığan satırlarda hiçbir gezinme süsü çıkmıyor.
-
-**5. Çökme düzeltmesi.**
-Kayıt satırlarının bellekten temizlenmesinde, çöp toplayıcının silinmiş bir
-nesneye dokunmasına yol açan bir hata bulundu ve giderildi. Test paketi
-düzeltmeden önce 8 denemenin 8'inde çöküyordu; sonrasında 8/8 temiz.
-
-> Sürümler kümülatiftir: **1.3.3 önceki tüm sürümleri kapsar**; ara sürümleri
+> Sürümler kümülatiftir: **1.3.4 önceki tüm sürümleri kapsar**; ara sürümleri
 > ayrıca yüklemeye gerek yoktur.
 
 ## Partner Center adımları
 
 1. Partner Center → ilgili gönderim → **Packages**
-2. `KobiPass-1.3.3.0.msix` dosyasını yükleyin
+2. `KobiPass-1.3.4.0.msix` dosyasını yükleyin
 3. Paket **imzasız** üretilmiştir (`-SkipSign`); imzayı Store yükleme sırasında
    kendisi atar — ek işlem gerekmez
 4. Gönderimi yayınlayın
@@ -105,7 +90,7 @@ Windows 7/8 desteklenmez.
 
 ## Sonraki sürümler için not
 
-- Store sürüm numarasının **4. hanesi her zaman `0`** olmalıdır: `1.3.4.0` gibi.
+- Store sürüm numarasının **4. hanesi her zaman `0`** olmalıdır: `1.3.5.0` gibi.
 - Her yeni gönderimde sürüm artmalıdır; aynı numara ikinci kez kabul edilmez.
 
 **1) Sürüm numarası üç dosyada güncellenir:**
@@ -118,13 +103,13 @@ Windows 7/8 desteklenmez.
 
 > ⚠️ **`version_info.txt`'te sürüm iki ayrı biçimde geçer** ve dördü de
 > değişmelidir — atlanması kolay bir yerdir:
-> `filevers=(1, 3, 3, 0)` · `prodvers=(1, 3, 3, 0)` ·
-> `FileVersion '1.3.3'` · `ProductVersion '1.3.3'`
+> `filevers=(1, 3, 4, 0)` · `prodvers=(1, 3, 4, 0)` ·
+> `FileVersion '1.3.4'` · `ProductVersion '1.3.4'`
 >
 > İlk ikisi **tuple**'dır (tırnaksız, virgülle ayrılmış), son ikisi **metin**.
 
 **2) Paket üretimi:** GitHub → **Actions → "Release Windows" → Run workflow** →
-`version` alanına `v1.3.4` yazılır → Run. Yaklaşık 4 dakika sürer.
+`version` alanına `v1.3.5` yazılır → Run. Yaklaşık 4 dakika sürer.
 Workflow etiketi **kendisi oluşturur** (elle `git tag` atmaya gerek yoktur),
 `.exe` ve `.msix` dosyalarını derleyip Release'e ekler.
 
