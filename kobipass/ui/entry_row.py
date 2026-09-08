@@ -805,7 +805,6 @@ class EntryRowWidget(QWidget):
         self._permissions = UserPermissions()
         self._extra_fields: list[CompactField] = []
         self._field_labels: dict[str, str] = {}
-        self._drag_start: QPoint | None = None
         self.vault_index: int | None = None
         self.setToolTip(tr("drag_row_tip"))
 
@@ -1381,32 +1380,12 @@ class EntryRowWidget(QWidget):
         for index, field in enumerate(self._extra_fields, start=2):
             field.set_custom_label(labels.get(f"info{index}", ""))
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
-        if (
-            event.button() == Qt.MouseButton.LeftButton
-            and not self._view_only
-            and self._can_reorder
-        ):
-            self._drag_start = event.position().toPoint()
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # noqa: N802
-        if (
-            self._drag_start is not None
-            and event.buttons() & Qt.MouseButton.LeftButton
-            and not self._view_only
-            and self._can_reorder
-            and self.vault_index is not None
-        ):
-            if (event.position().toPoint() - self._drag_start).manhattanLength() >= 8:
-                self._start_drag()
-                self._drag_start = None
-                return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
-        self._drag_start = None
-        super().mouseReleaseEvent(event)
+    # Satır YALNIZCA soldaki tutamaktan (_DragHandle) sürüklenir.
+    # Eskiden satırın HERHANGİ bir yerinde 8px'lik hareket sıralama
+    # sürüklemesini başlatıyordu: 5px'lik yatay kaydırma çubuğunu birkaç piksel
+    # ıskalamak yetiyor, kullanıcı alanlar arasında sağa sola kaydırmaya
+    # çalışırken satır yukarı aşağı taşınıyordu. Sürükleme başlatan tek yer
+    # tutamaktır; burada mouse olayı ele geçirilmez.
 
     def _start_drag(self) -> None:
         if self.vault_index is None:
@@ -1442,9 +1421,10 @@ class EntryRowWidget(QWidget):
     def set_can_reorder(self, allowed: bool) -> None:
         self._can_reorder = allowed
         self._drag_handle.setVisible(allowed)
-        self.setToolTip(
-            tr("drag_row_tip") if allowed else tr("restricted_reorder")
-        )
+        # Satır genelinde "sürüklenebilir" ipucusu artık yanlış olurdu; sürükleme
+        # yalnızca tutamaktan başlar ve tutamak kendi ipucusunu taşır. Yetkisi
+        # olmayan kullanıcıya nedenini söylemeye devam ediyoruz.
+        self.setToolTip("" if allowed else tr("restricted_reorder"))
 
     def retranslate(self) -> None:
         self._name.retranslate()

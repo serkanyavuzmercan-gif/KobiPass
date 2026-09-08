@@ -16,6 +16,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PyQt6.QtWidgets")
 
+# QtNetwork MODÜL DÜZEYİNDE içe aktarılır. Test ORTASINDA içe aktarmak, o anda
+# bekleyen Qt çöpü üzerinde büyük bir GC turu tetikliyor ve süreç kapanışta
+# çöküyordu (ölçüldü: 4/5 çökme). Uygulamada böyle bir durum oluşmaz —
+# single_instance main.py'de, hiç widget yokken içe aktarılır.
+from PyQt6.QtNetwork import QLocalServer  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
 from kobipass.ui.main_window import MainWindow  # noqa: E402
@@ -310,7 +315,6 @@ def test_single_instance_ignores_foreign_squatter(app):
     RuntimeError fırlatıyor, --windowed derlemede uygulama hiçbir şey
     göstermeden ölüyordu.
     """
-    from PyQt6.QtNetwork import QLocalServer
     from PyQt6.QtWidgets import QMainWindow
 
     from kobipass.single_instance import (
@@ -964,6 +968,137 @@ def test_scroll_rail_only_inks_on_the_hovered_row(app):
         hovered = handle_colors()
 
         assert idle != hovered, f"ray hover'da değişmiyor: {idle}"
+    finally:
+        host.close()
+        host.deleteLater()
+        app.processEvents()
+
+
+def _send_drag_gesture(app, widget, start, delta):
+    """Gerçek fare olaylarıyla bas-sürükle jesti gönderir."""
+    from PyQt6.QtCore import QPoint, QPointF, Qt
+    from PyQt6.QtGui import QMouseEvent
+
+    def send(kind, pos, buttons):
+        event = QMouseEvent(
+            kind,
+            QPointF(pos),
+            QPointF(widget.mapToGlobal(pos)),
+            Qt.MouseButton.LeftButton,
+            buttons,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        app.sendEvent(widget, event)
+        app.processEvents()
+
+    send(QMouseEvent.Type.MouseButtonPress, start, Qt.MouseButton.LeftButton)
+    send(
+        QMouseEvent.Type.MouseMove,
+        start + QPoint(*delta),
+        Qt.MouseButton.LeftButton,
+    )
+    send(QMouseEvent.Type.MouseButtonRelease, start + QPoint(*delta), Qt.MouseButton.NoButton)
+
+
+def _drag_recorder(monkeypatch):
+    """QDrag'i sahteleyip sürükleme başlatıldı mı kaydeder (exec bloklamasın)."""
+    from kobipass.ui import entry_row as er
+
+    # DİKKAT: kaynak widget'ın REFERANSI TUTULMAZ. Tutulursa satır silindikten
+    # sonra Python sarmalayıcısı yaşamaya devam eder ve çöp toplayıcı yok
+    # edilmiş C++ nesnesine dokunup süreci çökertir — testin doğruladığı
+    # hatanın aynısı. Yalnızca "başladı" bilgisini sayıyoruz.
+    started: list[str] = []
+
+    class _StubDrag:
+        def __init__(self, source):
+            started.append(type(source).__name__)
+
+        def setMimeData(self, _mime):
+            pass
+
+        def setPixmap(self, _pixmap):
+            pass
+
+        def setHotSpot(self, _point):
+            pass
+
+        def exec(self, _action):
+            return None
+
+    monkeypatch.setattr(er, "QDrag", _StubDrag)
+    return started
+
+
+def test_row_body_does_not_start_reorder_drag(app, monkeypatch):
+    """Satır gövdesinde yatay hareket satırı TAŞIMAMALI.
+
+    Regresyon: satırın herhangi bir yerinde 8px'lik hareket sıralama
+    sürüklemesini başlatıyordu. 5px'lik yatay kaydırma çubuğunu birkaç piksel
+    ıskalamak yetiyor; kullanıcı alanlar arasında sağa sola kaydırmaya
+    çalışırken satır yukarı aşağı taşınıyordu.
+    """
+    from PyQt6.QtCore import QPoint
+
+    started = _drag_recorder(monkeypatch)
+    host, row = _row_with_fields(app, 12, width=1860)
+    try:
+        row.vault_index = 3
+        row.set_can_reorder(True)
+        for _ in range(4):
+            app.processEvents()
+
+        # Tutamağın SAĞINDA kalan her yer: gövde, alan aralığı, çubuk hizası.
+        for x in (200, 700, 1400):
+            for y in (10, row.height() - 4):
+                _send_drag_gesture(app, row, QPoint(x, y), (60, 0))
+                _send_drag_gesture(app, row, QPoint(x, y), (0, 40))
+        assert not started, f"satır gövdesinden {len(started)} sürükleme başladı"
+    finally:
+        host.close()
+        host.deleteLater()
+        app.processEvents()
+
+
+def test_drag_handle_still_starts_reorder(app, monkeypatch):
+    """Sıralama sürüklemesi soldaki tutamaktan HÂLÂ başlamalı."""
+    from PyQt6.QtCore import QPoint
+
+    started = _drag_recorder(monkeypatch)
+    host, row = _row_with_fields(app, 3, width=1860)
+    try:
+        row.vault_index = 3
+        row.set_can_reorder(True)
+        for _ in range(4):
+            app.processEvents()
+
+        handle = row._drag_handle
+        assert handle.isVisibleTo(row), "tutamak görünmüyor"
+        _send_drag_gesture(app, handle, QPoint(8, 12), (0, 30))
+        assert started, "tutamaktan sürükleme başlamadı"
+    finally:
+        host.close()
+        host.deleteLater()
+        app.processEvents()
+
+
+def test_row_tooltip_does_not_claim_it_is_draggable(app):
+    """Satır genelinde 'sürüklemek için tutun' ipucusu olmamalı.
+
+    Sürükleme yalnızca tutamaktan başladığı için satırın tamamına bu ipucunu
+    koymak yanlış bilgi verirdi; tutamak kendi ipucusunu taşır.
+    """
+    from kobipass.i18n import tr
+
+    host, row = _row_with_fields(app, 3, width=1860)
+    try:
+        row.set_can_reorder(True)
+        assert row.toolTip() == ""
+        assert row._drag_handle.toolTip() == tr("drag_row_tip")
+
+        # Yetkisi olmayan kullanıcıya nedeni söylenmeye devam edilmeli.
+        row.set_can_reorder(False)
+        assert row.toolTip() == tr("restricted_reorder")
     finally:
         host.close()
         host.deleteLater()
