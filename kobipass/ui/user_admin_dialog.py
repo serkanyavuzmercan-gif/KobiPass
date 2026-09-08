@@ -145,6 +145,7 @@ class UserAdminDialog(QDialog):
         *,
         admin_password: str = "",
         keys: VaultFileKeys | None = None,
+        pending_passwords: list[tuple[bool, str]] | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle(tr("users_title"))
@@ -159,6 +160,11 @@ class UserAdminDialog(QDialog):
         self._passwords_changed = False
         self._admin_password = admin_password
         self._keys = keys
+        # Henüz diske YAZILMAMIŞ (bekleyen) parola değişiklikleri. Diyalog
+        # kaydetmeden ikinci kez açıldığında parola alanları doğal olarak boş
+        # gelir; bu liste olmadan 'boş = değişmedi' varsayımı bekleyen parola
+        # rotasyonunu sessizce geri alıyordu.
+        self._pending_passwords = list(pending_passwords or [])
         self._result: dict | None = None
 
         outer = QVBoxLayout(self)
@@ -446,6 +452,13 @@ class UserAdminDialog(QDialog):
                     return True
         return False
 
+    def _pending_password_for(self, orig_index: int | None) -> str:
+        """Bu slot için bekleyen (kaydedilmemiş) parola; yoksa boş."""
+        if orig_index is None or not 0 <= orig_index < len(self._pending_passwords):
+            return ""
+        enabled, password = self._pending_passwords[orig_index]
+        return password if enabled else ""
+
     def _on_accept(self) -> None:
         total = self._original_count
         user_passwords: list[tuple[bool, str]] = [(False, "")] * total
@@ -472,6 +485,7 @@ class UserAdminDialog(QDialog):
             pwd2 = card["p2"].text()
             label = card["label"].text().strip() or tr("user_default_label", n=pos)
             perms = self._collect_card_permissions(card)
+            oi = card["orig_index"]
             if enabled and (pwd1 or pwd2):
                 if len(pwd1) < MIN_PASSWORD_LENGTH:
                     self._warn(tr("pwd_too_short", min_len=MIN_PASSWORD_LENGTH))
@@ -482,11 +496,14 @@ class UserAdminDialog(QDialog):
                 entry_pw = (True, pwd1)
                 self._passwords_changed = True
             elif enabled:
-                entry_pw = (True, "")
+                # Alan boş = "bu turda değiştirmedim". Bekleyen bir rotasyon
+                # varsa onu TAŞI; aksi halde kaydetmeden diyaloğu ikinci kez
+                # açmak rotasyonu geri alıyor, eski parola çalışmaya devam
+                # ediyor ve yönetici hiçbir uyarı almıyordu.
+                entry_pw = (True, self._pending_password_for(oi))
             else:
                 entry_pw = (False, "")
 
-            oi = card["orig_index"]
             if oi is not None and 0 <= oi < total:
                 user_passwords[oi] = entry_pw
                 slot_labels[oi] = label

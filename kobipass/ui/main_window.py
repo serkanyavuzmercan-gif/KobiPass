@@ -941,7 +941,33 @@ class MainWindow(QMainWindow):
     def _go_home(self) -> None:
         if self._dirty and not self._confirm_discard():
             return
+        self._release_session()
         self._show_landing_page()
+
+    def _release_session(self) -> None:
+        """Kasayı bellekten bırakır ve boşta kalma kilidini durdurur.
+
+        Karşılama ekranına dönmek eskiden yalnızca görünümü değiştiriyordu:
+        (1) _confirm_discard yalnızca _dirty bayrağını sıfırladığı için
+        düzenlenmiş kasa nesnesi bellekte kalıyor, Ctrl+S hâlâ etkin olduğundan
+        kullanıcının AÇIKÇA ATTIĞI değişiklikler eski dosyaya yazılabiliyordu;
+        (2) oturum açık kaldığı için boşta kalma sayaçı çalışmaya devam ediyor,
+        süre dolunca karşılama ekranının üzerine parola örtüsü açılıyor ve
+        kullanıcı başka bir kasa açabilmek için kapattığı kasanın parolasını
+        girmek zorunda kalıyordu.
+        """
+        self._idle_timer.stop()
+        self._session = None
+        self._vault = None
+        self._current_path = None
+        self._snapshot_entries = []
+        self._tab_snapshots = {}
+        self._display_entries = None
+        self._pending_user_passwords = None
+        self._pending_admin_password = None
+        self._end_reveal_all()
+        self._clear_all_rows()
+        self._clear_dirty()
 
     def _mevcut_dosyayi_ac(self) -> None:
         self._open_vault()
@@ -1250,7 +1276,14 @@ class MainWindow(QMainWindow):
             if self._display_entries is not None
             else self._vault.entries
         )
-        current_count = len(self._row_widgets)
+        # Ofset, modelden gelen satırlardan sayılmalı. len(_row_widgets)
+        # kullanılınca modelde karşılığı OLMAYAN (vault_index=None) yeni
+        # satırlar da sayılıyor ve eklenen her yeni satır kaynaktan bir kaydın
+        # ATLANMASINA yol açıyordu; atlanan kayıt sekme yeniden yüklenene kadar
+        # bir daha görünmüyordu.
+        current_count = sum(
+            1 for row in self._row_widgets if row.vault_index is not None
+        )
         next_batch = source[current_count : current_count + _FILTER_PAGE_SIZE]
         if not next_batch:
             return
@@ -1337,6 +1370,13 @@ class MainWindow(QMainWindow):
     def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802
         files = [u.toLocalFile() for u in event.mimeData().urls()]
         if files and files[0].endswith(".enc"):
+            # Kasa açmanın diğer tüm yolları önce onay ister; sürükle-bırak
+            # istemiyordu ve kaydedilmemiş değişiklikler izsiz siliniyordu
+            # (_load_vault_data ardından _clear_dirty çağırdığı için uyarı da
+            # çıkmıyordu).
+            if self._dirty and not self._confirm_discard():
+                event.ignore()
+                return
             self._unlock_path(Path(files[0]))
             event.acceptProposedAction()
             return
@@ -1400,6 +1440,9 @@ class MainWindow(QMainWindow):
         self._refresh_empty_state()
 
     def _retranslate_ui(self) -> None:
+        # Durum çubuğu bilgi ikonu: ipucu yalnızca kuruluşta atanıyordu ve dil
+        # değişince eski dilde donup kalıyordu.
+        self._status_info_icon.setToolTip(tr("status_info_tip"))
         self._btn_home.setToolTip(tr("btn_home_tip"))
         self._btn_save.setText(tr("btn_save"))
         self._btn_add_record.setText(tr("btn_add_record"))
@@ -1584,14 +1627,18 @@ class MainWindow(QMainWindow):
         Yeni kayıtta veya parola değişiminde 'şimdi' damgalanır; değişmediyse
         mevcut damga korunur.
         """
+        # Eşleştirme KARARLI KİMLİKLE (uid) yapılır. İsimle eşleştirildiğinde
+        # yalnızca kayıt adını düzeltmek bile eski kaydı 'bulunamadı' yapıyor
+        # ve parola hiç değişmemişken yaş damgası 'bugün'e sıfırlanıyordu —
+        # satırdaki tazelik göstergesi yalan söylüyordu.
         baseline: dict[str, str] = {}
         for prev in self._snapshot_entries:
-            baseline.setdefault(prev.name, prev.info1)
+            baseline.setdefault(prev.uid, prev.info1)
         now = utc_now_iso()
         for entry in entries:
             if not entry.info1:
                 continue
-            old = baseline.get(entry.name)
+            old = baseline.get(entry.uid)
             if old is None or old != entry.info1:
                 entry.pw_updated_at = now
 
@@ -1660,6 +1707,23 @@ class MainWindow(QMainWindow):
                 )
             )
         return logs
+
+    def _rollback_failed_save(self, audit_mark: int, path: Path | None) -> None:
+        """Başarısız kayıt sonrası modeli ve dosya korumasını eski hâline alır.
+
+        - Diske yazılamayan audit kayıtları modelden silinir (yoksa sonraki
+          denemede mükerrer satır kalıcı olur).
+        - clear_read_only ile açılan yazma izni geri kapatılır; eskiden yalnızca
+          BAŞARI yolunda kapatıldığı için başarısız bir kayıttan sonra kasa
+          kalıcı olarak yazılabilir/silinebilir kalıyordu.
+        """
+        if self._vault is not None and 0 <= audit_mark <= len(self._vault.audit_log):
+            del self._vault.audit_log[audit_mark:]
+        if path is not None:
+            try:
+                set_read_only(path)
+            except OSError:
+                pass
 
     def _any_tab_has_entries(self) -> bool:
         """Kasanın herhangi bir sekmesinde içerikli kayıt var mı?"""
@@ -1858,7 +1922,16 @@ class MainWindow(QMainWindow):
         self._apply_session_ui()
 
     def _next_tab_name(self) -> str:
-        existing = {tab.name for tab in self._vault.tabs} if self._vault else set()
+        # Benzersizlik HAM ada değil, EKRANDA GÖRÜNEN ada bakmalı. Sekme adları
+        # veri olarak saklanır ve yalnızca gösterim sırasında yerelleştirilir;
+        # "Sekme" olarak saklanmış bir sekme, İngilizce arayüzde "Sheet" arayan
+        # kontrole görünmüyor, yeni sekme de "Sheet" adını alıyor ve ikisi
+        # ekranda AYNI adla görünüyordu.
+        existing = (
+            {localize_default_tab_name(tab.name) for tab in self._vault.tabs}
+            if self._vault
+            else set()
+        )
         base = tr("tab_default_name")
         if base not in existing:
             return base
@@ -1929,6 +2002,14 @@ class MainWindow(QMainWindow):
         tab = self._find_tab(tab_id)
         if tab is None:
             return
+        # Ekranda yazılmış ama modele işlenmemiş satırlar da hesaba katılmalı.
+        # Kontrol yalnızca tab.entries'e bakınca, yeni/boş bir sekmede
+        # _refresh_empty_state'in kurduğu satıra yazılan kayıt modelde
+        # görünmüyor ve "boş" sanılan sekme, içindeki veriyle birlikte SESSİZCE
+        # siliniyordu. Diğer sekme işlemleri (_on_tab_selected, _on_add_tab)
+        # zaten bu eşitlemeyi yapıyor.
+        if tab_id == self._active_tab_id:
+            self._sync_vault_entries()
         # İçinde kayıt olan sekme doğrudan silinemez: kaza ile veri kaybını
         # önlemek için kullanıcı önce tüm kayıtları tek tek kaldırmalı.
         if any(e.has_content() for e in tab.entries):
@@ -2003,13 +2084,21 @@ class MainWindow(QMainWindow):
     def _manage_users(self) -> None:
         if not self._require_admin("restricted_manage_users"):
             return
-        enabled = [slot.enabled for slot in self._session.keys.user_slots]  # type: ignore[union-attr]
+        # Diyalog, BEKLEYEN (henüz kaydedilmemiş) durumdan kurulmalı. Eskiden
+        # her açılışta diske yazılı slotlardan kuruluyordu: yönetici kaydetmeden
+        # diyaloğu tekrar açtığında yeni eklediği kullanıcı hiç var olmamış gibi
+        # kayboluyor, bekleyen parola değişikliği de geri alınıyordu.
+        if self._pending_user_passwords is not None:
+            enabled = [flag for flag, _ in self._pending_user_passwords]
+        else:
+            enabled = [slot.enabled for slot in self._session.keys.user_slots]  # type: ignore[union-attr]
         dlg = UserAdminDialog(
             self._vault,
             enabled,
             self,
             admin_password=self._session.admin_password,
             keys=self._session.keys,
+            pending_passwords=self._pending_user_passwords,
         )
         if dlg.exec() != dlg.DialogCode.Accepted:
             return
@@ -2145,7 +2234,12 @@ class MainWindow(QMainWindow):
         if self._vault is None:
             return
         # Ekrandaki yarım kalan düzenlemeleri modele işle, sonra ekle.
-        self._merge_row_edits_into_vault()
+        # _merge_row_edits_into_vault YALNIZCA modelde karşılığı olan satırları
+        # yazar; henüz kaydedilmemiş YENİ satır (vault_index=None) atlanıyordu
+        # ve hemen ardından gelen _reload_active_tab arayüzü modelden yeniden
+        # kurduğu için kullanıcının o an yazdığı kayıt izsiz siliniyordu.
+        # _sync_vault_entries yeni satırları da modele alır.
+        self._sync_vault_entries()
         self._vault.active_tab().entries.extend(plan.entries)
         # Başlık etiketleri: kasada henüz özel etiket yoksa uygula
         # (mevcut etiketleri EZME — etiketler kasa geneli/tüm sekmeler içindir).
@@ -2323,6 +2417,12 @@ class MainWindow(QMainWindow):
             # _sync_vault_entries ekrandaki düzenlemeleri modele işler;
             # denetim farkı ondan SONRA, tüm sekmeler üzerinden alınır.
             self._sync_vault_entries()
+            # Audit kayıtları diske yazmadan ÖNCE modele giriyor (dosyaya da
+            # yazılmaları gerektiği için). Yazma başarısız olursa GERİ ALINMALI:
+            # aksi halde anlık görüntü de güncellenmediğinden bir sonraki deneme
+            # aynı farkı yeniden hesaplayıp ikinci kez ekliyor ve her başarısız
+            # deneme kalıcı bir mükerrer kayıt bırakıyordu.
+            audit_mark = len(self._vault.audit_log)
             self._vault.audit_log.extend(self._collect_audit_logs(slot_perms))
             try:
                 clear_read_only(self._current_path)  # type: ignore[arg-type]
@@ -2333,9 +2433,11 @@ class MainWindow(QMainWindow):
                 )
                 self._session.keys = new_keys
             except VaultCryptoError as exc:
+                self._rollback_failed_save(audit_mark, self._current_path)
                 show_error(self, tr("err_save_title"), crypto_message(str(exc)))
                 return
             except OSError as exc:
+                self._rollback_failed_save(audit_mark, self._current_path)
                 show_error(
                     self, tr("err_save_title"), tr("err_save_io", error=str(exc))
                 )
@@ -2397,19 +2499,29 @@ class MainWindow(QMainWindow):
                 data["admin_password"],
                 data["user_passwords"],
             )
-            self._protect_vault_file(path)
-            unlock = read_vault_file(path, data["admin_password"])
-            self._session = session_from_unlock(
-                unlock, data["admin_password"], unlock.vault
-            )
-            if isinstance(self._session, AdminSession):
-                self._session.user_passwords = data["user_passwords"]
         except VaultCryptoError as exc:
             show_error(self, tr("err_save_title"), crypto_message(str(exc)))
             return
         except OSError as exc:
             show_error(self, tr("err_save_title"), tr("err_save_io", error=str(exc)))
             return
+
+        # Buradan sonrası kasa DİSKE YAZILDIKTAN sonrası. Yedekleme/okuma
+        # hatası "Dosya yazılamadı" diye raporlanırsa kullanıcı kaydın
+        # olmadığını sanır, tekrar Kaydet'e basar ve aynı yolu FARKLI bir
+        # yönetici parolasıyla seçerse varlığından habersiz olduğu ilk dosyanın
+        # üzerine yazar. _protect_vault_file zaten kendi hatalarını yutar.
+        self._protect_vault_file(path)
+        try:
+            unlock = read_vault_file(path, data["admin_password"])
+        except (VaultCryptoError, OSError) as exc:
+            show_error(self, tr("err_save_title"), crypto_message(str(exc)))
+            return
+        self._session = session_from_unlock(
+            unlock, data["admin_password"], unlock.vault
+        )
+        if isinstance(self._session, AdminSession):
+            self._session.user_passwords = data["user_passwords"]
 
         self._current_path = path
         add_recent_file(path)
@@ -2433,6 +2545,7 @@ class MainWindow(QMainWindow):
         # Değişiklik geçmişi eskiden YALNIZCA alt kullanıcı kayıtlarında
         # yazılıyordu; tek yöneticiyle kullanılan kasalarda geçmiş sürekli boş
         # kalıyordu. Yöneticinin düzenlemeleri de, tüm sekmeler için kaydediliyor.
+        audit_mark = len(self._vault.audit_log)
         self._vault.audit_log.extend(self._collect_audit_logs(admin_permissions()))
 
         try:
@@ -2462,9 +2575,11 @@ class MainWindow(QMainWindow):
                 self._pending_user_passwords = None
                 self._pending_admin_password = None
         except VaultCryptoError as exc:
+            self._rollback_failed_save(audit_mark, path)
             show_error(self, tr("err_save_title"), crypto_message(str(exc)))
             return
         except OSError as exc:
+            self._rollback_failed_save(audit_mark, path)
             show_error(self, tr("err_save_title"), tr("err_save_io", error=str(exc)))
             return
 

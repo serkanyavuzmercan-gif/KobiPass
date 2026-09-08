@@ -8,6 +8,7 @@ davrandığını kanıtlamaktır.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -158,3 +159,143 @@ def test_edits_in_inactive_tab_are_audited(window):
     assert all(item.tab_id == "t1" for item in edits)
     # 'Kasa kaydedildi' satırı sekme sayısından bağımsız olarak tek olmalı.
     assert len([item for item in logs if item.action == "vault_save"]) == 1
+
+
+def test_go_home_releases_session_and_stops_idle_timer(window):
+    """Karşılama ekranına dönmek kasayı bellekten bırakmalı.
+
+    Regresyon: _go_home yalnızca görünümü değiştiriyordu. (1) 'Değişiklikleri
+    at' dendikten sonra Ctrl+S hâlâ etkin olduğu için ATILAN veri eski dosyaya
+    yazılabiliyordu; (2) oturum açık kaldığından boşta kalma sayaçı çalışmaya
+    devam ediyor ve karşılama ekranının üzerine parola örtüsü açılıyordu.
+    """
+    from kobipass.session import AdminSession
+
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name="k", info1="p")]
+    window._session = AdminSession(admin_password="pw")
+    window._current_path = Path("/tmp/yok.enc")
+    window._load_vault_data(vault)
+    window._mark_dirty()
+    window._dirty = False  # onay diyaloğu açılmasın
+
+    window._go_home()
+
+    assert window._session is None
+    assert window._vault is None
+    assert window._current_path is None
+    assert not window._idle_timer.isActive()
+    assert window._row_widgets == []
+
+
+def test_pagination_offset_ignores_unsaved_new_rows(window):
+    """Yeni satır eklemek sayfalamada bir kaydın atlanmasına yol açmamalı.
+
+    Regresyon: ofset len(_row_widgets) ile hesaplanıyordu; modelde karşılığı
+    olmayan (vault_index=None) her yeni satır kaynaktan bir kaydın atlanmasına
+    ve o kaydın sekme yeniden yüklenene kadar hiç görünmemesine yol açıyordu.
+    """
+    from kobipass.ui.main_window import _FILTER_PAGE_SIZE
+
+    total = _FILTER_PAGE_SIZE + 5
+    vault = KobiVault()
+    vault.entries = [VaultEntry(name=f"k{i:03d}", info1="p") for i in range(total)]
+    window._load_vault_data(vault)
+    assert len(window._row_widgets) == _FILTER_PAGE_SIZE
+
+    # Kullanıcı yeni bir (boş, modelde karşılığı olmayan) satır ekler.
+    window._add_row(None, vault_index=None, refresh_session=False)
+    window._load_next_batch()
+
+    shown = [
+        row.to_entry().name
+        for row in window._row_widgets
+        if row.vault_index is not None
+    ]
+    assert shown == [e.name for e in vault.entries[: len(shown)]]
+    assert len(shown) == total
+
+
+def test_password_age_survives_rename(window):
+    """Yalnızca kayıt adını düzeltmek parola yaşını sıfırlamamalı."""
+    vault = KobiVault()
+    vault.entries = [
+        VaultEntry(name="Eski Ad", info1="p", pw_updated_at="2020-01-01T00:00:00Z", uid="u1")
+    ]
+    window._load_vault_data(vault)
+
+    renamed = [
+        VaultEntry(name="Yeni Ad", info1="p", pw_updated_at="2020-01-01T00:00:00Z", uid="u1")
+    ]
+    window._stamp_password_ages(renamed)
+    assert renamed[0].pw_updated_at == "2020-01-01T00:00:00Z"
+
+    # Parola gerçekten değişince damga tazelenmeli.
+    changed = [
+        VaultEntry(name="Eski Ad", info1="q", pw_updated_at="2020-01-01T00:00:00Z", uid="u1")
+    ]
+    window._stamp_password_ages(changed)
+    assert changed[0].pw_updated_at != "2020-01-01T00:00:00Z"
+
+
+def test_failed_save_rolls_back_audit_records(window):
+    """Başarısız kayıt, modele eklenen audit satırlarını geri almalı."""
+    from kobipass.vault_model import AuditEntry
+
+    vault = KobiVault()
+    vault.audit_log = [
+        AuditEntry(
+            at="2026-01-01T00:00:00Z",
+            user_slot=0,
+            user_label="Y",
+            action="vault_save",
+            entry_name="",
+            field="",
+            summary="s",
+        )
+    ]
+    window._vault = vault
+    mark = len(vault.audit_log)
+    vault.audit_log.append(
+        AuditEntry(
+            at="2026-01-02T00:00:00Z",
+            user_slot=0,
+            user_label="Y",
+            action="field_edit",
+            entry_name="x",
+            field="name",
+            summary="s",
+        )
+    )
+    window._rollback_failed_save(mark, None)
+    assert len(vault.audit_log) == 1
+
+
+def test_tab_delete_sees_unsaved_row(window, monkeypatch):
+    """Ekranda yazılmış ama kaydedilmemiş kayıt olan sekme silinememeli.
+
+    Regresyon: 'içi boş olmalı' kontrolü yalnızca modeldeki tab.entries'e
+    bakıyordu. Yeni/boş bir sekmede _refresh_empty_state'in kurduğu satıra
+    yazılan kayıt modelde görünmediği için sekme, içindeki veriyle birlikte
+    SESSİZCE siliniyordu.
+    """
+    from kobipass.ui import main_window as mw
+
+    shown: list[tuple] = []
+    monkeypatch.setattr(mw, "show_info", lambda *a, **k: shown.append(a))
+
+    vault = KobiVault()
+    vault.tabs = [
+        VaultTab(id="t1", name="A", entries=[]),
+        VaultTab(id="t2", name="B", entries=[VaultEntry(name="dolu", info1="p")]),
+    ]
+    vault.active_index = 0
+    window._vault = vault
+    window._active_tab_id = "t1"
+    window._add_row(None, vault_index=None, refresh_session=False)
+    window._row_widgets[-1]._name.setText("yazılmış ama kaydedilmemiş")
+
+    window._on_delete_tab("t1")
+
+    assert [t.id for t in vault.tabs] == ["t1", "t2"], "dolu sekme silindi"
+    assert shown, "kullanıcı uyarılmadı"
