@@ -13,7 +13,7 @@ Hidroteknik Yazılım ekibi tarafından geliştirilen, PyQt6 tabanlı parola yö
 - **Gizli sekme:** yönetici-özel sekmeler ayrı bir anahtarla (AEK) şifrelenir — alt kullanıcılar bunları ne görür **ne de çözebilir**
 - Her `.enc` dosyasında **1 yönetici** + **en fazla 64 alt kullanıcı** parolası (boş slot destekli)
 - Yönetici: sınırsız yetki, kullanıcı/izin yönetimi, alan etiketleri, değişiklik geçmişi
-- Güvenlik gereği **dışa aktarma yoktur** — veriler yalnızca şifreli `.enc` dosyasında yaşar
+- **CSV içeri/dışarı aktarma** — dışa aktarma yalnızca yöneticide, onaylı ve değişiklik geçmişine yazılır; üretilen dosya **şifresizdir**
 - **CSV içe aktarma** (tek yön): Excel/CSV parolalarını aktif sekmeye taşır; `;`/`,` ayracı ve `utf-8`/`cp1254` otomatik saptanır, önizleme + onay
 - Kullanıcılar: **her slot için ayrı izin**; yalnızca izinli alanları görür/düzenler
 - Arama, sonsuz kaydırma, sürükle-bırak sıralama

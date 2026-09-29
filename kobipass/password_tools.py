@@ -153,13 +153,44 @@ def format_date(iso: str) -> str:
     return when.astimezone().strftime("%d.%m.%Y")
 
 
-def pw_freshness_color(iso: str) -> str:
-    """Parola yaşına göre tazelik rengi (görsel uyarı)."""
+# Parola yaşı skalası — TEK KAYNAK. Renk, kademe adı ve satırdaki ölçek
+# çubuğunun hepsi buradan türer; üç yerde ayrı ayrı eşik tanımlamak, birinin
+# değişip diğerlerinin kalmasına ve skalanın kendi kendisiyle çelişmesine yol
+# açardı. Sınırlar GÜN cinsinden üst sınırdır (dahil değil).
+PW_AGE_SCALE: tuple[tuple[int | None, str, str], ...] = (
+    (90, "#3ddc84", "pw_tier_fresh"),      # 0-3 ay    — taze
+    (180, "#a8d84a", "pw_tier_ok"),        # 3-6 ay    — iyi
+    (365, "#e0b64a", "pw_tier_aging"),     # 6-12 ay   — eskiyor
+    (None, "#e0685f", "pw_tier_old"),      # 1 yıl+    — eski
+)
+PW_AGE_LEVELS = len(PW_AGE_SCALE)
+PW_AGE_UNKNOWN_COLOR = "#8a94a8"
+
+
+def pw_age_level(iso: str) -> int | None:
+    """Parolanın skaladaki kademesi (1 = en taze). Tarih bilinmiyorsa None."""
     days = age_days(iso)
     if days is None:
-        return "#8a94a8"  # bilinmiyor — nötr gri
-    if days < 90:
-        return "#3ddc84"  # taze — yeşil
-    if days < 365:
-        return "#e0b64a"  # eskiyor — amber
-    return "#e0685f"  # eski — kırmızı
+        return None
+    for index, (limit, _color, _key) in enumerate(PW_AGE_SCALE, start=1):
+        if limit is None or days < limit:
+            return index
+    return PW_AGE_LEVELS
+
+
+def pw_freshness_color(iso: str) -> str:
+    """Parola yaşına göre tazelik rengi (görsel uyarı)."""
+    level = pw_age_level(iso)
+    if level is None:
+        return PW_AGE_UNKNOWN_COLOR
+    return PW_AGE_SCALE[level - 1][1]
+
+
+def pw_tier_label(iso: str) -> str:
+    """Kademenin okunur adı ('Taze', 'Eskiyor'...); bilinmiyorsa boş."""
+    from kobipass.i18n import tr
+
+    level = pw_age_level(iso)
+    if level is None:
+        return ""
+    return tr(PW_AGE_SCALE[level - 1][2])

@@ -40,6 +40,9 @@ def _audit_summary_display(entry: AuditEntry, vault: KobiVault) -> str:
         return tr("audit_entry_added")
     if entry.action == "entry_delete":
         return tr("audit_entry_deleted")
+    if entry.action == "vault_export":
+        # Kayıt sayısı özete gömülüdür; saklanan metni olduğu gibi göster.
+        return entry.summary
     if entry.action in ("field_add", "field_delete"):
         return tr(
             "audit_field_added" if entry.action == "field_add" else "audit_field_removed",

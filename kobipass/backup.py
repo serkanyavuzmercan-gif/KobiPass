@@ -206,6 +206,20 @@ def set_read_only(path: Path) -> None:
         pass  # koruma katmanı — başarısızlığı kaydı engellemesin
 
 
+def set_owner_only(path: Path) -> None:
+    """Dosyayı yalnızca sahibinin okuyup yazabileceği hale getirir (0600).
+
+    Kasa dosyası için kullanılan salt-okunur kilidin (0400) aksine, kullanıcının
+    açıp düzenleyebilmesi gereken üretilmiş dosyalar (ör. CSV dışa aktarma)
+    içindir. Amaç aynı: çok kullanıcılı bir makinede dosya başkasına açık
+    olmasın. Koruma katmanıdır; başarısızlığı işlemi geçersiz kılmaz.
+    """
+    try:
+        os.chmod(path, _VAULT_READ_WRITE)
+    except OSError:
+        pass
+
+
 def clear_read_only(path: Path) -> None:
     """Kayıttan hemen önce yazma iznini geri verir."""
     try:

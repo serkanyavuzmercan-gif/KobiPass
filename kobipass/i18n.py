@@ -73,6 +73,14 @@ _STRINGS: dict[str, dict[str, str]] = {
         "strength_medium": "Orta güçte parola",
         "strength_strong": "Güçlü parola",
         "pw_age_tip": "Parola: {age}",
+        "pw_tier_fresh": "Taze",
+        "pw_tier_ok": "İyi",
+        "pw_tier_aging": "Eskiyor",
+        "pw_tier_old": "Eski",
+        "pw_scale_tip": (
+            "Parola: {age}\nTazelik: {tier}\n\n"
+            "Skala:  Taze 0-3 ay · İyi 3-6 ay · Eskiyor 6-12 ay · Eski 1 yıl+"
+        ),
         "row_last_change": "Parola değişimi",
         "pw_age_unknown": "değişim tarihi bilinmiyor",
         "pw_age_today": "bugün değişti",
@@ -512,6 +520,57 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ok": "Tamam",
         "cancel": "İptal",
         "import_csv_btn": "İçeri Aktar",
+        "export_col_tab": "Sekme",
+        "btn_export": "Dışa Aktar",
+        "btn_export_tip": "Kayıtları CSV dosyasına aktarır (şifresiz — onay sorar)",
+        "export_title": "CSV'ye Dışa Aktar",
+        "export_warning": (
+            "⚠ Oluşacak dosya ŞİFRESİZDİR. İçindeki parolalar düz metin olarak "
+            "okunabilir. Dosyayı güvenli bir yerde tutun, işiniz bitince silin."
+        ),
+        "export_summary": "{records} kayıt · {tabs} sekme dışa aktarılacak.",
+        "export_include_hidden": "Gizli sekmeler de aktarılsın ({n} sekme)",
+        "export_include_hidden_note": (
+            "Gizli sekmeler normalde yalnızca yönetici parolasıyla çözülebilir. "
+            "İşaretlerseniz içerikleri de bu şifresiz dosyaya yazılır."
+        ),
+        "export_delimiter": "Biçim",
+        "export_delimiter_excel": "Excel uyumlu (noktalı virgül)",
+        "export_delimiter_standard": "Standart CSV (virgül) — diğer parola yöneticileri",
+        "export_do": "Dışa Aktar",
+        "export_nothing": "Dışa aktarılacak kayıt yok.",
+        "export_save_title": "CSV olarak kaydet",
+        "export_done_title": "Dışa aktarıldı",
+        "export_done": (
+            "{records} kayıt şuraya yazıldı:\n{path}\n\n"
+            "Bu dışa aktarma, tarih ve kullanıcı bilgisiyle değişiklik "
+            "geçmişine KAYDEDİLDİ.\n\n"
+            "Dosya ŞİFRESİZDİR — işiniz bitince silmeyi unutmayın."
+        ),
+        "export_failed": "Dosya yazılamadı: {error}",
+        "export_logged_notice": (
+            "Bu işlem tarih ve kullanıcı bilgisiyle değişiklik geçmişine "
+            "KAYDEDİLİR."
+        ),
+        "export_need_save": (
+            "Dışa aktarmadan önce değişikliklerinizi kaydedin.\n\n"
+            "Dışa aktarma kaydı kasaya hemen yazılır; kaydedilmemiş başka "
+            "değişiklikler varsa onlar da istemeden kaydedilirdi."
+        ),
+        "export_reauth_title": "Kimliğinizi doğrulayın",
+        "export_reauth_label": (
+            "Dışa aktarmak için yönetici parolanızı yeniden girin."
+        ),
+        "export_reauth_wrong": "Parola hatalı. Dışa aktarma yapılmadı.",
+        "export_log_failed": (
+            "Dışa aktarma kaydı kasaya yazılamadı. Kaydı olmayan bir dışa "
+            "aktarma dosyası bırakmamak için işlem İPTAL EDİLDİ ve dosya silindi."
+        ),
+        "audit_vault_exported": "Kasa CSV olarak dışa aktarıldı ({records} kayıt)",
+        "audit_vault_exported_hidden": (
+            "Kasa CSV olarak dışa aktarıldı ({records} kayıt, GİZLİ SEKMELER DAHİL)"
+        ),
+        "restricted_export": "Dışa aktarmayı yalnızca yönetici yapabilir.",
         "import_csv_title": "CSV'den İçeri Aktar",
         "import_csv_file_filter": "CSV / metin dosyaları (*.csv *.txt);;Tüm dosyalar (*)",
         "import_csv_summary": "{count} kayıt bulundu · ayraç '{delim}' · {encoding}",
@@ -634,6 +693,14 @@ _STRINGS: dict[str, dict[str, str]] = {
         "strength_medium": "Medium password",
         "strength_strong": "Strong password",
         "pw_age_tip": "Password: {age}",
+        "pw_tier_fresh": "Fresh",
+        "pw_tier_ok": "Good",
+        "pw_tier_aging": "Aging",
+        "pw_tier_old": "Old",
+        "pw_scale_tip": (
+            "Password: {age}\nFreshness: {tier}\n\n"
+            "Scale:  Fresh 0-3 mo · Good 3-6 mo · Aging 6-12 mo · Old 1 yr+"
+        ),
         "row_last_change": "Password changed",
         "pw_age_unknown": "change date unknown",
         "pw_age_today": "changed today",
@@ -908,8 +975,8 @@ _STRINGS: dict[str, dict[str, str]] = {
         "about_us_ver": "Version {version}",
         "about_us_what": (
             "An offline password vault that keeps your data on your own device "
-            "with strong encryption. No servers, no internet, no export — "
-            "everything stays on your computer."
+            "with strong encryption. No servers, no internet — everything stays on "
+            "your computer, and you can export your data whenever you want."
         ),
         "about_us_made_by": "Hidroteknik",
         "about_us_lead": "Project lead: Serkan Mercan",
@@ -1074,6 +1141,55 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ok": "OK",
         "cancel": "Cancel",
         "import_csv_btn": "Import",
+        "export_col_tab": "Tab",
+        "btn_export": "Export",
+        "btn_export_tip": "Export records to a CSV file (unencrypted — asks first)",
+        "export_title": "Export to CSV",
+        "export_warning": (
+            "⚠ The file will be UNENCRYPTED. The passwords inside can be read as "
+            "plain text. Keep it somewhere safe and delete it when you are done."
+        ),
+        "export_summary": "{records} records · {tabs} tabs will be exported.",
+        "export_include_hidden": "Include hidden tabs ({n} tabs)",
+        "export_include_hidden_note": (
+            "Hidden tabs can normally only be decrypted with the admin password. "
+            "If you tick this, their contents go into this unencrypted file too."
+        ),
+        "export_delimiter": "Format",
+        "export_delimiter_excel": "Excel friendly (semicolon)",
+        "export_delimiter_standard": "Standard CSV (comma) — other password managers",
+        "export_do": "Export",
+        "export_nothing": "There is nothing to export.",
+        "export_save_title": "Save as CSV",
+        "export_done_title": "Exported",
+        "export_done": (
+            "{records} records written to:\n{path}\n\n"
+            "This export was RECORDED in the change history with the date and "
+            "user.\n\n"
+            "The file is UNENCRYPTED — remember to delete it when you are done."
+        ),
+        "export_failed": "Could not write the file: {error}",
+        "export_logged_notice": (
+            "This action is RECORDED in the change history with the date and user."
+        ),
+        "export_need_save": (
+            "Please save your changes before exporting.\n\n"
+            "The export record is written to the vault immediately; any other "
+            "unsaved changes would be saved along with it without you asking."
+        ),
+        "export_reauth_title": "Confirm your identity",
+        "export_reauth_label": "Re-enter the admin password to export.",
+        "export_reauth_wrong": "Wrong password. Nothing was exported.",
+        "export_log_failed": (
+            "The export record could not be written to the vault. To avoid "
+            "leaving an unrecorded export file, the export was CANCELLED and "
+            "the file was deleted."
+        ),
+        "audit_vault_exported": "Vault exported to CSV ({records} records)",
+        "audit_vault_exported_hidden": (
+            "Vault exported to CSV ({records} records, HIDDEN TABS INCLUDED)"
+        ),
+        "restricted_export": "Only an administrator can export.",
         "import_csv_title": "Import from CSV",
         "import_csv_file_filter": "CSV / text files (*.csv *.txt);;All files (*)",
         "import_csv_summary": "{count} records found · delimiter '{delim}' · {encoding}",

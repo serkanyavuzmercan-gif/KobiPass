@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from PyQt6.QtCore import QEvent, QMimeData, QPoint, QTimer, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import (
+    QColor,
     QCursor,
     QDrag,
     QIcon,
@@ -206,6 +207,76 @@ def _password_strength_color(text: str) -> str:
 
     color = strength_color(text)
     return "transparent" if color == "transparent" else color
+
+
+class AgeMeterLabel(QLabel):
+    """Parola yaşı etiketi + altında kademeli tazelik ölçeği.
+
+    Ölçek, mevcut etiketin İÇİNE çizilir; satır başına yeni bir widget
+    eklenmez. 138 kayıtlık bir kasada satır başına bir widget bile
+    (sayfa başına 30) boşuna maliyettir ve widget bütçesi bilinçli olarak
+    3620'den 1240'a düşürülmüştü.
+
+    Renkli tarih tek başına yetmiyordu: 10px'lik bir metnin rengi, "bu parola
+    ne kadar bayat" sorusunu bir bakışta yanıtlamıyor. Dolu/boş bölmeli çubuk
+    hem kademeyi hem de ölçeğin kaç kademeli olduğunu gösterir.
+    """
+
+    SEGMENT_WIDTH = 9
+    SEGMENT_HEIGHT = 4
+    SEGMENT_GAP = 3
+    TEXT_GAP = 3
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._level: int | None = None
+        self._color = ""
+
+    def set_level(self, level: int | None, color: str) -> None:
+        if (level, color) == (self._level, self._color):
+            return
+        self._level = level
+        self._color = color
+        self.updateGeometry()
+        self.update()
+
+    def _meter_height(self) -> int:
+        return self.SEGMENT_HEIGHT + self.TEXT_GAP if self._level else 0
+
+    def sizeHint(self) -> QSize:
+        hint = super().sizeHint()
+        return QSize(hint.width(), hint.height() + self._meter_height())
+
+    def minimumSizeHint(self) -> QSize:
+        hint = super().minimumSizeHint()
+        return QSize(hint.width(), hint.height() + self._meter_height())
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        super().paintEvent(event)
+        if not self._level:
+            return
+        from kobipass.password_tools import PW_AGE_LEVELS
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(Qt.PenStyle.NoPen)
+        # Metin kutusunun altına, metinle aynı hizaya.
+        left = self.contentsRect().left()
+        top = self.contentsRect().bottom() - self.SEGMENT_HEIGHT + 1
+        filled = QColor(self._color)
+        empty = QColor(self._color)
+        empty.setAlpha(48)
+        for index in range(PW_AGE_LEVELS):
+            painter.setBrush(filled if index < self._level else empty)
+            painter.drawRoundedRect(
+                left + index * (self.SEGMENT_WIDTH + self.SEGMENT_GAP),
+                top,
+                self.SEGMENT_WIDTH,
+                self.SEGMENT_HEIGHT,
+                2,
+                2,
+            )
+        painter.end()
 
 
 class EntryFieldsScroll(QScrollArea):
@@ -907,7 +978,7 @@ class EntryRowWidget(QWidget):
         # alanın İÇİNDE, en sağdaki hücrenin ('+' düğmesinin) hemen yanında
         # durur; yeni hücre eklendikçe onunla birlikte sağa kayar. Renk yaşa
         # göre değişir; boşsa gizli.
-        self._age_label = QLabel()
+        self._age_label = AgeMeterLabel()
         self._age_label.setObjectName("rowAgeLabel")
         self._age_label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self._age_label.setVisible(False)
@@ -1548,7 +1619,9 @@ class EntryRowWidget(QWidget):
             age_days,
             format_date,
             humanize_age,
+            pw_age_level,
             pw_freshness_color,
+            pw_tier_label,
         )
 
         has_pw = bool(self._info1.text().strip())
@@ -1560,13 +1633,22 @@ class EntryRowWidget(QWidget):
         color = pw_freshness_color(self._pw_updated_at)
         caption = tr("row_last_change")
         date = format_date(self._pw_updated_at)
+        tier = pw_tier_label(self._pw_updated_at)
         self._age_label.setTextFormat(Qt.TextFormat.RichText)
+        # Kademe ADI da yazılır: renk tek başına ne anlama geldiğini söylemiyor
+        # (renk körlüğü bir yana, "sarı ne demekti" sorusu kalıyordu).
         self._age_label.setText(
             f'<span style="color:#8a94a8;font-weight:500">{caption}</span>'
             f'<br><span style="color:{color};font-weight:700">{date}</span>'
+            f'<span style="color:#8a94a8;font-weight:500"> · {tier}</span>'
         )
+        self._age_label.set_level(pw_age_level(self._pw_updated_at), color)
         self._age_label.setToolTip(
-            tr("pw_age_tip", age=humanize_age(self._pw_updated_at))
+            tr(
+                "pw_scale_tip",
+                age=humanize_age(self._pw_updated_at),
+                tier=tier,
+            )
         )
         self._age_label.setVisible(True)
 

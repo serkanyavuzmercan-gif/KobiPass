@@ -351,9 +351,18 @@ class SetupVaultDialog(QDialog):
 class OpenPasswordDialog(QDialog):
     """Mevcut .enc dosyasını açmak için parola girişi."""
 
-    def __init__(self, file_name: str, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        file_name: str,
+        parent: QWidget | None = None,
+        *,
+        title: str | None = None,
+        message: str | None = None,
+    ) -> None:
         super().__init__(parent)
-        self.setWindowTitle(tr("open_pwd_title"))
+        # title/message: aynı diyalog hassas işlemlerden önce KİMLİK DOĞRULAMA
+        # için de kullanılır (ör. dışa aktarma); o zaman "dosyayı aç" demez.
+        self.setWindowTitle(title or tr("open_pwd_title"))
         self.setWindowIcon(app_icon())
         self.setModal(True)
         self.setMinimumWidth(400)
@@ -362,7 +371,7 @@ class OpenPasswordDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
-        label = QLabel(tr("open_pwd_label", file=file_name))
+        label = QLabel(message or tr("open_pwd_label", file=file_name))
         label.setWordWrap(True)
         layout.addWidget(label)
 

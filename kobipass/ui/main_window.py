@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
+from PyQt6 import sip
 from PyQt6.QtCore import QEvent, QThread, QTimer, QUrl, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QColor,
@@ -96,6 +97,7 @@ from kobipass.backup import (
     create_backup,
     find_backups,
     restore_backup,
+    set_owner_only,
     set_read_only,
 )
 from kobipass.ui.icons import (
@@ -445,6 +447,13 @@ class MainWindow(QMainWindow):
         self._btn_import.clicked.connect(self._on_import_csv)
         toolbar.addWidget(self._btn_import, 0, Qt.AlignmentFlag.AlignVCenter)
 
+        # Dışa aktarma: yalnızca yönetici, onaylı ve denetime yazılır.
+        self._btn_export = QPushButton()
+        self._btn_export.setIcon(icon_save(_tb_icon, size=16))
+        self._btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_export.clicked.connect(self._on_export_csv)
+        toolbar.addWidget(self._btn_export, 0, Qt.AlignmentFlag.AlignVCenter)
+
 
         self._search_bar = QLineEdit()
         self._search_bar.setObjectName("toolbarSearch")
@@ -638,9 +647,26 @@ class MainWindow(QMainWindow):
 
         self._show_landing_page()
         # Açılışta silinmiş kasa tespiti — pencere göründükten sonra sor.
-        QTimer.singleShot(0, self._check_missing_vaults)
+        self._defer(0, self._check_missing_vaults)
         # İlk açılışta bir kez: masaüstü kısayolu teklifi (yalnızca Windows).
-        QTimer.singleShot(600, self._maybe_prompt_desktop_shortcut)
+        self._defer(600, self._maybe_prompt_desktop_shortcut)
+
+    def _defer(self, msec: int, slot) -> None:
+        """``slot``'u ``msec`` sonra, YALNIZCA pencere hâlâ yaşıyorsa çağırır.
+
+        Statik ``QTimer.singleShot(ms, self.metot)`` bir Python bağlı metodu
+        çağırır ve pencere arada yok edilse bile tetiklenir. O zaman metot
+        silinmiş pencereye diyalog açmaya çalışıyor (ör. ask_yes_no(self, ...)),
+        Qt slotunda yakalanmamış RuntimeError PyQt'yi abort ettiriyordu —
+        pencere, zamanlayıcı dolmadan kapatılırsa süreç çöküyordu.
+        Zamanlayıcıyı pencerenin ÇOCUĞU yapınca Qt, pencereyle birlikte onu da
+        yok eder ve çağrı hiç gerçekleşmez.
+        """
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.timeout.connect(slot)
+        timer.timeout.connect(timer.deleteLater)
+        timer.start(msec)
 
     def _setup_shortcuts(self) -> None:
         """Klavye kısayolları: kaydet, ara, kayıt ekle, kilitle."""
@@ -1201,6 +1227,7 @@ class MainWindow(QMainWindow):
             self._btn_users,
             self._btn_audit,
             self._btn_import,
+            self._btn_export,
         ):
             btn.setVisible(True)
             btn.setProperty("restricted", is_sub_user)
@@ -1484,6 +1511,8 @@ class MainWindow(QMainWindow):
         self._btn_users.setText(tr("btn_users"))
         self._btn_audit.setText(tr("btn_audit"))
         self._btn_import.setText(tr("import_csv_btn"))
+        self._btn_export.setText(tr("btn_export"))
+        self._btn_export.setToolTip(tr("btn_export_tip"))
         self._search_bar.setPlaceholderText(tr("search_placeholder"))
         self._refresh_tab_bar()
         self._records_panel_title.setText(tr("records_panel_title"))
@@ -2266,11 +2295,118 @@ class MainWindow(QMainWindow):
         dlg = AuditLogDialog(self._vault, self)
         dlg.exec()
 
+    def _on_export_csv(self) -> None:
+        """Kayıtları şifresiz CSV'ye aktarır — yönetici, onay, kimlik, log.
+
+        Dışa aktarma bir dönem bilinçli olarak kapalıydı. Yasak korumadığı bir
+        şeyi engelliyordu: yönetici zaten her parolayı ekranda görüp
+        kopyalayabiliyor. Üstelik kapatmak savunmayı ZAYIFLATIYORDU: ekran
+        görüntüsü loglanamaz, dışa aktarma loglanır. Kaçak yolu izlenebilir bir
+        yola çevirmek daha iyi bir savunmadır.
+
+        DEĞİŞMEZ: bir dışa aktarma DOSYASI yalnızca kaydı kasaya (diske)
+        yazıldıysa var olabilir. Kayıt yazılamazsa dosya silinir ve işlem iptal
+        edilir — kaydı olmayan bir dışa aktarma asla geride kalmaz.
+        """
+        if not self._require_admin("restricted_export"):
+            return
+        if self._vault is None or self._session is None:
+            show_info(self, tr("info_title"), tr("admin_needed_new"))
+            return
+        # Kayıt, dışa aktarmanın hemen ardından diske yazılır. Kaydedilmemiş
+        # başka değişiklikler varsa onlar da istemeden kaydedilirdi; bu yüzden
+        # dışa aktarma yalnızca KAYDEDİLMİŞ bir kasadan yapılır.
+        if self._dirty or self._current_path is None:
+            show_info(self, tr("export_title"), tr("export_need_save"))
+            return
+
+        from kobipass.csv_export import to_csv_bytes
+        from kobipass.ui.dialogs import OpenPasswordDialog
+        from kobipass.ui.export_dialog import ExportCsvDialog
+
+        dialog = ExportCsvDialog(self._vault, self)
+        if dialog.plan().record_count == 0:
+            show_info(self, tr("export_title"), tr("export_nothing"))
+            return
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        plan = dialog.plan()
+        include_hidden = dialog.include_hidden()
+
+        # Kimliği YENİDEN doğrula: açık bırakılmış bir oturumda başkası tüm
+        # kasayı tek tıkla düz metne dökemesin.
+        auth = OpenPasswordDialog(
+            "",
+            self,
+            title=tr("export_reauth_title"),
+            message=tr("export_reauth_label"),
+        )
+        if auth.exec() != QDialog.DialogCode.Accepted:
+            return
+        keys = getattr(self._session, "keys", None)
+        if keys is None or not self._lock_password_matches_session(
+            keys, auth.password() or ""
+        ):
+            show_error(self, tr("export_title"), tr("export_reauth_wrong"))
+            return
+
+        default_name = f"{self._current_path.stem}.csv"
+        path_str, _ = QFileDialog.getSaveFileName(
+            self,
+            tr("export_save_title"),
+            str(self._current_path.parent / default_name),
+            f"{tr('import_csv_file_filter')};;{tr('filter_all')}",
+        )
+        if not path_str:
+            return
+
+        path = Path(path_str)
+        try:
+            path.write_bytes(to_csv_bytes(plan, delimiter=dialog.delimiter()))
+            # Kasa dosyasıyla aynı katılık: yalnızca sahibi okuyabilsin.
+            set_owner_only(path)
+        except OSError as exc:
+            show_error(self, tr("export_title"), tr("export_failed", error=str(exc)))
+            return
+
+        # Dışa aktarma bir GÜVENLİK OLAYIDIR. Dosya yolu kasaya yazılmaz —
+        # geçmişin kendisi bir "şifresiz dosyalar nerede" haritasına dönüşmesin.
+        entry = AuditEntry(
+            at=utc_now_iso(),
+            user_slot=self._session.user_slot or 0,
+            user_label=self._session.user_label,
+            action="vault_export",
+            entry_name="",
+            field="",
+            summary=tr(
+                "audit_vault_exported_hidden" if include_hidden else "audit_vault_exported",
+                records=plan.record_count,
+            ),
+        )
+        self._vault.audit_log.append(entry)
+        # Kayıt HEMEN diske. Kullanıcı kaydetmeden kapatırsa bellekteki kayıt
+        # kaybolur ve dışa aktarma izsiz kalırdı.
+        if not self._save_admin_vault(self._collect_entries(), quiet=True):
+            if entry in self._vault.audit_log:
+                self._vault.audit_log.remove(entry)
+            try:
+                path.unlink()
+            except OSError:
+                pass
+            show_error(self, tr("export_title"), tr("export_log_failed"))
+            return
+
+        show_info(
+            self,
+            tr("export_done_title"),
+            tr("export_done", records=plan.record_count, path=str(path)),
+        )
+
     def _on_import_csv(self) -> None:
         """CSV'den (Excel vb.) kayıtları aktif sekmeye içe aktarır (yönetici).
 
-        Yalnızca İÇERİ yön: 'export yok' güvenlik ilkesi korunur. Seçilen dosya
-        yalnızca yerelde okunur; parola değerleri değişiklik geçmişine yazılmaz.
+        Seçilen dosya yalnızca yerelde okunur; parola değerleri değişiklik
+        geçmişine yazılmaz.
         """
         if not self._require_admin():
             return
@@ -2443,6 +2579,14 @@ class MainWindow(QMainWindow):
     def _check_missing_vaults(self) -> None:
         """Son kullanılan kasa silinmişse ve yedeği varsa geri yüklemeyi öner."""
         for path_str in get_recent_files():
+            # Her soru MODALDIR ve kendi olay döngüsünü çalıştırır. Kullanıcı
+            # soru açıkken programı kapatırsa bekleyen pencere silme olayı o
+            # döngüde işlenir ve pencere ölür. Eskiden döngü bir sonraki
+            # silinmiş kasaya geçip ÖLÜ pencereye diyalog açmaya çalışıyordu;
+            # Qt slotundaki RuntimeError PyQt'yi abort ettiriyor, program
+            # kapanırken çöküyordu (iki silinmiş kasa yeterliydi).
+            if sip.isdeleted(self):
+                return
             path = Path(path_str)
             if path.exists():
                 continue
@@ -2625,14 +2769,20 @@ class MainWindow(QMainWindow):
         self._show_vault_view()
         show_info(self, tr("saved_title"), tr("saved_text", path=path_str))
 
-    def _save_admin_vault(self, entries: list[VaultEntry]) -> None:
+    def _save_admin_vault(self, entries: list[VaultEntry], *, quiet: bool = False) -> bool:
+        """Yönetici kaydı. Diske yazıldıysa True döner.
+
+        ``quiet``: başarı penceresini göstermez (hata pencereleri her zaman
+        gösterilir). Başka bir işlemin parçası olarak yapılan kayıtlar içindir —
+        ör. dışa aktarma kaydının kasaya hemen yazılması.
+        """
         if not isinstance(self._session, AdminSession) or self._vault is None:
-            return
+            return False
 
         path = self._current_path
         if path is None:
             self._save_new_vault(entries)
-            return
+            return self._current_path is not None
 
         self._sync_vault_entries()
         self._vault.entries = entries
@@ -2672,11 +2822,11 @@ class MainWindow(QMainWindow):
         except VaultCryptoError as exc:
             self._rollback_failed_save(audit_mark, path)
             show_error(self, tr("err_save_title"), crypto_message(str(exc)))
-            return
+            return False
         except OSError as exc:
             self._rollback_failed_save(audit_mark, path)
             show_error(self, tr("err_save_title"), tr("err_save_io", error=str(exc)))
-            return
+            return False
 
         self._protect_vault_file(path)
         add_recent_file(path)
@@ -2684,7 +2834,9 @@ class MainWindow(QMainWindow):
         self._last_saved_at = datetime.now()
         self._clear_dirty()
         self._resync_rows_after_save()
-        show_info(self, tr("saved_title"), tr("saved_text", path=str(path)))
+        if not quiet:
+            show_info(self, tr("saved_title"), tr("saved_text", path=str(path)))
+        return True
 
     def _open_vault(self) -> None:
         if self._dirty and not self._confirm_discard():

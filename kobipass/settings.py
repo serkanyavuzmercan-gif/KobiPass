@@ -4,6 +4,7 @@ Uygulama ayarları — son dosyalar, güvenlik zaman aşımları.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from PyQt6.QtCore import QSettings
@@ -18,6 +19,14 @@ DEFAULT_IDLE_LOCK_MS = 5 * 60_000
 
 
 def _settings() -> QSettings:
+    # KOBIPASS_SETTINGS_FILE: ayarları ayrı bir INI dosyasına yönlendirir.
+    # Testler bunu kullanır; aksi hâlde test çalıştırmak GERÇEK kullanıcının
+    # "son dosyalar" listesine geçici kasa yolları yazıyor, sonra o yollar
+    # silinince açılıştaki "silinmiş kasa" kontrolü sahte uyarılar üretiyordu.
+    # (Yedek klasörü için aynı amaçla KOBIPASS_BACKUP_DIR vardır.)
+    override = os.environ.get("KOBIPASS_SETTINGS_FILE")
+    if override:
+        return QSettings(override, QSettings.Format.IniFormat)
     return QSettings(ORG, APP)
 
 

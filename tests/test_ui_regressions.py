@@ -1103,3 +1103,209 @@ def test_row_tooltip_does_not_claim_it_is_draggable(app):
         host.close()
         host.deleteLater()
         app.processEvents()
+
+
+# ── CSV dışa aktarma ────────────────────────────────────────────────────────
+def _export_env(window, monkeypatch, tmp_path, *, password_typed="admin-pw",
+                dirty=False):
+    """Gerçek bir kasa açar ve dışa aktarma akışının modal pencerelerini sahteler."""
+    from PyQt6.QtWidgets import QDialog
+
+    from kobipass.crypto import read_vault_file, write_vault_file
+    from kobipass.session import session_from_unlock
+    from kobipass.ui import dialogs as dlg_mod
+    from kobipass.ui import main_window as mw
+    from kobipass.ui.export_dialog import ExportCsvDialog
+
+    vault_path = tmp_path / "kasa.enc"
+    out_path = tmp_path / "cikti.csv"
+    vault = KobiVault()
+    vault.tabs = [
+        VaultTab(id="t1", name="Genel", entries=[
+            VaultEntry(name="Gmail", info1="s3cret", more_infos=["ali@x.com"]),
+            VaultEntry(name="Banka", info1="p4ss")]),
+        VaultTab(id="h1", name="Gizli",
+                 entries=[VaultEntry(name="SIR", info1="COK-GIZLI")], hidden=True),
+    ]
+    write_vault_file(vault_path, vault, "admin-pw",
+                     [(True, "user-pw"), (False, ""), (False, "")])
+
+    unlock = read_vault_file(vault_path, "admin-pw")
+    window._session = session_from_unlock(unlock, "admin-pw", unlock.vault)
+    window._session.keys = unlock.keys
+    window._current_path = vault_path
+    window._load_vault_data(unlock.vault)
+    window._clear_dirty()
+    if dirty:
+        window._mark_dirty()
+
+    events: list = []
+    monkeypatch.setattr(mw, "show_info", lambda *a, **k: events.append(("info", a[2])))
+    monkeypatch.setattr(mw, "show_error", lambda *a, **k: events.append(("error", a[2])))
+    monkeypatch.setattr(
+        mw.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(out_path), ""))
+    )
+    monkeypatch.setattr(ExportCsvDialog, "exec", lambda self: QDialog.DialogCode.Accepted)
+    monkeypatch.setattr(
+        dlg_mod.OpenPasswordDialog, "exec", lambda self: QDialog.DialogCode.Accepted
+    )
+    monkeypatch.setattr(dlg_mod.OpenPasswordDialog, "password", lambda self: password_typed)
+    return vault_path, out_path, events
+
+
+def test_export_is_logged_to_disk_immediately(window, monkeypatch, tmp_path):
+    """Dışa aktarma kaydı KASA DOSYASINA hemen yazılmalı.
+
+    Kullanıcının isteği: "cidden loglayalım, şu tarihte export alındı diye
+    yazsın". Kayıt yalnızca bellekte kalırsa kullanıcı kaydetmeden kapatınca
+    kaybolur ve dışa aktarma izsiz kalırdı.
+    """
+    from kobipass.crypto import read_vault_file
+
+    vault_path, out_path, events = _export_env(window, monkeypatch, tmp_path)
+    window._on_export_csv()
+
+    assert out_path.exists(), f"dosya yazılmadı: {events}"
+    # DISKTEN yeniden oku — bellekteki kayıt yetmez.
+    on_disk = read_vault_file(vault_path, "admin-pw").vault
+    exports = [a for a in on_disk.audit_log if a.action == "vault_export"]
+    assert len(exports) == 1, "dışa aktarma kaydı diske yazılmadı"
+    assert exports[0].at, "kayıtta tarih yok"
+    assert "2" in exports[0].summary, "kayıt sayısı özette yok"
+    assert window._dirty is False, "kasa kirli kaldı; kayıt kalıcı değil"
+    # Kullanıcıya loglandığı söylendi.
+    done = [text for kind, text in events if kind == "info"]
+    assert done and "KAYDEDİLDİ" in done[-1]
+
+
+def test_export_requires_correct_password(window, monkeypatch, tmp_path):
+    """Parola yanlışsa HİÇBİR ŞEY yazılmamalı — ne dosya ne kayıt."""
+    from kobipass.crypto import read_vault_file
+
+    vault_path, out_path, events = _export_env(
+        window, monkeypatch, tmp_path, password_typed="yanlis-parola"
+    )
+    window._on_export_csv()
+
+    assert not out_path.exists(), "yanlış parolayla dosya yazıldı"
+    on_disk = read_vault_file(vault_path, "admin-pw").vault
+    assert not [a for a in on_disk.audit_log if a.action == "vault_export"]
+    assert any(kind == "error" for kind, _ in events)
+
+
+def test_export_refuses_when_vault_has_unsaved_changes(window, monkeypatch, tmp_path):
+    """Kaydedilmemiş değişiklik varken dışa aktarma yapılmamalı.
+
+    Kayıt diske hemen yazıldığı için, bekleyen başka düzenlemeler de
+    istemeden kaydedilirdi.
+    """
+    _vault_path, out_path, events = _export_env(window, monkeypatch, tmp_path, dirty=True)
+    window._on_export_csv()
+    assert not out_path.exists()
+    assert events and events[0][0] == "info"
+
+
+def test_export_file_is_removed_if_the_log_cannot_be_written(window, monkeypatch, tmp_path):
+    """DEĞİŞMEZ: kaydı diske yazılamayan bir dışa aktarma dosyası kalmamalı."""
+    vault_path, out_path, events = _export_env(window, monkeypatch, tmp_path)
+    monkeypatch.setattr(window, "_save_admin_vault", lambda *a, **k: False)
+
+    window._on_export_csv()
+
+    assert not out_path.exists(), "kaydı olmayan dışa aktarma dosyası geride kaldı"
+    assert not [a for a in window._vault.audit_log if a.action == "vault_export"]
+    assert any(kind == "error" for kind, _ in events)
+
+
+def test_export_log_marks_hidden_tab_inclusion(window, monkeypatch, tmp_path):
+    """Gizli sekmeler dahil edildiyse bu, kayıtta AÇIKÇA belirtilmeli."""
+    from kobipass.crypto import read_vault_file
+    from kobipass.ui.export_dialog import ExportCsvDialog
+
+    vault_path, out_path, _events = _export_env(window, monkeypatch, tmp_path)
+    monkeypatch.setattr(ExportCsvDialog, "include_hidden", lambda self: True)
+    window._on_export_csv()
+
+    assert "COK-GIZLI" in out_path.read_text(encoding="utf-8")
+    on_disk = read_vault_file(vault_path, "admin-pw").vault
+    summary = [a for a in on_disk.audit_log if a.action == "vault_export"][0].summary
+    assert "GİZLİ" in summary
+
+
+def test_sub_user_cannot_export(window, monkeypatch, tmp_path):
+    """Alt kullanıcı dışa aktaramamalı — kaynak taraması değil, DAVRANIŞ."""
+    from kobipass.crypto import read_vault_file
+
+    vault_path, out_path, _events = _export_env(window, monkeypatch, tmp_path)
+    # Aynı kasayı ALT KULLANICI olarak aç.
+    from kobipass.session import session_from_unlock
+
+    unlock = read_vault_file(vault_path, "user-pw")
+    window._session = session_from_unlock(unlock, "user-pw", unlock.vault)
+    window._load_vault_data(unlock.vault)
+    window._clear_dirty()
+
+    shown: list[str] = []
+    monkeypatch.setattr(window, "_show_restriction", lambda key: shown.append(key))
+
+    window._on_export_csv()
+
+    assert not out_path.exists(), "alt kullanıcı dışa aktarabildi"
+    assert shown == ["restricted_export"]
+    on_disk = read_vault_file(vault_path, "admin-pw").vault
+    assert not [a for a in on_disk.audit_log if a.action == "vault_export"]
+
+
+def test_missing_vault_prompts_stop_when_window_dies(app, monkeypatch, tmp_path):
+    """Silinmiş-kasa soruları, pencere kapanınca DURMALI — ölü pencereye soru yok.
+
+    Regresyon: kontrol, son dosyalardaki her silinmiş kasa için sırayla MODAL
+    soru soruyordu. Soru açıkken program kapatılırsa modalin olay döngüsü
+    bekleyen pencere silme olayını işliyor, pencere ölüyordu; döngü sonra
+    bir sonraki kasaya geçip ölü pencereye diyalog açmaya çalışıyor, Qt
+    slotundaki RuntimeError PyQt'yi abort ettiriyordu. İki silinmiş kasa
+    yetiyordu — test paketinin ara sıra çökmesinin gerçek nedeni buydu.
+    """
+    from PyQt6 import sip
+
+    from kobipass.backup import create_backup
+    from kobipass.crypto import write_vault_file
+    from kobipass.settings import add_recent_file
+    from kobipass.ui import main_window as mw
+
+    # Son dosyalarda İKİ silinmiş kasa (ikisinin de yedeği var).
+    for name in ("bir.enc", "iki.enc"):
+        path = tmp_path / name
+        write_vault_file(path, KobiVault(), "pw", [(True, "u"), (False, ""), (False, "")])
+        create_backup(path)
+        add_recent_file(path)
+        path.unlink()
+
+    win = mw.MainWindow()
+    asked: list[str] = []
+
+    def modal_while_app_quits(parent, *args, **kwargs):
+        # Gerçek ask_yes_no'nun ölü ebeveynde yaptığı şey: QMessageBox(parent)
+        # kurulurken RuntimeError. Aynısını taklit ediyoruz.
+        if sip.isdeleted(parent):
+            raise RuntimeError("wrapped C/C++ object of type MainWindow has been deleted")
+        asked.append("soruldu")
+        sip.delete(parent)          # soru açıkken program kapatıldı
+        return False
+
+    monkeypatch.setattr(mw, "ask_yes_no", modal_while_app_quits)
+    win._check_missing_vaults()     # istisna fırlatmamalı
+
+    assert asked == ["soruldu"], "ölü pencereye ikinci soru açılmaya çalışıldı"
+
+
+def test_tests_do_not_touch_real_user_settings():
+    """Test oturumu gerçek kullanıcı ayarlarına ve yedek klasörüne dokunmamalı."""
+    import os
+
+    from kobipass import settings
+    from kobipass.backup import backup_dir
+
+    assert os.environ.get("KOBIPASS_SETTINGS_FILE"), "conftest yalıtımı devrede değil"
+    assert "kobipass-tests-" in settings._settings().fileName()
+    assert "kobipass-tests-" in str(backup_dir())

@@ -547,11 +547,42 @@ def test_desktop_shortcut_noop_off_windows() -> None:
         assert create_desktop_shortcut() is False
 
 
-def test_no_export_module() -> None:
-    """Güvenlik: dışa aktarma özelliği kaldırıldı — geri gelmediğini doğrula."""
-    import importlib.util
+def test_export_is_admin_only_and_audited() -> None:
+    """Dışa aktarma KAPALI değil, KORUMALI olmalı.
 
-    assert importlib.util.find_spec("kobipass.export") is None
+    Bu test eskiden 'kobipass.export modülü var mı' diye bakıp yokluğunu
+    doğruluyordu ("güvenlik gereği dışa aktarma yoktur"). O yasak geri alındı:
+    korumadığı bir şeyi engelliyordu — yönetici zaten her parolayı ekranda
+    görüp kopyalayabiliyor — buna karşılık kasadan çıkış yolunun olmaması
+    gerçek bir risk. Yerine, özelliğin KORUMALARI doğrulanıyor.
+    """
+    import ast
+
+    # Kaynak METİN olarak okunur, modül İÇE AKTARILMAZ. Bu dosyadaki testler Qt
+    # uygulaması kurulmadan koşar; main_window'u burada içe aktarmak, süreçteki
+    # ilk pencere kapanırken Qt'nin ara sıra abort etmesine yol açıyordu
+    # (ölçüldü: 16 turda 4 çökme -> içe aktarma kaldırılınca 16/16 temiz).
+    path = Path(__file__).resolve().parent.parent / "kobipass" / "ui" / "main_window.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    method = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "_on_export_csv"
+    )
+    source = ast.get_source_segment(path.read_text(encoding="utf-8"), method) or ""
+    # 1) Yalnızca yönetici.
+    assert "_require_admin" in source
+    assert "restricted_export" in source
+    # 2) Onay diyaloğundan geçmeden dosya yazılmaz.
+    assert "ExportCsvDialog" in source
+    assert "DialogCode.Accepted" in source
+    # 3) İşlem denetim kaydına düşer.
+    assert "vault_export" in source
+    # 4) Üretilen dosya başkasına açık bırakılmaz.
+    assert "set_owner_only" in source
+    # 5) Parola YENİDEN sorulur.
+    assert "OpenPasswordDialog" in source
+    assert "_lock_password_matches_session" in source
 
 
 def test_csv_import_semicolon_and_header_labels() -> None:
@@ -1390,3 +1421,127 @@ def test_rename_has_its_own_summary() -> None:
     assert name_edit.summary == tr("audit_name_changed")
     assert name_edit.old_value == "HEPSİBURADA SATICI PANELİ"
     assert name_edit.new_value == "MOBİLİZ"
+
+
+def test_password_age_scale_tiers() -> None:
+    """Yaş skalası dört kademeli olmalı ve sınırlarda doğru atlamalı."""
+    from datetime import datetime, timedelta, timezone
+
+    from kobipass.password_tools import (
+        PW_AGE_LEVELS,
+        PW_AGE_UNKNOWN_COLOR,
+        pw_age_level,
+        pw_freshness_color,
+    )
+
+    def iso(days: int) -> str:
+        when = datetime.now(timezone.utc) - timedelta(days=days)
+        return when.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    assert PW_AGE_LEVELS == 4
+    assert [pw_age_level(iso(d)) for d in (0, 89, 90, 179, 180, 364, 365, 5000)] == [
+        1, 1, 2, 2, 3, 3, 4, 4
+    ]
+    # Renk ve kademe TEK KAYNAKTAN gelir; ikisi çelişmemeli.
+    colors = {pw_age_level(iso(d)): pw_freshness_color(iso(d)) for d in (0, 120, 200, 400)}
+    assert len(set(colors.values())) == 4, "her kademe ayrı renk olmalı"
+    assert pw_age_level("") is None
+    assert pw_freshness_color("") == PW_AGE_UNKNOWN_COLOR
+
+
+def test_csv_export_round_trips_through_the_importer() -> None:
+    """Dışa aktarılan CSV, uygulamanın KENDİ içe aktarıcısıyla okunabilmeli."""
+    from kobipass.csv_export import (
+        DELIMITER_EXCEL,
+        DELIMITER_STANDARD,
+        build_export,
+        to_csv_bytes,
+    )
+    from kobipass.csv_import import parse_csv
+
+    vault = KobiVault()
+    vault.tabs = [
+        VaultTab(
+            id="t1",
+            name="Genel",
+            entries=[
+                VaultEntry(name="Gmail", info1="s3cret", more_infos=["ali@x.com"]),
+                VaultEntry(name="Banka", info1="p4ss"),
+            ],
+        ),
+        VaultTab(id="t2", name="Satış", entries=[VaultEntry(name="CRM", info1="q")]),
+    ]
+
+    for delimiter in (DELIMITER_EXCEL, DELIMITER_STANDARD):
+        plan = build_export(vault)
+        raw = to_csv_bytes(plan, delimiter=delimiter)
+        assert raw.startswith(b"\xef\xbb\xbf"), "Excel için BOM gerekli"
+        doc = parse_csv(raw)
+        assert doc.delimiter == delimiter
+        assert doc.warnings == [], f"kendi çıktımız uyarı üretti: {doc.warnings}"
+        # Başlık + 3 kayıt
+        assert len(doc.rows) == 4
+        body = raw.decode("utf-8")
+        assert "Gmail" in body and "s3cret" in body
+        # Sekme adı ilk kolonda taşınır.
+        assert "Genel" in body and "Satış" in body
+
+
+def test_csv_export_excludes_hidden_tabs_unless_asked() -> None:
+    """Gizli sekmeler VARSAYILAN OLARAK dışarıda kalmalı.
+
+    Gizli sekmeler kasadaki tek gerçek kriptografik sınır; şifresiz bir dosyaya
+    sessizce dökülmemeli. Açıkça istenirse aktarılır.
+    """
+    from kobipass.csv_export import build_export, to_csv_bytes
+
+    vault = KobiVault()
+    vault.tabs = [
+        VaultTab(id="n1", name="Genel", entries=[VaultEntry(name="acik", info1="p")]),
+        VaultTab(
+            id="h1",
+            name="GizliDep",
+            entries=[VaultEntry(name="SIR", info1="COK-GIZLI")],
+            hidden=True,
+        ),
+    ]
+
+    default_body = to_csv_bytes(build_export(vault)).decode("utf-8")
+    assert "acik" in default_body
+    assert "SIR" not in default_body
+    assert "COK-GIZLI" not in default_body
+    assert "GizliDep" not in default_body
+
+    opted_in = to_csv_bytes(build_export(vault, include_hidden=True)).decode("utf-8")
+    assert "COK-GIZLI" in opted_in
+    assert build_export(vault, include_hidden=True).hidden_tab_count == 1
+
+
+def test_csv_export_skips_empty_records_and_pads_ragged_rows() -> None:
+    """Boş kayıtlar atlanmalı; farklı hücre sayıları hizalanmalı."""
+    from kobipass.csv_export import build_export
+
+    vault = KobiVault()
+    vault.entries = [
+        VaultEntry(name="A", info1="p", more_infos=["x", "y"]),
+        VaultEntry(name="", info1="", more_infos=[]),          # tamamen boş
+        VaultEntry(name="B", info1="q"),
+    ]
+    plan = build_export(vault)
+    assert plan.record_count == 2
+    widths = {len(row) for row in plan.rows}
+    assert len(widths) == 1, f"satırlar hizasız: {widths}"
+    assert len(plan.headers) == widths.pop()
+
+
+def test_csv_export_uses_custom_column_labels() -> None:
+    """Kasada özel sütun etiketi varsa başlıklar onu kullanmalı."""
+    from kobipass.csv_export import build_export
+
+    vault = KobiVault()
+    vault.field_labels = {"name": "AÇIKLAMA", "info1": "VERİ1", "info2": "VERİ2"}
+    vault.entries = [VaultEntry(name="A", info1="p", more_infos=["x"])]
+    headers = build_export(vault).headers
+    assert headers[1] == "AÇIKLAMA"
+    assert headers[2] == "VERİ1"
+    assert headers[3] == "VERİ2"
